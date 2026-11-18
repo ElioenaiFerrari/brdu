@@ -2,12 +2,12 @@
 
 **BRDU** (Brazilian Decentralized *Unity*; o "U" só diferencia do BRDC) é uma **stablecoin lastreada em reais, em Rust**: 1 BRDU = R$ 1, com reserva atestada por emissores M-de-N, validadores BFT permissionados, P2P, carteira desktop (Tauri) e contratos nativos. É o projeto **irmão** do **BRDC** (Elixir, em `../brdc`), com as **mesmas funcionalidades e princípios**, para comparar eficiência de CPU e memória. O código-base vem do **Teko** (Rust, em `../teko`); os ADRs, fluxos e vetores vêm do BRDC.
 
-Idioma dos documentos: pt-BR. Identificadores, mensagens, crates, arquivos e pastas: **inglês**. É um projeto de estudo: sem auditoria, sem validade jurídica, sem integração bancária real.
+**Idioma (regra permanente):** só a **documentação** (`docs/`, README, este arquivo) e o **texto da interface (frontend)** são pt-BR. **Todo o resto é inglês**: identificadores, nomes e descrições de testes, comentários (`//`, `///`, `//!`), mensagens de erro, comandos, flags, ajuda e saída do CLI, `description` do `Cargo.toml`, comentários de Dockerfile/compose, dados de fixture, crates, arquivos e pastas. As APIs JSON devolvem códigos e mensagens em inglês; o frontend traduz. É um projeto de estudo: sem auditoria, sem validade jurídica, sem integração bancária real.
 
 ## Estado atual
 - **M1 (cripto e carteira) e M2 (ledger e moeda) prontos:** `brdu-crypto`, `brdu-wallet`, `brdu-ledger`, com os vetores e as transações do BRDC como oráculo.
 - M3 (`brdu-bft`) e M4 (`brdu-p2p`, `brdu-chain`, `brdu-node`) prontos.
-- M5 (`cargo dev …`), M6 (Docker: `cargo dev compose …`, `cargo dev load`) e M5b (rotação de validadores, simuladores, `docs-check`, `cargo menu`) prontos. Próximos: M7 explorador → M8 carteira → M9 contratos → M10 fechamento. **Frontend: tema igual ao do BRDC dark (Brasil, efeitos de letras criptografadas).** Plano em `docs/PHASES.md`.
+- M5 (`cargo dev …`), M6 (Docker: `cargo dev compose …`, `cargo dev load`) e M5b (rotação de validadores, simuladores, `docs-check`, `cargo menu`) prontos. M7 (explorador web em `tools/brdu-explorer`) pronto. Próximos: M8 carteira → M9 contratos → M10 fechamento. **Frontend: tema igual ao do BRDC dark (Brasil, efeitos de letras criptografadas).** Plano em `docs/PHASES.md`.
 
 ## Princípios inegociáveis (herdados do BRDC)
 1. **A chave nunca sai de quem a gerou.** Chaves e assinaturas ficam no backend Rust da carteira, nunca no webview; o servidor/nó nunca vê frase nem chave.

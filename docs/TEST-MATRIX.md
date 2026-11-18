@@ -86,8 +86,17 @@
 | `docs-check`: link quebrado, âncora, imagem sem alt, código em linha, crate/ADR/fluxo fora do índice, seção do molde, título em inglês, arquivo de segredo | `tools/brdu-dev/src/docs_check.rs` |
 | Todo item do menu vira um comando que a ajuda do `brdu-dev` conhece; a linha de comando leva parâmetros e `--dir` | `tools/brdu-menu/tests/catalog.rs` |
 
+## M7 · explorador (pronto)
+| Invariante | Teste |
+|---|---|
+| O explorador sincroniza de uma rede real, **reverifica** cada bloco e serve visão geral, bloco com certificado, transação, conta (as duas pontas da transferência), paginação e busca | `tools/brdu-explorer/tests/explorer.rs` |
+| Busca por altura, id, endereço e hash de bloco; **erro de digitação no endereço** é denunciado (checksum) | `explorer.rs` |
+| A página sai com **CSP estrita** (`default-src 'none'`, sem script nem estilo inline); `POST` dá 405; rota desconhecida 404 | `explorer.rs` |
+| **Nó que mente é recusado e denunciado:** bloco adulterado, fora de ordem e outra gênese não entram (`rejected_blocks`); o honesto entra inteiro | `explorer.rs` |
+| Interface pura: valor em unidades mínimas sem ponto flutuante (64 bits), hashes e endereços encurtados, tempo relativo, efeito de letras (classe do caractere, espaços fixos, termina no texto real) | `tools/brdu-explorer/ui/ui.test.mjs` (via `node --test`, chamado pelo teste Rust) |
+
 ## Planejado por marco
-M6 limites do Docker e carga; M7 explorador; M8 carteira; M9 contratos.
+M6 limites do Docker e carga; M8 carteira; M9 contratos.
 
 ## Limites honestos
 Implementações sobre bibliotecas RustCrypto (`ed25519-dalek`, `sha3`, `bip39`, `bech32`), **sem auditoria**. Os vetores do BRDC provam a compatibilidade com o BRDC, não a correção absoluta.

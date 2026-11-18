@@ -10,6 +10,7 @@
 7. [Laboratório Docker e teste de carga](flows/07-docker-lab-and-load-test.md) (M6) · [Resultados da carga](LOAD-RESULTS.md)
 8. [Rotação de validadores](flows/08-validator-rotation.md) (M5b)
 9. [Simuladores, `docs-check` e menu de desenvolvimento](flows/09-simulators-docs-check-and-menu.md) (M5b)
+10. [O explorador](flows/10-explorer.md) (M7)
 
 Os demais chegam com os marcos (o BRDC tem 24 fluxos que serão reescritos aqui).
 

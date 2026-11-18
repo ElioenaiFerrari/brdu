@@ -16,6 +16,7 @@ Os ADRs do BRDU nascem na ordem dos marcos; os que vêm do BRDC trazem a linha *
 | [0008](0008-strict-ed25519-verification.md) | Verificação Ed25519 estrita, e em lote só quando segura | Aceito | novo |
 | [0009](0009-fees-in-brdu-table-and-split.md) | Taxas em BRDU: tabela, repartição e ausência de halving | Aceito | BRDC 0008, 0014, 0027 |
 | [0010](0010-governance-of-issuers-and-validators.md) | Governança de emissores e validadores | Aceito (testes); real PENDENTE | BRDC 0013 |
+| [0017](0017-explorer-verified-replica.md) | Explorador com réplica verificada (não confia no nó) | Aceito | BRDC; ADR-0031 do Teko |
 | [0015](0015-validator-rotation.md) | Rotação do conjunto de validadores | Aceito | BRDC 0013; ADR-0045 do Teko |
 | [0016](0016-dev-simulators-and-evidence.md) | Simuladores só de dev e evidência sem penalidade | Aceito | BRDC 0028 |
 | [0013](0013-noise-transport-bound-to-consensus-key.md) | Transporte Noise XX ligado à chave de consenso | Aceito | BRDC 0007, 0015; `teko-p2p` |

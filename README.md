@@ -21,7 +21,8 @@
 | M5 | `brdu-dev`: `cargo dev init/up/down/status/wallet/send/fund/mint/burn/reserve/supply/blocks/tx` | **pronto** |
 | M5b | rotação de validadores (tipo 22, ADR-0015), simuladores (`equivocate`, `rotate`, `blocks-sim`, `stop/start`), `cargo dev docs-check` e `check`, menu `cargo menu` | **pronto** |
 | M6 | Docker: imagem única, `cargo dev compose`, `cargo dev load` ([resultados](docs/LOAD-RESULTS.md): ~2.000 tx/s a 0,5 CPU, 2,5 MiB em repouso) | **pronto** |
-| M7 a M10 | explorador, carteira Tauri, contratos, fechamento | planejado ([fases](docs/PHASES.md)) |
+| M7 | explorador web (tema do BRDC) que **reverifica cada bloco**: `cargo dev explorer` ou o serviço do Docker em `http://127.0.0.1:8545` | **pronto** |
+| M8 a M10 | carteira Tauri, contratos, fechamento | planejado ([fases](docs/PHASES.md)) |
 
 ## Mapa de crates
 | Crate | Papel | Marco |
@@ -37,6 +38,7 @@
 | `docker/` | `Dockerfile` único (validador e ferramentas) usado pelo laboratório. | M6 |
 | `tools/brdu-dev` | CLI de desenvolvimento: devnet local, carteira de teste, envio, mint, burn, reserva, consultas (`cargo dev`). | M5 |
 | `tools/brdu-sim` | simulador só de dev: equivocação de um validador de teste (a rede expõe a evidência). | M5b |
+| `tools/brdu-explorer` | explorador: réplica verificada + página web (tema BRDC) + API JSON somente leitura. | M7 |
 | `tools/brdu-menu` | menu de desenvolvimento com setas (ratatui) sobre o `brdu-dev`; só dev. | M5b |
 
 ## Início rápido
