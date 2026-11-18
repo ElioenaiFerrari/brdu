@@ -88,28 +88,21 @@ pub fn init(
     }
     // the web explorer (re-verifies every block; read-only), pointed at v1
     y.push_str("  explorer:\n    image: brdu-lab:dev\n    user: \"0:0\"\n    restart: \"no\"\n    cpus: 0.25\n    mem_limit: 128m\n    memswap_limit: 128m\n    pids_limit: 128\n    entrypoint: [\"brdu-explorer\"]\n    command: [\"--genesis\", \"/lab/genesis.hex\", \"--node\", \"v1:8080\", \"--listen\", \"0.0.0.0:8545\"]\n    volumes:\n      - ./genesis.hex:/lab/genesis.hex:ro\n    ports:\n      - \"127.0.0.1:8545:8545\"\n");
-    y.push_str("\nvolumes:\n");
+    // the wallet web server (TEST keys only): the vault lives in the `data-wallet` volume. Inside the container it listens
+    // on all interfaces (`--allow-remote`, the Host check is off because of the port mapping), but the port is published
+    // ONLY on the host's loopback, on 8547 (8546 is the port of the local `cargo dev wallet-web`, so both can run).
+    y.push_str("  wallet:\n    image: brdu-lab:dev\n    user: \"0:0\"\n    restart: \"no\"\n    cpus: 0.25\n    mem_limit: 128m\n    memswap_limit: 128m\n    pids_limit: 128\n    entrypoint: [\"brdu-web\"]\n    command: [\"--vault\", \"/data/vault.json\", \"--node\", \"v1:8080\", \"--explorer\", \"explorer:8545\", \"--listen\", \"0.0.0.0:8546\", \"--allow-remote\"]\n    depends_on:\n      - v1\n      - explorer\n    volumes:\n      - data-wallet:/data\n    ports:\n      - \"127.0.0.1:8547:8546\"\n");
+    y.push_str("\nvolumes:\n  data-wallet:\n");
     for i in 1..=total {
         y.push_str(&format!("  data-v{i}:\n"));
     }
     fs::write(dir.join("docker-compose.yml"), y).map_err(|e| e.to_string())?;
     println!(
-        "lab created in {}: {nodes} validators + {spare} spare(s), {cpus} CPU and {mem_mib} MiB each; explorer at http://127.0.0.1:8545",
+        "lab created in {}: {nodes} validators + {spare} spare(s), {cpus} CPU and {mem_mib} MiB each; explorer at http://127.0.0.1:8545, wallet at http://127.0.0.1:8547",
         dir.display()
     );
     println!("next: cargo dev compose up   (the first time it builds the image, a few minutes)");
     Ok(())
-}
-
-fn ensure_image() -> Result<(), String> {
-    if Command::new("docker")
-        .args(["image", "inspect", IMAGE])
-        .output()
-        .is_ok_and(|o| o.status.success())
-    {
-        return Ok(());
-    }
-    build()
 }
 
 /// `compose build`: builds the single image.
@@ -124,11 +117,17 @@ pub fn build() -> Result<(), String> {
 
 /// `compose up`: image, containers, and waits for them to become healthy.
 pub fn up(dir: &Path) -> Result<(), String> {
-    ensure_image()?;
+    // always build: with the BuildKit cache an unchanged tree takes seconds, and a stale image (without a newer binary)
+    // would fail in confusing ways
+    build()?;
     if !compose(dir, &["up", "-d", "--wait", "--wait-timeout", "90"])? {
         return Err("docker compose up failed (see `cargo dev compose logs`)".into());
     }
     println!("up. Query with: cargo dev --dir {} status", dir.display());
+    println!(
+        "  explorer  http://127.0.0.1:8545\n  wallet    http://127.0.0.1:8547   (create or import a wallet there; fund it with `cargo dev fund ADDRESS 1000 --dir {}`)",
+        dir.display()
+    );
     Ok(())
 }
 

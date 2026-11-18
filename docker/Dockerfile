@@ -7,12 +7,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release --locked -p brdu-nodebin -p brdu-dev -p brdu-explorer \
-    && mkdir -p /out && cp target/release/brdu-node target/release/brdu-dev target/release/brdu-explorer /out/
+    cargo build --release --locked -p brdu-nodebin -p brdu-dev -p brdu-explorer -p brdu-web \
+    && mkdir -p /out && cp target/release/brdu-node target/release/brdu-dev target/release/brdu-explorer target/release/brdu-web /out/
 
 FROM debian:bookworm-slim
 RUN useradd --system --uid 10001 --create-home brdu && mkdir -p /data && chown brdu /data
-COPY --from=build /out/brdu-node /out/brdu-dev /out/brdu-explorer /usr/local/bin/
+COPY --from=build /out/brdu-node /out/brdu-dev /out/brdu-explorer /out/brdu-web /usr/local/bin/
 USER brdu
 WORKDIR /data
 ENTRYPOINT ["brdu-node"]

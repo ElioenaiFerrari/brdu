@@ -798,6 +798,14 @@ fn cmd_compose(a: &Args) -> Result<(), String> {
             a.num("--min-block-ms", 200),
         );
     }
+    // one command is enough: `compose up` creates the lab with the defaults when there is none yet
+    if sub == "up" && !dir.join("docker-compose.yml").exists() {
+        println!(
+            "no lab in {}: creating one with the defaults (4 validators, 0.5 CPU and 256 MiB each)",
+            dir.display()
+        );
+        compose::init(&dir, 4, 0, "0.5", 256, 200)?;
+    }
     compose::run(&dir, sub, &pos[1..])
 }
 
