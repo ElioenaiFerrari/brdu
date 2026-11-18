@@ -28,7 +28,7 @@ fn cert(k: &[SecretKey], n: usize) -> Certificate {
 }
 
 #[test]
-fn quorum_e_mais_de_dois_tercos() {
+fn quorum_is_more_than_two_thirds() {
     assert!(!quorum(2, 4) && quorum(3, 4));
     assert!(!quorum(2, 3) && quorum(3, 3));
     assert!(!quorum(4, 6) && quorum(5, 6));
@@ -36,7 +36,7 @@ fn quorum_e_mais_de_dois_tercos() {
 }
 
 #[test]
-fn certificado_com_3_de_4_confere_e_com_2_nao() {
+fn certificate_with_3_of_4_checks_out_and_with_2_does_not() {
     let k = ks();
     assert_eq!(cert(&k, 3).verify(CHAIN, &pubs(&k)), Ok(()));
     assert_eq!(
@@ -47,7 +47,7 @@ fn certificado_com_3_de_4_confere_e_com_2_nao() {
 }
 
 #[test]
-fn certificado_recusa_cada_adulteracao() {
+fn certificate_rejects_every_tampering() {
     let k = ks();
     let v = pubs(&k);
     let mut c = cert(&k, 4);
@@ -74,17 +74,17 @@ fn certificado_recusa_cada_adulteracao() {
     assert_eq!(
         c.verify(CHAIN, &v[..3]),
         Err(CertError::UnknownVoter),
-        "o 4º não está no conjunto"
+        "the 4th is not in the set"
     );
     assert_eq!(
-        c.verify("outra-rede", &v),
+        c.verify("other-network", &v),
         Err(CertError::BadSignature),
-        "vale só na rede dele"
+        "valid only on its own network"
     );
 }
 
 #[test]
-fn voto_e_proposta_vao_e_voltam_e_a_assinatura_cobre_tudo() {
+fn vote_and_proposal_round_trip_and_the_signature_covers_everything() {
     let k = ks();
     let v = Vote::sign(
         CHAIN,
@@ -111,7 +111,7 @@ fn voto_e_proposta_vao_e_voltam_e_a_assinatura_cobre_tudo() {
         assert!(p.valid(CHAIN));
         assert!(
             Proposal::decode(&p.encode(), 2).is_err(),
-            "bloco acima do limite"
+            "block above the limit"
         );
     }
     let c = cert(&k, 3);
@@ -120,14 +120,14 @@ fn voto_e_proposta_vao_e_voltam_e_a_assinatura_cobre_tudo() {
 
 proptest! {
     #[test]
-    fn lixo_nunca_causa_panico(data in proptest::collection::vec(any::<u8>(), 0..400)) {
+    fn garbage_never_panics(data in proptest::collection::vec(any::<u8>(), 0..400)) {
         let _ = Vote::decode(&data);
         let _ = Proposal::decode(&data, 1000);
         let _ = Certificate::decode(&data);
     }
 
     #[test]
-    fn trocar_um_bit_do_voto_o_invalida_ou_nao_decodifica(i in 0usize..200) {
+    fn flipping_a_vote_bit_invalidates_it_or_it_fails_to_decode(i in 0usize..200) {
         let k = ks();
         let v = Vote::sign(CHAIN, VoteType::Precommit, 5, 2, Some(Hash32([1; 32])), &k[0]);
         let mut b = v.encode();

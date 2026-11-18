@@ -1,26 +1,26 @@
-//! O catálogo do menu: cada item é um comando do `brdu-dev` com parâmetros. Separado da tela para ser testável.
+//! The menu catalog: each item is a `brdu-dev` command with parameters. Kept separate from the screen so it is testable.
 
-/// Um parâmetro: se `flag` existe, vai como `--flag valor`; senão é posicional. Valor vazio = omitido.
+/// A parameter: if `flag` exists, it goes as `--flag value`; otherwise it is positional. An empty value is omitted.
 pub struct Param {
-    /// Nome mostrado no formulário.
+    /// Name shown in the form.
     pub name: &'static str,
-    /// A flag (`--amount`) ou `None` para posicional.
+    /// The flag (`--amount`) or `None` for positional.
     pub flag: Option<&'static str>,
-    /// Valor sugerido.
+    /// Suggested value.
     pub default: &'static str,
 }
 
-/// Um item do menu.
+/// A menu item.
 pub struct Item {
-    /// Grupo (título da seção).
+    /// Group (section title).
     pub group: &'static str,
-    /// O que aparece no menu.
+    /// What appears in the menu.
     pub label: &'static str,
-    /// Os argumentos fixos do `brdu-dev` (antes dos parâmetros).
+    /// The fixed `brdu-dev` arguments (before the parameters).
     pub args: &'static [&'static str],
-    /// Os parâmetros a perguntar.
+    /// The parameters to ask for.
     pub params: &'static [Param],
-    /// Este comando aceita `--dir`?
+    /// Does this command accept `--dir`?
     pub uses_dir: bool,
 }
 
@@ -48,285 +48,282 @@ const fn it(
     }
 }
 
-/// Todos os itens, na ordem do menu.
+/// All items, in menu order.
 pub const CATALOG: &[Item] = &[
     it(
-        "Rede local (processos)",
-        "Criar a rede (init)",
+        "Local network (processes)",
+        "Create the network (init)",
         &["init"],
         &[
-            p("validadores", Some("--nodes"), "4"),
-            p("reservas", Some("--spare"), "0"),
+            p("validators", Some("--nodes"), "4"),
+            p("spares", Some("--spare"), "0"),
         ],
         true,
     ),
     it(
-        "Rede local (processos)",
-        "Subir os nós (up)",
+        "Local network (processes)",
+        "Start the nodes (up)",
         &["up"],
         &[],
         true,
     ),
     it(
-        "Rede local (processos)",
-        "Estado dos nós (status)",
+        "Local network (processes)",
+        "Node status (status)",
         &["status"],
         &[],
         true,
     ),
     it(
-        "Rede local (processos)",
-        "Derrubar o nó N (stop)",
+        "Local network (processes)",
+        "Stop node N (stop)",
         &["stop"],
-        &[p("nó", None, "4")],
+        &[p("node", None, "4")],
         true,
     ),
     it(
-        "Rede local (processos)",
-        "Religar o nó N (start)",
+        "Local network (processes)",
+        "Restart node N (start)",
         &["start"],
-        &[p("nó", None, "4")],
+        &[p("node", None, "4")],
         true,
     ),
     it(
-        "Rede local (processos)",
-        "Derrubar todos (down)",
+        "Local network (processes)",
+        "Stop all (down)",
         &["down"],
         &[],
         true,
     ),
     it(
-        "Rede local (processos)",
-        "Apagar a rede (reset)",
+        "Local network (processes)",
+        "Delete the network (reset)",
         &["reset"],
         &[],
         true,
     ),
     it(
-        "Laboratório Docker",
-        "Criar o laboratório (compose init)",
+        "Docker lab",
+        "Create the lab (compose init)",
         &["compose", "init"],
         &[
-            p("validadores", Some("--nodes"), "4"),
-            p("reservas", Some("--spare"), "0"),
-            p("CPUs por nó", Some("--cpus"), "0.5"),
-            p("MiB por nó", Some("--mem"), "256"),
+            p("validators", Some("--nodes"), "4"),
+            p("spares", Some("--spare"), "0"),
+            p("CPUs per node", Some("--cpus"), "0.5"),
+            p("MiB per node", Some("--mem"), "256"),
         ],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Subir (compose up)",
+        "Docker lab",
+        "Start (compose up)",
         &["compose", "up"],
         &[],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Contêineres (compose ps)",
+        "Docker lab",
+        "Containers (compose ps)",
         &["compose", "ps"],
         &[],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Uso de CPU e memória (compose stats)",
+        "Docker lab",
+        "CPU and memory usage (compose stats)",
         &["compose", "stats"],
         &[],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Matar o nó N (compose kill)",
+        "Docker lab",
+        "Kill node N (compose kill)",
         &["compose", "kill"],
-        &[p("nó", None, "4")],
+        &[p("node", None, "4")],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Pausar o nó N (compose pause)",
+        "Docker lab",
+        "Pause node N (compose pause)",
         &["compose", "pause"],
-        &[p("nó", None, "3")],
+        &[p("node", None, "3")],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Retomar o nó N (compose unpause)",
+        "Docker lab",
+        "Resume node N (compose unpause)",
         &["compose", "unpause"],
-        &[p("nó", None, "3")],
+        &[p("node", None, "3")],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Religar o nó N (compose start)",
+        "Docker lab",
+        "Restart node N (compose start)",
         &["compose", "start"],
-        &[p("nó", None, "4")],
+        &[p("node", None, "4")],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Logs do nó N (compose logs)",
+        "Docker lab",
+        "Logs of node N (compose logs)",
         &["compose", "logs"],
-        &[p("nó", None, "1")],
+        &[p("node", None, "1")],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Derrubar (compose down)",
+        "Docker lab",
+        "Stop (compose down)",
         &["compose", "down"],
         &[],
         false,
     ),
     it(
-        "Laboratório Docker",
-        "Apagar o laboratório (compose clean)",
+        "Docker lab",
+        "Delete the lab (compose clean)",
         &["compose", "clean"],
         &[],
         false,
     ),
     it(
-        "Carteira de teste",
-        "Nova carteira",
+        "Test wallet",
+        "New wallet",
         &["wallet", "new"],
-        &[p("nome", None, "alice")],
+        &[p("name", None, "alice")],
         true,
     ),
     it(
-        "Carteira de teste",
-        "Listar carteiras",
+        "Test wallet",
+        "List wallets",
         &["wallet", "list"],
         &[],
         true,
     ),
     it(
-        "Carteira de teste",
-        "Saldo",
+        "Test wallet",
+        "Balance",
         &["balance"],
-        &[p("nome ou endereço", None, "alice")],
+        &[p("name or address", None, "alice")],
         true,
     ),
     it(
-        "Carteira de teste",
-        "Faucet de teste (fund)",
+        "Test wallet",
+        "Test faucet (fund)",
         &["fund"],
-        &[p("nome", None, "alice"), p("valor", None, "1000")],
+        &[p("name", None, "alice"), p("amount", None, "1000")],
         true,
     ),
     it(
-        "Carteira de teste",
-        "Enviar (send)",
+        "Test wallet",
+        "Send (send)",
         &["send"],
         &[
-            p("de", Some("--from"), "alice"),
-            p("para", Some("--to"), "bob"),
-            p("valor", Some("--amount"), "1,5"),
-            p("quantas", Some("--count"), "1"),
+            p("from", Some("--from"), "alice"),
+            p("to", Some("--to"), "bob"),
+            p("amount", Some("--amount"), "1,5"),
+            p("how many", Some("--count"), "1"),
         ],
         true,
     ),
     it(
-        "Emissão e reserva",
-        "Mint (emissores de teste)",
+        "Issuance and reserve",
+        "Mint (test issuers)",
         &["mint"],
         &[
-            p("para", Some("--to"), "alice"),
-            p("valor", Some("--amount"), "100"),
-            p("referência", Some("--ref"), "dep-1"),
+            p("to", Some("--to"), "alice"),
+            p("amount", Some("--amount"), "100"),
+            p("reference", Some("--ref"), "dep-1"),
         ],
         true,
     ),
     it(
-        "Emissão e reserva",
+        "Issuance and reserve",
         "Burn",
         &["burn"],
         &[
-            p("de", Some("--from"), "alice"),
-            p("valor", Some("--amount"), "10"),
-            p("referência", Some("--ref"), "saque-1"),
+            p("from", Some("--from"), "alice"),
+            p("amount", Some("--amount"), "10"),
+            p("reference", Some("--ref"), "withdrawal-1"),
         ],
         true,
     ),
     it(
-        "Emissão e reserva",
-        "Atestado de reserva",
+        "Issuance and reserve",
+        "Reserve attestation",
         &["reserve"],
-        &[p("valor", Some("--amount"), "1000")],
+        &[p("amount", Some("--amount"), "1000")],
         true,
     ),
     it(
-        "Emissão e reserva",
-        "Oferta e cobertura (supply)",
+        "Issuance and reserve",
+        "Supply and coverage (supply)",
         &["supply"],
         &[],
         true,
     ),
     it(
-        "Simuladores (só dev)",
-        "Equivocação do validador N (pare-o antes)",
+        "Simulators (dev only)",
+        "Equivocation by validator N (stop it first)",
         &["equivocate"],
-        &[p("validador", Some("--as"), "4")],
+        &[p("validator", Some("--as"), "4")],
         true,
     ),
     it(
-        "Simuladores (só dev)",
-        "Rotação de validadores",
+        "Simulators (dev only)",
+        "Validator rotation",
         &["rotate"],
-        &[p("entra", Some("--in"), "5"), p("sai", Some("--out"), "3")],
+        &[
+            p("joins", Some("--in"), "5"),
+            p("leaves", Some("--out"), "3"),
+        ],
         true,
     ),
     it(
-        "Simuladores (só dev)",
-        "Blocos sob demanda (blocks-sim)",
+        "Simulators (dev only)",
+        "Blocks on demand (blocks-sim)",
         &["blocks-sim"],
-        &[p("quantos", Some("--count"), "5")],
+        &[p("how many", Some("--count"), "5")],
         true,
     ),
     it(
-        "Teste de carga (Docker)",
-        "Escada de carga (load)",
+        "Load test (Docker)",
+        "Load ladder (load)",
         &["load"],
         &[
-            p("taxas", Some("--rates"), "50,100,200,400,800"),
-            p("segundos", Some("--secs"), "20"),
-            p("repetições", Some("--repeats"), "1"),
+            p("rates", Some("--rates"), "50,100,200,400,800"),
+            p("seconds", Some("--secs"), "20"),
+            p("repetitions", Some("--repeats"), "1"),
         ],
         false,
     ),
     it(
-        "Qualidade",
-        "Conferir a documentação (docs-check)",
+        "Quality",
+        "Check the documentation (docs-check)",
         &["docs-check"],
         &[],
         false,
     ),
+    it("Quality", "Full gate (check)", &["check"], &[], false),
     it(
-        "Qualidade",
-        "Portão completo (check)",
-        &["check"],
-        &[],
-        false,
-    ),
-    it(
-        "Consulta",
-        "Últimos blocos (blocks)",
+        "Query",
+        "Latest blocks (blocks)",
         &["blocks"],
-        &[p("quantos", Some("--limit"), "10")],
+        &[p("how many", Some("--limit"), "10")],
         true,
     ),
     it(
-        "Consulta",
-        "Uma transação (tx)",
+        "Query",
+        "A transaction (tx)",
         &["tx"],
         &[p("id", None, "")],
         true,
     ),
 ];
 
-/// Monta a linha de comando do `brdu-dev` (sem o nome do programa). `dir` entra como `--dir` nos itens que o usam.
+/// Builds the `brdu-dev` command line (without the program name). `dir` goes in as `--dir` for the items that use it.
 #[must_use]
 pub fn command_line(item: &Item, values: &[String], dir: &str) -> Vec<String> {
     let mut out: Vec<String> = item.args.iter().map(|s| (*s).to_string()).collect();
-    // posicionais primeiro (a ordem do catálogo), depois as flags
+    // positionals first (catalog order), then the flags
     for (param, v) in item.params.iter().zip(values) {
         if param.flag.is_none() && !v.trim().is_empty() {
             out.push(v.trim().to_string());
@@ -347,7 +344,7 @@ pub fn command_line(item: &Item, values: &[String], dir: &str) -> Vec<String> {
     out
 }
 
-/// Os valores sugeridos de um item.
+/// The suggested values of an item.
 #[must_use]
 pub fn defaults(item: &Item) -> Vec<String> {
     item.params.iter().map(|p| p.default.to_string()).collect()

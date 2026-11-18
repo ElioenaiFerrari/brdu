@@ -1,11 +1,11 @@
-//! Hexadecimal minúsculo (sem dependências).
+//! Lowercase hexadecimal (no dependencies).
 
 use alloc::string::String;
 use alloc::vec::Vec;
 
 const DIGITS: &[u8; 16] = b"0123456789abcdef";
 
-/// Bytes em hexadecimal minúsculo.
+/// Bytes as lowercase hexadecimal.
 #[must_use]
 pub fn encode(bytes: &[u8]) -> String {
     let mut out = String::with_capacity(bytes.len() * 2);
@@ -25,7 +25,7 @@ fn nibble(c: u8) -> Option<u8> {
     }
 }
 
-/// Lê hexadecimal (maiúsculas ou minúsculas). `None` se o tamanho for ímpar ou houver caractere inválido.
+/// Parses hexadecimal (upper or lower case). `None` if the length is odd or a character is invalid.
 #[must_use]
 pub fn decode(text: &str) -> Option<Vec<u8>> {
     let bytes = text.as_bytes();
@@ -39,7 +39,7 @@ pub fn decode(text: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-/// Lê exatamente `N` bytes em hexadecimal.
+/// Parses exactly `N` bytes of hexadecimal.
 #[must_use]
 pub fn decode_array<const N: usize>(text: &str) -> Option<[u8; N]> {
     decode(text)?.try_into().ok()

@@ -1,7 +1,7 @@
-//! Votos, propostas e certificado de commit (ADR-0003 do BRDU, "BFT permissionado").
+//! Votes, proposals and the commit certificate (BRDU ADR-0003, "permissioned BFT").
 //!
-//! Toda assinatura cobre o `chain_id`, a altura, a rodada e o conteúdo: nada vale em outra rede, altura, rodada
-//! ou tipo. O bloco viaja como **bytes opacos**: o consenso só conhece o hash dele.
+//! Every signature covers the `chain_id`, the height, the round and the content: nothing is valid on another network, height, round
+//! or type. The block travels as **opaque bytes**: consensus only knows its hash.
 
 use std::collections::BTreeSet;
 
@@ -9,19 +9,19 @@ use brdu_crypto::encoding::{Decoder, Encoder};
 use brdu_crypto::{DecodeError, Hash32, PublicKey, SecretKey, Signature, tagged};
 use thiserror::Error;
 
-/// Prefixo de domínio do documento que um voto assina.
+/// Domain prefix of the document a vote signs.
 pub const VOTE_TAG: &str = "brdu/vote";
-/// Prefixo de domínio do documento que uma proposta assina.
+/// Domain prefix of the document a proposal signs.
 pub const PROPOSAL_TAG: &str = "brdu/proposal";
-/// Mais validadores que isto é abuso (e limita o tamanho de um certificado).
+/// More validators than this is abuse (and bounds the size of a certificate).
 pub const MAX_VALIDATORS: usize = 256;
 
-/// Prevote ou precommit.
+/// Prevote or precommit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum VoteType {
-    /// Primeira fase de votação da rodada.
+    /// First voting phase of the round.
     Prevote,
-    /// Segunda fase: um precommit num bloco, de mais de 2/3, o torna final.
+    /// Second phase: precommits for a block from more than 2/3 make it final.
     Precommit,
 }
 
@@ -42,26 +42,26 @@ impl VoteType {
     }
 }
 
-/// Quórum: **mais de 2/3** de `n`.
+/// Quorum: **more than 2/3** of `n`.
 #[must_use]
 pub const fn quorum(count: usize, n: usize) -> bool {
     count * 3 > 2 * n
 }
 
-/// Voto assinado. `block_hash = None` é o **voto nulo** ("não vi bloco válido a tempo").
+/// Signed vote. `block_hash = None` is the **nil vote** ("I did not see a valid block in time").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Vote {
-    /// Tipo.
+    /// Type.
     pub vote_type: VoteType,
-    /// Altura.
+    /// Height.
     pub height: u64,
-    /// Rodada.
+    /// Round.
     pub round: u64,
-    /// O bloco votado, ou `None` (nulo).
+    /// The block voted for, or `None` (nil).
     pub block_hash: Option<Hash32>,
-    /// Quem votou.
+    /// Who voted.
     pub voter: PublicKey,
-    /// A assinatura.
+    /// The signature.
     pub signature: Signature,
 }
 
@@ -76,7 +76,7 @@ fn vote_doc(chain_id: &str, t: VoteType, height: u64, round: u64, hash: Option<&
 }
 
 impl Vote {
-    /// Assina um voto.
+    /// Signs a vote.
     #[must_use]
     pub fn sign(
         chain_id: &str,
@@ -97,7 +97,7 @@ impl Vote {
         }
     }
 
-    /// A assinatura confere?
+    /// Does the signature check out?
     #[must_use]
     pub fn valid(&self, chain_id: &str) -> bool {
         let doc = vote_doc(
@@ -110,7 +110,7 @@ impl Vote {
         self.voter.verify(doc.as_bytes(), &self.signature).is_ok()
     }
 
-    /// Codificação determinística.
+    /// Deterministic encoding.
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let mut e = Encoder::new();
@@ -123,7 +123,7 @@ impl Vote {
         e.finish().unwrap_or_default()
     }
 
-    /// Lê um voto. Recusa lixo, sobras e hash que não tenha 0 ou 32 bytes.
+    /// Reads a vote. Rejects garbage, trailing bytes and a hash that is not 0 or 32 bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, DecodeError> {
         let mut d = Decoder::new(bytes);
         let vote_type = VoteType::from_byte(d.u8()?).ok_or(DecodeError::Truncated)?;
@@ -147,23 +147,23 @@ impl Vote {
     }
 }
 
-/// Proposta de bloco do proponente da rodada. `valid_round` é a rodada em que o proponente viu mais de 2/3 de
-/// prevotes neste mesmo bloco (`-1` se é um bloco novo): serve para destravar validadores presos a outro bloco.
+/// Block proposal from the round's proposer. `valid_round` is the round in which the proposer saw more than 2/3 of
+/// prevotes for this same block (`-1` if it is a new block): it serves to unlock validators stuck on another block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Proposal {
     /// Altura.
     pub height: u64,
     /// Rodada.
     pub round: u64,
-    /// Rodada do último "bloco válido" do proponente, ou -1.
+    /// Round of the proposer's last "valid block", or -1.
     pub valid_round: i64,
-    /// Hash do bloco.
+    /// Block hash.
     pub block_hash: Hash32,
-    /// O bloco (opaco para o consenso).
+    /// The block (opaque to consensus).
     pub block: Vec<u8>,
-    /// Quem propôs.
+    /// Who proposed.
     pub proposer: PublicKey,
-    /// A assinatura (cobre o hash do bloco).
+    /// The signature (covers the block hash).
     pub signature: Signature,
 }
 
@@ -175,7 +175,7 @@ fn proposal_doc(
     hash: &Hash32,
 ) -> Hash32 {
     let mut e = Encoder::new();
-    // valid_round + 1, para o -1 caber num inteiro sem sinal
+    // valid_round + 1, so that -1 fits in an unsigned integer
     e.string(chain_id)
         .u64(height)
         .u64(round)
@@ -189,7 +189,7 @@ fn shift(valid_round: i64) -> u64 {
 }
 
 impl Proposal {
-    /// Assina uma proposta.
+    /// Signs a proposal.
     #[must_use]
     pub fn sign(
         chain_id: &str,
@@ -212,7 +212,7 @@ impl Proposal {
         }
     }
 
-    /// A assinatura confere? (Quem chama confere também que o hash bate com o bloco.)
+    /// Does the signature check out? (The caller also checks that the hash matches the block.)
     #[must_use]
     pub fn valid(&self, chain_id: &str) -> bool {
         let doc = proposal_doc(
@@ -227,7 +227,7 @@ impl Proposal {
             .is_ok()
     }
 
-    /// Codificação determinística.
+    /// Deterministic encoding.
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let mut e = Encoder::new();
@@ -241,7 +241,7 @@ impl Proposal {
         e.finish().unwrap_or_default()
     }
 
-    /// Lê uma proposta; recusa bloco maior que `max_block`.
+    /// Reads a proposal; rejects a block larger than `max_block`.
     pub fn decode(bytes: &[u8], max_block: usize) -> Result<Self, DecodeError> {
         let mut d = Decoder::new(bytes);
         let height = d.u64()?;
@@ -264,56 +264,56 @@ impl Proposal {
     }
 }
 
-/// Uma mensagem de consenso que vai pela rede.
+/// A consensus message that travels over the network.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
-    /// Proposta.
+    /// Proposal.
     Proposal(Proposal),
-    /// Voto.
+    /// Vote.
     Vote(Vote),
 }
 
-/// Por que um certificado não vale.
+/// Why a certificate is not valid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum CertError {
-    /// Algum voto não é precommit da altura e rodada do certificado.
-    #[error("votos de outra altura, rodada ou tipo")]
+    /// Some vote is not a precommit of the certificate's height and round.
+    #[error("votes from another height, round or type")]
     MismatchedVotes,
-    /// Algum voto é para outro bloco (ou nulo).
-    #[error("voto para outro bloco")]
+    /// Some vote is for another block (or nil).
+    #[error("vote for another block")]
     DifferentBlock,
-    /// O mesmo validador duas vezes.
-    #[error("validador repetido")]
+    /// The same validator twice.
+    #[error("duplicate validator")]
     DuplicateVoter,
-    /// Quem votou não é validador.
-    #[error("votante desconhecido")]
+    /// Whoever voted is not a validator.
+    #[error("unknown voter")]
     UnknownVoter,
-    /// Assinatura inválida.
-    #[error("assinatura inválida")]
+    /// Invalid signature.
+    #[error("invalid signature")]
     BadSignature,
-    /// Não passa de 2/3.
-    #[error("sem quórum")]
+    /// Does not exceed 2/3.
+    #[error("no quorum")]
     NoQuorum,
 }
 
-/// Certificado de commit: os precommits de **mais de 2/3** dos validadores no mesmo bloco. Quem não participou do
-/// consenso (um nó que sincroniza, a carteira, o explorador) confere sozinho e passa a **confiar no bloco sem
-/// confiar em quem o entregou**. Também diz **quem assinou**.
+/// Commit certificate: the precommits of **more than 2/3** of the validators for the same block. Whoever did not take part in
+/// consensus (a syncing node, the wallet, the explorer) checks it alone and comes to **trust the block without
+/// trusting whoever delivered it**. It also says **who signed**.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Certificate {
     /// Altura.
     pub height: u64,
     /// Rodada.
     pub round: u64,
-    /// O bloco decidido.
+    /// The decided block.
     pub block_hash: Hash32,
-    /// Os precommits.
+    /// The precommits.
     pub votes: Vec<Vote>,
 }
 
 impl Certificate {
-    /// Confere contra o conjunto de validadores em vigor: precommits da mesma altura e rodada, no mesmo bloco, de
-    /// validadores distintos e conhecidos, com assinatura válida, e mais de 2/3 deles.
+    /// Checks against the validator set in force: precommits of the same height and round, for the same block, from
+    /// distinct, known validators, with a valid signature, and more than 2/3 of them.
     pub fn verify(&self, chain_id: &str, validators: &[PublicKey]) -> Result<(), CertError> {
         if !self.votes.iter().all(|v| {
             v.vote_type == VoteType::Precommit && v.height == self.height && v.round == self.round
@@ -344,13 +344,13 @@ impl Certificate {
         }
     }
 
-    /// Quem assinou.
+    /// Who signed.
     #[must_use]
     pub fn signers(&self) -> Vec<PublicKey> {
         self.votes.iter().map(|v| v.voter).collect()
     }
 
-    /// Codificação determinística.
+    /// Deterministic encoding.
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let mut e = Encoder::new();
@@ -364,7 +364,7 @@ impl Certificate {
         e.finish().unwrap_or_default()
     }
 
-    /// Lê um certificado (no máximo `MAX_VALIDATORS` votos).
+    /// Reads a certificate (at most `MAX_VALIDATORS` votes).
     pub fn decode(bytes: &[u8]) -> Result<Self, DecodeError> {
         let mut d = Decoder::new(bytes);
         let height = d.u64()?;

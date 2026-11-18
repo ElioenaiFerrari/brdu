@@ -6,19 +6,19 @@ const ABOUT: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 #[test]
-fn gera_24_palavras_validas_e_diferentes_a_cada_vez() {
+fn generates_24_valid_words_that_differ_each_time() {
     let (a, b) = (Phrase::generate().unwrap(), Phrase::generate().unwrap());
     assert_eq!(a.len(), 24);
     let joined = a.words().join(" ");
     assert!(
         Phrase::parse(&joined).is_ok(),
-        "a frase gerada tem de passar no checksum"
+        "the generated phrase must pass the checksum"
     );
     assert_ne!(a.words(), b.words());
 }
 
 #[test]
-fn entropia_zero_da_a_frase_conhecida() {
+fn zero_entropy_gives_the_known_phrase() {
     let p = Phrase::from_entropy(&[0u8; 32]).unwrap();
     let w = p.words();
     assert_eq!(w.len(), 24);
@@ -27,7 +27,7 @@ fn entropia_zero_da_a_frase_conhecida() {
 }
 
 #[test]
-fn a_passphrase_e_a_25a_palavra_outra_passphrase_outra_carteira() {
+fn passphrase_is_the_25th_word_another_passphrase_another_wallet() {
     let p = Phrase::parse(ABOUT).unwrap();
     let a = |pass: &str| {
         p.wallet(pass)
@@ -37,14 +37,14 @@ fn a_passphrase_e_a_25a_palavra_outra_passphrase_outra_carteira() {
             .address()
             .encode()
     };
-    assert_eq!(a(""), a(""), "determinística");
-    assert_ne!(a(""), a("segredo"));
-    assert_ne!(a("segredo"), a("Segredo"), "maiúscula conta");
-    assert_ne!(a("segredo"), a("segredo "), "espaço conta");
+    assert_eq!(a(""), a(""), "deterministic");
+    assert_ne!(a(""), a("secret"));
+    assert_ne!(a("secret"), a("Secret"), "upper case counts");
+    assert_ne!(a("secret"), a("secret "), "space counts");
 }
 
 #[test]
-fn contas_e_indices_diferentes_dao_enderecos_diferentes() {
+fn different_accounts_and_indices_give_different_addresses() {
     let w = Phrase::parse(ABOUT).unwrap().wallet("").unwrap();
     let all: Vec<_> = [(0, 0), (0, 1), (1, 0), (1, 1)]
         .iter()
@@ -56,36 +56,36 @@ fn contas_e_indices_diferentes_dao_enderecos_diferentes() {
 }
 
 #[test]
-fn caminho_do_brdu_usa_a_moeda_brdu() {
+fn brdu_path_uses_the_brdu_coin_type() {
     assert_eq!(Wallet::path(0, 0), "m/44'/1112687701'/0'/0'/0'");
     assert_eq!(Wallet::path(2, 5), "m/44'/1112687701'/2'/0'/5'");
     assert_eq!(0x4252_4455u32, u32::from_be_bytes(*b"BRDU"));
 }
 
 #[test]
-fn a_conta_assina_e_o_endereco_confere_com_a_chave() {
+fn account_signs_and_address_matches_the_key() {
     let acc = Phrase::parse(ABOUT)
         .unwrap()
         .wallet("")
         .unwrap()
         .account(0, 0)
         .unwrap();
-    let sig = acc.secret_key().sign_tagged("brdu/tx", b"pagar");
+    let sig = acc.secret_key().sign_tagged("brdu/tx", b"pay");
     assert!(
         acc.public_key()
-            .verify_tagged("brdu/tx", b"pagar", &sig)
+            .verify_tagged("brdu/tx", b"pay", &sig)
             .is_ok()
     );
     assert!(acc.address().matches(acc.public_key()));
 }
 
 #[test]
-fn frases_invalidas_sao_recusadas() {
+fn invalid_phrases_are_rejected() {
     let bad = [
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon", // checksum
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon", // 11
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", // 13
-        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon zzzzzz", // fora da lista
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon zzzzzz", // not in the list
         "",
     ];
     for b in bad {
@@ -98,7 +98,7 @@ fn frases_invalidas_sao_recusadas() {
 }
 
 #[test]
-fn maiusculas_e_espacos_sobrando_sao_perdoados() {
+fn upper_case_and_extra_spaces_are_forgiven() {
     let sloppy = format!("  {}  ", ABOUT.to_uppercase().replace(' ', "   "));
     let a = Phrase::parse(&sloppy)
         .unwrap()
@@ -116,9 +116,9 @@ fn maiusculas_e_espacos_sobrando_sao_perdoados() {
 }
 
 #[test]
-fn passphrase_invalida_e_recusada() {
+fn invalid_passphrase_is_rejected() {
     let p = Phrase::parse(ABOUT).unwrap();
-    for bad in ["açaí", "senha\n", "tab\t", &"x".repeat(65)] {
+    for bad in ["pass世", "pass\n", "tab\t", &"x".repeat(65)] {
         assert_eq!(
             p.wallet(bad).err(),
             Some(WalletError::InvalidPassphrase),
@@ -129,7 +129,7 @@ fn passphrase_invalida_e_recusada() {
 }
 
 #[test]
-fn caminhos_nao_endurecidos_ou_malformados_sao_recusados() {
+fn non_hardened_or_malformed_paths_are_rejected() {
     let seed = [7u8; 16];
     for bad in [
         "",
@@ -154,7 +154,7 @@ fn caminhos_nao_endurecidos_ou_malformados_sao_recusados() {
 }
 
 #[test]
-fn nenhum_segredo_aparece_no_debug() {
+fn no_secret_appears_in_debug() {
     let p = Phrase::parse(ABOUT).unwrap();
     let w = p.wallet("").unwrap();
     let acc = w.account(0, 0).unwrap();
@@ -165,8 +165,8 @@ fn nenhum_segredo_aparece_no_debug() {
         format!("{acc:?}"),
         format!("{node:?}"),
     ] {
-        assert!(!shown.contains("abandon"), "vazou palavra: {shown}");
-        assert!(!shown.contains(&hex_of(&node.key)), "vazou chave: {shown}");
+        assert!(!shown.contains("abandon"), "leaked word: {shown}");
+        assert!(!shown.contains(&hex_of(&node.key)), "leaked key: {shown}");
     }
 }
 
@@ -178,7 +178,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(24))]
 
     #[test]
-    fn entropia_vira_frase_que_volta_igual_e_deriva_a_mesma_conta(entropy in any::<[u8; 32]>()) {
+    fn entropy_becomes_a_phrase_that_round_trips_and_derives_the_same_account(entropy in any::<[u8; 32]>()) {
         let p = Phrase::from_entropy(&entropy).unwrap();
         prop_assert_eq!(p.len(), 24);
         let again = Phrase::parse(&p.words().join(" ")).unwrap();
@@ -188,7 +188,7 @@ proptest! {
     }
 
     #[test]
-    fn passphrases_diferentes_nunca_dao_a_mesma_conta(entropy in any::<[u8; 32]>(), p1 in "[a-zA-Z0-9]{0,12}", p2 in "[a-zA-Z0-9]{0,12}") {
+    fn different_passphrases_never_give_the_same_account(entropy in any::<[u8; 32]>(), p1 in "[a-zA-Z0-9]{0,12}", p2 in "[a-zA-Z0-9]{0,12}") {
         prop_assume!(p1 != p2);
         let p = Phrase::from_entropy(&entropy).unwrap();
         let a = p.wallet(&p1).unwrap().account(0, 0).unwrap();

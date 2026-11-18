@@ -1,6 +1,6 @@
-//! Descoberta de pares: cada validador publica um registro de endereço assinado; os nós guardam o registro válido
-//! mais novo de cada validador em vigor e aprendem endereços uns dos outros. Só chaves do conjunto de validadores
-//! contam, então a descoberta não consegue pôr um estranho na rede.
+//! Peer discovery: each validator publishes a signed address record; nodes keep the newest valid record
+//! of each validator in force and learn addresses from one another. Only keys from the validator set
+//! count, so discovery cannot put a stranger on the network.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -9,28 +9,28 @@ use std::path::Path;
 use brdu_crypto::encoding::{Decoder, Encoder};
 use brdu_crypto::{Hash32, PublicKey, SecretKey, Signature, tagged};
 
-/// Prefixo de domínio do registro.
+/// Domain prefix of the record.
 pub const NET_RECORD: &str = "brdu/net/record";
-/// Um registro não pode alegar viver mais que isto (chave perdida não prende um endereço para sempre).
+/// A record cannot claim to live longer than this (a lost key does not pin an address forever).
 pub const MAX_LIFETIME_SECS: u64 = 7 * 86_400;
 const MAX_ADDR: usize = 255;
 const MAX_RECORDS: usize = 256;
 
-/// Onde achar um validador: endereço para pares e para a API pública, assinado pela chave de consenso. `seq` só
-/// sobe; `expires_at` é em segundos unix.
+/// Where to find a validator: address for peers and for the public API, signed by the consensus key. `seq` only
+/// increases; `expires_at` is in unix seconds.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PeerRecord {
-    /// Quem.
+    /// Who.
     pub consensus_key: PublicKey,
-    /// `host:porta` para os outros validadores.
+    /// `host:port` for the other validators.
     pub peer_addr: String,
-    /// `host:porta` da API pública (pode ser vazio).
+    /// `host:port` of the public API (may be empty).
     pub public_addr: String,
-    /// Sequência.
+    /// Sequence.
     pub seq: u64,
-    /// Validade (unix).
+    /// Expiry (unix).
     pub expires_at: u64,
-    /// Assinatura.
+    /// Signature.
     pub signature: Signature,
 }
 
@@ -48,7 +48,7 @@ fn signing_bytes(chain_id: &str, r: &PeerRecord) -> Hash32 {
     )
 }
 
-/// `host:porta` com porta numérica e host simples (IP ou nome DNS).
+/// `host:port` with a numeric port and a simple host (IP or DNS name).
 #[must_use]
 pub fn valid_addr(a: &str) -> bool {
     let Some((host, port)) = a.rsplit_once(':') else {
@@ -63,7 +63,7 @@ pub fn valid_addr(a: &str) -> bool {
 }
 
 impl PeerRecord {
-    /// Assina um registro.
+    /// Signs a record.
     #[must_use]
     pub fn sign(
         key: &SecretKey,
@@ -85,7 +85,7 @@ impl PeerRecord {
         r
     }
 
-    /// A assinatura confere?
+    /// Does the signature check out?
     #[must_use]
     pub fn verify(&self, chain_id: &str) -> bool {
         self.consensus_key
@@ -93,7 +93,7 @@ impl PeerRecord {
             .is_ok()
     }
 
-    /// Codificação determinística.
+    /// Deterministic encoding.
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let mut e = Encoder::new();
@@ -106,7 +106,7 @@ impl PeerRecord {
         e.finish().unwrap_or_default()
     }
 
-    /// Lê um registro.
+    /// Reads a record.
     #[must_use]
     pub fn decode(raw: &[u8]) -> Option<Self> {
         let mut d = Decoder::new(raw);
@@ -123,33 +123,33 @@ impl PeerRecord {
     }
 }
 
-/// O que um `merge` fez com um registro.
+/// What a `merge` did with a record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergeOutcome {
-    /// Novo.
+    /// New.
     Added,
-    /// Substituiu um mais antigo.
+    /// Replaced an older one.
     Updated,
-    /// Não é mais novo que o que já há.
+    /// Not newer than the one already there.
     Stale,
-    /// A chave não está no conjunto de validadores.
+    /// The key is not in the validator set.
     NotValidator,
-    /// Vencido.
+    /// Expired.
     Expired,
-    /// Assinatura inválida.
+    /// Invalid signature.
     BadSignature,
-    /// Endereços malformados ou validade além do máximo.
+    /// Malformed addresses or expiry beyond the maximum.
     Invalid,
 }
 
-/// O registro válido mais novo de cada validador.
+/// The newest valid record of each validator.
 pub struct PeerBook {
     chain_id: String,
     records: BTreeMap<PublicKey, PeerRecord>,
 }
 
 impl PeerBook {
-    /// Livro vazio.
+    /// Empty book.
     #[must_use]
     pub fn new(chain_id: &str) -> Self {
         Self {
@@ -158,7 +158,7 @@ impl PeerBook {
         }
     }
 
-    /// Considera um registro. `is_validator` diz se a chave pertence ao conjunto em vigor.
+    /// Considers a record. `is_validator` says whether the key belongs to the set in force.
     pub fn merge(
         &mut self,
         r: PeerRecord,
@@ -196,13 +196,13 @@ impl PeerBook {
         }
     }
 
-    /// O registro de uma chave.
+    /// The record of a key.
     #[must_use]
     pub fn get(&self, key: &PublicKey) -> Option<&PeerRecord> {
         self.records.get(key)
     }
 
-    /// Os registros ainda válidos em `now`.
+    /// The records still valid at `now`.
     #[must_use]
     pub fn live(&self, now: u64) -> Vec<PeerRecord> {
         self.records
@@ -212,13 +212,13 @@ impl PeerBook {
             .collect()
     }
 
-    /// Esquece as chaves que saíram do conjunto e os registros vencidos.
+    /// Forgets the keys that left the set and the expired records.
     pub fn prune(&mut self, is_validator: &dyn Fn(&PublicKey) -> bool, now: u64) {
         self.records
             .retain(|k, r| is_validator(k) && r.expires_at > now);
     }
 
-    /// Grava o livro (atômico: escreve e renomeia).
+    /// Saves the book (atomic: writes and renames).
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         let mut e = Encoder::new();
         e.count(self.records.len());
@@ -233,7 +233,7 @@ impl PeerBook {
         fs::rename(tmp, path)
     }
 
-    /// Carrega um livro salvo; registro que não confere mais é descartado. Arquivo ausente = livro vazio.
+    /// Loads a saved book; a record that no longer checks out is discarded. Missing file = empty book.
     #[must_use]
     pub fn load(chain_id: &str, path: &Path) -> Self {
         let mut me = Self::new(chain_id);

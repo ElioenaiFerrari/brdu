@@ -16,33 +16,33 @@ use thiserror::Error;
 use crate::core::{Core, Input};
 use crate::wire::Limits;
 
-/// Erros ao subir o nó.
+/// Errors while starting the node.
 #[derive(Debug, Error)]
 pub enum NodeError {
-    /// E/S.
+    /// I/O.
     #[error("i/o: {0}")]
     Io(#[from] std::io::Error),
-    /// Cadeia.
+    /// Chain.
     #[error("chain: {0}")]
     Chain(#[from] ChainError),
-    /// Rede.
+    /// Network.
     #[error("net: {0}")]
     Net(#[from] brdu_p2p::NetError),
-    /// Configuração.
+    /// Configuration.
     #[error("config: {0}")]
     Config(String),
 }
 
-/// Prazos do consenso: `base + delta * rodada`.
+/// Consensus timeouts: `base + delta * round`.
 #[derive(Debug, Clone, Copy)]
 pub struct Timeouts {
-    /// Espera pela proposta.
+    /// Wait for the proposal.
     pub propose: Duration,
-    /// Espera depois de mais de 2/3 de prevotes.
+    /// Wait after more than 2/3 of prevotes.
     pub prevote: Duration,
-    /// Espera depois de mais de 2/3 de precommits.
+    /// Wait after more than 2/3 of precommits.
     pub precommit: Duration,
-    /// Acréscimo por rodada.
+    /// Increase per round.
     pub delta: Duration,
 }
 
@@ -57,34 +57,34 @@ impl Default for Timeouts {
     }
 }
 
-/// Configuração do nó.
+/// Node configuration.
 pub struct Config {
-    /// A gênese da rede.
+    /// The network genesis.
     pub genesis: Genesis,
-    /// Chave de consenso deste validador.
+    /// This validator's consensus key.
     pub key: SecretKey,
-    /// Pasta de dados (log de blocos, diário, chave do Noise).
+    /// Data directory (block log, journal, Noise key).
     pub data_dir: PathBuf,
-    /// Onde escutar os outros validadores (porta 0 = qualquer).
+    /// Where to listen for the other validators (port 0 = any).
     pub listen: SocketAddr,
-    /// API HTTP (None = sem API).
+    /// HTTP API (None = no API).
     pub api: Option<SocketAddr>,
-    /// Endereços dos outros validadores (`host:porta`).
+    /// Addresses of the other validators (`host:port`).
     pub peers: Vec<String>,
-    /// Prazos.
+    /// Timeouts.
     pub timeouts: Timeouts,
-    /// Espaço mínimo entre blocos (agrupa transações).
+    /// Minimum spacing between blocks (batches transactions).
     pub min_block_interval: Duration,
-    /// Produzir blocos vazios? (padrão: não; sem transação a rede dorme.)
+    /// Produce empty blocks? (default: no; with no transactions the network sleeps.)
     pub empty_blocks: bool,
-    /// Limite do mempool em transações.
+    /// Mempool limit in transactions.
     pub max_pool_txs: usize,
-    /// Limite do mempool em bytes.
+    /// Mempool limit in bytes.
     pub max_pool_bytes: usize,
 }
 
 impl Config {
-    /// Configuração com os padrões.
+    /// Configuration with the defaults.
     #[must_use]
     pub fn new(genesis: Genesis, key: SecretKey, data_dir: PathBuf) -> Self {
         Self {
@@ -103,63 +103,63 @@ impl Config {
     }
 }
 
-/// Contadores para o laboratório de carga.
+/// Counters for the load lab.
 #[derive(Default)]
 pub struct Stats {
-    /// Transações aceitas no mempool.
+    /// Transactions accepted into the mempool.
     pub txs_accepted: AtomicU64,
-    /// Recusadas (qualquer motivo).
+    /// Rejected (for any reason).
     pub txs_rejected: AtomicU64,
-    /// Duplicatas de fofoca recebidas.
+    /// Gossip duplicates received.
     pub txs_duplicate: AtomicU64,
-    /// Transações retransmitidas.
+    /// Transactions relayed.
     pub txs_relayed: AtomicU64,
-    /// Blocos aplicados.
+    /// Blocks applied.
     pub blocks: AtomicU64,
-    /// Rodadas além da primeira (troca de turno).
+    /// Rounds beyond the first (turn change).
     pub extra_rounds: AtomicU64,
-    /// Mensagens recebidas.
+    /// Messages received.
     pub msgs_in: AtomicU64,
 }
 
-/// O que as outras threads leem.
+/// What the other threads read.
 pub struct Info {
-    /// Chaves dos pares conectados.
+    /// Keys of the connected peers.
     pub peers: Vec<PublicKey>,
-    /// Transações no mempool.
+    /// Transactions in the mempool.
     pub pool_len: usize,
-    /// Bytes no mempool.
+    /// Bytes in the mempool.
     pub pool_bytes: usize,
-    /// Evidências de equivocação vistas.
+    /// Equivocation evidence seen.
     pub evidence: Vec<(Vote, Vote)>,
-    /// id da transação → altura do bloco.
+    /// Transaction id → block height.
     pub tx_index: HashMap<Hash32, u64>,
-    /// O consenso está rodando (ou esperando transação)?
+    /// Is consensus running (or waiting for a transaction)?
     pub engine_running: bool,
-    /// Últimos erros de rede (aperto de mão recusado, discagem falhou): diagnóstico.
+    /// Latest network errors (handshake refused, dial failed): diagnostics.
     pub net_errors: Vec<String>,
 }
 
-/// O que o núcleo compartilha com as demais threads.
+/// What the core shares with the other threads.
 pub struct Shared {
-    /// A cadeia.
+    /// The chain.
     pub chain: Mutex<Chain>,
-    /// Estado de leitura.
+    /// Read-side state.
     pub info: Mutex<Info>,
-    /// Contadores.
+    /// Counters.
     pub stats: Stats,
-    /// Pedido de parada.
+    /// Stop request.
     pub stop: AtomicBool,
-    /// Limites de mensagem.
+    /// Message limits.
     pub limits: Limits,
-    /// Nossa chave pública.
+    /// Our public key.
     pub me: PublicKey,
-    /// Quem pode abrir conexão conosco: o conjunto de validadores em vigor mais a chave que entra numa troca
-    /// pendente (para o novo nó sincronizar antes de valer). O núcleo atualiza a cada bloco.
+    /// Who may open a connection to us: the validator set in force plus the key joining in a pending change
+    /// (so the new node can sync before it counts). The core updates it on every block.
     pub allowed: Mutex<std::collections::HashSet<PublicKey>>,
 }
 
-/// Um nó em execução.
+/// A running node.
 pub struct Node {
     pub(crate) shared: Arc<Shared>,
     pub(crate) core_tx: Sender<Input>,
@@ -169,7 +169,7 @@ pub struct Node {
 }
 
 impl Node {
-    /// Sobe o nó: carrega o log, escuta, disca aos pares e liga a API.
+    /// Starts the node: loads the log, listens, dials the peers and brings up the API.
     pub fn start(cfg: Config) -> Result<Self, NodeError> {
         std::fs::create_dir_all(&cfg.data_dir)?;
         let chain = Chain::with_executor(cfg.genesis.clone(), |rules| {
@@ -251,31 +251,31 @@ impl Node {
         })
     }
 
-    /// Endereço em que o nó escuta os pares.
+    /// Address on which the node listens for peers.
     #[must_use]
     pub const fn listen_addr(&self) -> SocketAddr {
         self.listen_addr
     }
 
-    /// Endereço da API HTTP.
+    /// HTTP API address.
     #[must_use]
     pub const fn api_addr(&self) -> Option<SocketAddr> {
         self.api_addr
     }
 
-    /// Compartilhado (leituras).
+    /// Shared state (reads).
     #[must_use]
     pub fn shared(&self) -> &Arc<Shared> {
         &self.shared
     }
 
-    /// Altura da cadeia.
+    /// Chain height.
     #[must_use]
     pub fn height(&self) -> u64 {
         self.shared.chain.lock().map_or(0, |c| c.height())
     }
 
-    /// Raiz de estado atual.
+    /// Current state root.
     #[must_use]
     pub fn state_root(&self) -> Hash32 {
         self.shared
@@ -284,7 +284,7 @@ impl Node {
             .map_or(Hash32::ZERO, |c| c.state().root())
     }
 
-    /// Hash do último bloco.
+    /// Hash of the last block.
     #[must_use]
     pub fn tip(&self) -> Option<Hash32> {
         self.shared
@@ -294,25 +294,25 @@ impl Node {
             .and_then(|c| c.state().last_hash())
     }
 
-    /// Quantos pares conectados.
+    /// How many peers are connected.
     #[must_use]
     pub fn peer_count(&self) -> usize {
         self.shared.info.lock().map_or(0, |i| i.peers.len())
     }
 
-    /// Evidências de equivocação vistas.
+    /// Equivocation evidence seen.
     #[must_use]
     pub fn evidence_count(&self) -> usize {
         self.shared.info.lock().map_or(0, |i| i.evidence.len())
     }
 
-    /// Envia uma transação ao mempool (o mesmo caminho da API).
+    /// Submits a transaction to the mempool (the same path as the API).
     pub fn submit(&self, tx: &Tx) -> Result<Hash32, String> {
         let raw = tx.encode().map_err(|e| e.to_string())?;
         crate::api::submit_raw(&self.shared, &self.core_tx, &raw)
     }
 
-    /// Para o nó e espera as threads.
+    /// Stops the node and waits for the threads.
     pub fn stop(mut self) {
         self.shared.stop.store(true, Ordering::SeqCst);
         let _ = self.core_tx.send(Input::Stop);

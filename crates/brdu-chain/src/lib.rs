@@ -1,7 +1,7 @@
-//! A cadeia do BRDU: **gênese** (rede, validadores, emissores, regras), **blocos finais** (bloco + certificado de
-//! commit) e uma **réplica verificada** que só aceita um bloco depois de conferir o certificado (mais de 2/3 dos
-//! validadores), o proponente da rodada, o conjunto que reparte a taxa e a execução exata do ledger. Quem
-//! sincroniza (nó, carteira, explorador) não precisa confiar em quem entregou o bloco.
+//! The BRDU chain: **genesis** (network, validators, issuers, rules), **finalized blocks** (block + commit
+//! certificate) and a **verified replica** that only accepts a block after checking the certificate (more than 2/3 of the
+//! validators), the round proposer, the set that splits the fee and the exact ledger execution. Whoever
+//! syncs (node, wallet, explorer) does not need to trust whoever delivered the block.
 #![forbid(unsafe_code)]
 
 mod chain;

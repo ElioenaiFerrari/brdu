@@ -1,9 +1,9 @@
-//! Estado determinístico: contas, oferta, referências usadas, atestado de reserva e o armazenamento dos módulos.
+//! Deterministic state: accounts, supply, used references, reserve attestation and module storage.
 //!
-//! - **Raiz de estado:** árvore de Merkle sobre as entradas **em ordem**, então a raiz não depende da ordem em que
-//!   o estado foi montado. Conta com saldo e nonce zero não existe (forma canônica).
-//! - **Atomicidade:** mudanças dentro de [`State::atomically`] vão para um diário de desfazer; se algo falha, tudo
-//!   volta, sem copiar o estado inteiro.
+//! - **State root:** Merkle tree over the entries **in order**, so the root does not depend on the order in which
+//!   the state was built. An account with zero balance and zero nonce does not exist (canonical form).
+//! - **Atomicity:** changes inside [`State::atomically`] go to an undo journal; if something fails, everything
+//!   rolls back, without copying the whole state.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -11,34 +11,34 @@ use brdu_crypto::{Address, Hash32, merkle, tagged, tags};
 
 use crate::error::LedgerError;
 
-/// Saldo e nonce de uma conta.
+/// Balance and nonce of an account.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Account {
-    /// Saldo em unidades mínimas.
+    /// Balance in minimum units.
     pub balance: u64,
-    /// Próximo nonce esperado.
+    /// Next expected nonce.
     pub nonce: u64,
 }
 
-/// Último atestado de reserva.
+/// Last reserve attestation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attestation {
-    /// Número de sequência (1, 2, 3…).
+    /// Sequence number (1, 2, 3…).
     pub seq: u64,
-    /// Total em reais em caixa, em unidades mínimas (1 BRDU = R$ 1).
+    /// Total reais in the vault, in minimum units (1 BRDU = R$ 1).
     pub reserve: u64,
-    /// Referência (por exemplo, o documento do banco).
+    /// Reference (for example, the bank document).
     pub reference: String,
 }
 
-/// Cobertura: a reserva atestada contra o que circula. **Só informação**: a rede não bloqueia nada (ADR-0006).
+/// Coverage: the attested reserve against what circulates. **Information only**: the network blocks nothing (ADR-0006).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Coverage {
-    /// Nunca houve atestado.
+    /// There has never been an attestation.
     None,
-    /// Reserva maior ou igual à oferta; sobram tantas unidades.
+    /// Reserve greater than or equal to supply; that many units are left over.
     Covered(u64),
-    /// Reserva menor que a oferta; faltam tantas unidades.
+    /// Reserve smaller than supply; that many units are missing.
     Under(u64),
 }
 
@@ -57,7 +57,7 @@ enum Undo {
     Ext(Vec<u8>, Option<Vec<u8>>),
 }
 
-/// O estado do livro-razão.
+/// The ledger state.
 #[derive(Debug, Clone, Default)]
 pub struct State {
     accounts: BTreeMap<Address, Account>,
@@ -89,68 +89,68 @@ impl PartialEq for State {
 impl Eq for State {}
 
 impl State {
-    /// O estado da gênese: vazio, altura 0.
+    /// The genesis state: empty, height 0.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    // --- leitura -------------------------------------------------------------------------------
+    // --- reads ---------------------------------------------------------------------------------
 
-    /// A conta (zerada se não existe).
+    /// The account (zeroed if it does not exist).
     #[must_use]
     pub fn account(&self, address: &Address) -> Account {
         self.accounts.get(address).copied().unwrap_or_default()
     }
 
-    /// Saldo.
+    /// Balance.
     #[must_use]
     pub fn balance(&self, address: &Address) -> u64 {
         self.account(address).balance
     }
 
-    /// Próximo nonce.
+    /// Next nonce.
     #[must_use]
     pub fn nonce(&self, address: &Address) -> u64 {
         self.account(address).nonce
     }
 
-    /// Quantas contas existem.
+    /// How many accounts exist.
     #[must_use]
     pub fn accounts_len(&self) -> usize {
         self.accounts.len()
     }
 
-    /// As contas, em ordem de endereço.
+    /// The accounts, in address order.
     pub fn accounts(&self) -> impl Iterator<Item = (&Address, &Account)> {
         self.accounts.iter()
     }
 
-    /// Total criado (mint).
+    /// Total created (mint).
     #[must_use]
     pub const fn minted(&self) -> u64 {
         self.minted
     }
 
-    /// Total destruído (burn).
+    /// Total destroyed (burn).
     #[must_use]
     pub const fn burned(&self) -> u64 {
         self.burned
     }
 
-    /// Oferta em circulação: `emitido − queimado`.
+    /// Supply in circulation: `minted − burned`.
     #[must_use]
     pub const fn supply(&self) -> u64 {
         self.minted.saturating_sub(self.burned)
     }
 
-    /// Último atestado de reserva.
+    /// Last reserve attestation.
     #[must_use]
     pub const fn attestation(&self) -> Option<&Attestation> {
         self.attestation.as_ref()
     }
 
-    /// Cobertura da reserva (só informação).
+    /// Reserve coverage (information only).
     #[must_use]
     pub fn coverage(&self) -> Coverage {
         match &self.attestation {
@@ -160,37 +160,37 @@ impl State {
         }
     }
 
-    /// Altura do último bloco aplicado (0 na gênese).
+    /// Height of the last applied block (0 at genesis).
     #[must_use]
     pub const fn height(&self) -> u64 {
         self.height
     }
 
-    /// Hora (segundos Unix) do último bloco.
+    /// Time (Unix seconds) of the last block.
     #[must_use]
     pub const fn time(&self) -> u64 {
         self.time
     }
 
-    /// Hash do último bloco aplicado.
+    /// Hash of the last applied block.
     #[must_use]
     pub const fn last_hash(&self) -> Option<Hash32> {
         self.last_hash
     }
 
-    /// A referência (`kind`, texto) já foi usada?
+    /// Has the reference (`kind`, text) already been used?
     #[must_use]
     pub fn ref_used(&self, kind: u8, reference: &str) -> bool {
         self.refs.contains(&(kind, reference.to_string()))
     }
 
-    /// Leitura do armazenamento de um módulo.
+    /// Read from a module's storage.
     #[must_use]
     pub fn ext_get(&self, key: &[u8]) -> Option<&[u8]> {
         self.ext.get(key).map(Vec::as_slice)
     }
 
-    /// Entradas do armazenamento de módulos cuja chave começa com `prefix`.
+    /// Entries of module storage whose key starts with `prefix`.
     pub fn ext_scan<'a>(
         &'a self,
         prefix: &'a [u8],
@@ -201,9 +201,9 @@ impl State {
             .map(|(k, v)| (k.as_slice(), v.as_slice()))
     }
 
-    // --- atomicidade ---------------------------------------------------------------------------
+    // --- atomicity -----------------------------------------------------------------------------
 
-    /// Roda `f`; se devolver erro, **desfaz tudo** o que `f` mudou. Pode ser aninhada.
+    /// Runs `f`; if it returns an error, **undoes everything** `f` changed. Can be nested.
     pub fn atomically<T>(
         &mut self,
         f: impl FnOnce(&mut Self) -> Result<T, LedgerError>,
@@ -229,7 +229,7 @@ impl State {
         }
     }
 
-    /// Roda `f` e **sempre** desfaz (para calcular a raiz de um bloco sem aplicá-lo).
+    /// Runs `f` and **always** undoes it (to compute a block's root without applying it).
     pub fn speculate<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let mark = self.undo.len();
         self.depth += 1;
@@ -283,9 +283,9 @@ impl State {
         }
     }
 
-    // --- escrita (para o executor e os módulos) ------------------------------------------------
+    // --- writes (for the executor and the modules) ---------------------------------------------
 
-    /// Grava a conta; saldo e nonce zero removem a entrada (forma canônica).
+    /// Writes the account; zero balance and zero nonce remove the entry (canonical form).
     pub fn set_account(&mut self, address: Address, account: Account) {
         let old = self.accounts.get(&address).copied();
         self.record(Undo::Account(address, old));
@@ -296,7 +296,7 @@ impl State {
         }
     }
 
-    /// Soma `amount` ao saldo.
+    /// Adds `amount` to the balance.
     pub fn credit(&mut self, address: &Address, amount: u64) -> Result<(), LedgerError> {
         let mut acc = self.account(address);
         acc.balance = acc
@@ -307,7 +307,7 @@ impl State {
         Ok(())
     }
 
-    /// Tira `amount` do saldo.
+    /// Subtracts `amount` from the balance.
     pub fn debit(&mut self, address: &Address, amount: u64) -> Result<(), LedgerError> {
         let mut acc = self.account(address);
         acc.balance = acc
@@ -369,25 +369,25 @@ impl State {
         self.last_hash = Some(hash);
     }
 
-    /// Grava no armazenamento de um módulo.
+    /// Writes to a module's storage.
     pub fn ext_put(&mut self, key: Vec<u8>, value: Vec<u8>) {
         let old = self.ext.get(&key).cloned();
         self.record(Undo::Ext(key.clone(), old));
         self.ext.insert(key, value);
     }
 
-    /// Apaga do armazenamento de um módulo.
+    /// Removes from a module's storage.
     pub fn ext_remove(&mut self, key: &[u8]) {
         if let Some(old) = self.ext.remove(key) {
             self.record(Undo::Ext(key.to_vec(), Some(old)));
         }
     }
 
-    // --- raiz ----------------------------------------------------------------------------------
+    // --- root ----------------------------------------------------------------------------------
 
-    /// A raiz de estado (Merkle). Não depende da ordem em que o estado foi montado. **Não** inclui o hash do último
-    /// bloco: a ligação entre blocos é o `prev_hash`, e assim a raiz do estado depois do bloco é exatamente o
-    /// `state_root` do cabeçalho.
+    /// The state root (Merkle). Does not depend on the order in which the state was built. Does **not** include the last block
+    /// hash: the link between blocks is `prev_hash`, so the state root after the block is exactly the header's
+    /// `state_root`.
     #[must_use]
     pub fn root(&self) -> Hash32 {
         let accounts: Vec<Hash32> = self

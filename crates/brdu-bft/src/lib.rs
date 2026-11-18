@@ -1,5 +1,5 @@
-//! Consenso BFT do BRDU (desenho Tendermint, validadores de poder igual), **sem E/S**: o motor recebe eventos e
-//! devolve ações; quem o roda (o nó, ou o simulador) entrega mensagens, dispara prazos e executa as ações.
+//! BRDU BFT consensus (Tendermint design, equal-power validators), **with no I/O**: the engine receives events and
+//! returns actions; whoever runs it (the node, or the simulator) delivers messages, fires timeouts and executes the actions.
 #![forbid(unsafe_code)]
 
 pub mod engine;

@@ -1,13 +1,13 @@
-//! Livro-razão do BRDU: a máquina de estados que o consenso replica.
+//! BRDU ledger: the state machine that consensus replicates.
 //!
-//! - [`Tx`]: transação assinada (mesmo formato do BRDC), com taxa e nonce.
-//! - [`State`]: contas, oferta, referências, atestado de reserva e armazenamento dos módulos, com **raiz de
-//!   Merkle** e desfazer atômico.
-//! - [`Block`] e [`Executor`]: bloco inteiro ou nada; taxa repartida entre os validadores; raiz de estado conferida.
-//! - [`coin`]: transferência, mint, burn e atestado de reserva (M-de-N emissores); cobertura só como informação.
-//! - [`Module`]: ponto de extensão para bens, credenciais e contratos (marco M9).
+//! - [`Tx`]: signed transaction (same format as BRDC), with fee and nonce.
+//! - [`State`]: accounts, supply, references, reserve attestation and module storage, with a **Merkle
+//!   root** and atomic undo.
+//! - [`Block`] and [`Executor`]: a whole block or nothing; fee split among the validators; state root checked.
+//! - [`coin`]: transfer, mint, burn and reserve attestation (M-of-N issuers); coverage as information only.
+//! - [`Module`]: extension point for assets, credentials and contracts (milestone M9).
 //!
-//! Puro: sem E/S, sem rede, sem relógio. **Não auditado.**
+//! Pure: no I/O, no network, no clock. **Not audited.**
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
 pub mod block;

@@ -8,17 +8,17 @@ use zeroize::Zeroizing;
 
 use crate::error::NetError;
 
-/// Prefixo de domínio da prova de identidade.
+/// Domain prefix of the identity proof.
 pub const NET_BIND: &str = "brdu/net/bind";
 
-/// Quem pode falar com este nó: as chaves de consenso dos validadores em vigor (o hospedeiro as mantém em dia).
+/// Who may talk to this node: the consensus keys of the validators in force (the host keeps them up to date).
 pub trait PeerPolicy: Send + Sync {
-    /// Esta chave de consenso é aceita?
+    /// Is this consensus key accepted?
     fn accepts(&self, consensus_key: &PublicKey) -> bool;
 }
 
-/// O que um nó é na rede: a chave de consenso (a instituição), a rede e a gênese a que pertence, e o par estático
-/// do Noise (feito na primeira execução, nunca sai do nó).
+/// What a node is on the network: the consensus key (the institution), the network and genesis it belongs to, and the static
+/// Noise key pair (made on first run, never leaves the node).
 pub struct NetIdentity {
     pub(crate) consensus: SecretKey,
     pub(crate) chain_id: String,
@@ -27,23 +27,23 @@ pub struct NetIdentity {
     pub(crate) noise_public: Vec<u8>,
 }
 
-/// Enviada dentro do aperto de mão: a chave de consenso e a assinatura dela sobre **esta** chave estática do
-/// Noise, a rede e a gênese. Ninguém empresta a prova a outra chave nem a repete em outra rede.
+/// Sent inside the handshake: the consensus key and its signature over **this** static Noise key,
+/// the network and the genesis. Nobody lends the proof to another key or replays it on another network.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IdentityProof {
-    /// Chave de consenso.
+    /// Consensus key.
     pub consensus_key: PublicKey,
-    /// Rede.
+    /// Network.
     pub chain_id: String,
-    /// Gênese.
+    /// Genesis.
     pub genesis_hash: Hash32,
-    /// Assinatura.
+    /// Signature.
     pub signature: Signature,
 }
 
 pub(crate) const NOISE_PARAMS: &str = "Noise_XX_25519_ChaChaPoly_SHA256";
 
-/// O que a prova assina. `role` (1 = quem disca, 2 = quem aceita) impede refletir a prova contra o autor.
+/// What the proof signs. `role` (1 = the dialler, 2 = the acceptor) prevents reflecting the proof back at its author.
 fn bound(chain_id: &str, genesis: &Hash32, noise_static: &[u8], role: u8) -> Hash32 {
     tagged(
         NET_BIND,
@@ -83,7 +83,7 @@ impl IdentityProof {
 }
 
 impl NetIdentity {
-    /// Uma identidade nova, com par Noise novo (em memória).
+    /// A new identity, with a new Noise key pair (in memory).
     pub fn generate(
         consensus: SecretKey,
         chain_id: &str,
@@ -104,7 +104,7 @@ impl NetIdentity {
         })
     }
 
-    /// Carrega o par Noise de `path` (hex, `privada || pública`), ou o cria e grava (0600).
+    /// Loads the Noise key pair from `path` (hex, `private || public`), or creates and writes it (0600).
     pub fn load_or_create(
         consensus: SecretKey,
         chain_id: &str,
@@ -139,7 +139,7 @@ impl NetIdentity {
         Ok(id)
     }
 
-    /// A chave de consenso que nomeia este nó.
+    /// The consensus key that names this node.
     #[must_use]
     pub fn consensus_key(&self) -> PublicKey {
         self.consensus.public()
@@ -155,7 +155,7 @@ impl NetIdentity {
         }
     }
 
-    /// Confere a prova do par contra a chave estática DELE e o papel; devolve a chave de consenso dele.
+    /// Checks the peer's proof against THEIR static key and the role; returns their consensus key.
     pub(crate) fn check_proof(
         &self,
         raw: &[u8],

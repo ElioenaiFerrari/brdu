@@ -4,37 +4,37 @@ use brdu_ledger::Rules;
 
 use crate::error::ChainError;
 
-/// Prefixo de domínio do hash da gênese.
+/// Domain prefix of the genesis hash.
 pub const GENESIS_TAG: &str = "brdu/genesis";
 const MAX_SET: usize = 256;
 
-/// O ato de fundação de uma rede: tudo o que os nós precisam combinar antes do bloco 1.
+/// A network's founding act: everything the nodes must agree on before block 1.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Genesis {
-    /// Nome da rede (entra em toda assinatura).
+    /// Network name (goes into every signature).
     pub chain_id: String,
-    /// Validadores, **na ordem** que decide o proponente: `validators[(altura + rodada) % n]`.
+    /// Validators, **in the order** that decides the proposer: `validators[(height + round) % n]`.
     pub validators: Vec<PublicKey>,
-    /// Emissores (mint, burn, atestado), conjunto separado dos validadores (ADR-0010).
+    /// Issuers (mint, burn, attestation), a set separate from the validators (ADR-0010).
     pub issuers: Vec<PublicKey>,
-    /// Quantos emissores têm de aprovar (M de N).
+    /// How many issuers must approve (M of N).
     pub issuer_threshold: u32,
-    /// Taxa base de transferência.
+    /// Base transfer fee.
     pub transfer_base: u64,
-    /// Taxa por byte.
+    /// Fee per byte.
     pub per_byte: u64,
-    /// Máximo de transações por bloco.
+    /// Maximum transactions per block.
     pub max_block_txs: u32,
-    /// Máximo de bytes por bloco.
+    /// Maximum bytes per block.
     pub max_block_bytes: u32,
-    /// Menor tamanho que o conjunto de validadores pode ter (rotação).
+    /// Smallest size the validator set may have (rotation).
     pub min_validators: u32,
-    /// Maior tamanho do conjunto (no máximo 32).
+    /// Largest size of the set (at most 32).
     pub max_validators: u32,
 }
 
 impl Genesis {
-    /// Gênese com as regras padrão.
+    /// Genesis with the default rules.
     #[must_use]
     pub fn new(
         chain_id: &str,
@@ -56,7 +56,7 @@ impl Genesis {
         }
     }
 
-    /// Confere a gênese e monta as regras do ledger.
+    /// Checks the genesis and builds the ledger rules.
     pub fn rules(&self) -> Result<Rules, ChainError> {
         if self.validators.is_empty() || self.validators.len() > MAX_SET {
             return Err(ChainError::Genesis("validator count"));
@@ -84,7 +84,7 @@ impl Genesis {
         Ok(rules)
     }
 
-    /// Os endereços dos validadores, **ordenados**: o `signers` de todo bloco.
+    /// The validators' addresses, **sorted**: the `signers` of every block.
     #[must_use]
     pub fn signer_addresses(&self) -> Vec<Address> {
         let mut v: Vec<Address> = self
@@ -96,7 +96,7 @@ impl Genesis {
         v
     }
 
-    /// Codificação determinística.
+    /// Deterministic encoding.
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let mut e = Encoder::new();
@@ -118,7 +118,7 @@ impl Genesis {
         e.finish().unwrap_or_default()
     }
 
-    /// Lê uma gênese.
+    /// Reads a genesis.
     pub fn decode(bytes: &[u8]) -> Result<Self, ChainError> {
         let mut d = Decoder::new(bytes);
         let chain_id = d.string(64)?.to_string();
@@ -148,7 +148,7 @@ impl Genesis {
         Ok(g)
     }
 
-    /// O hash que identifica a rede: dois nós só se falam se concordam nele.
+    /// The hash that identifies the network: two nodes only talk if they agree on it.
     #[must_use]
     pub fn hash(&self) -> Hash32 {
         tagged(GENESIS_TAG, &[&self.encode()])

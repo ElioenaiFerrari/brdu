@@ -1,11 +1,11 @@
-//! Codificação determinística (ADR-0011): campos em ordem fixa, inteiros big-endian, tamanho de 4 bytes antes de
-//! cada campo variável. Nunca há dois jeitos de escrever o mesmo valor, então o hash é estável entre máquinas.
+//! Deterministic encoding (ADR-0011): fields in fixed order, big-endian integers, a 4-byte length before
+//! each variable field. There are never two ways to write the same value, so the hash is stable across machines.
 
 use alloc::vec::Vec;
 
 use crate::error::DecodeError;
 
-/// Monta bytes campo a campo.
+/// Builds bytes field by field.
 #[derive(Debug, Default)]
 pub struct Encoder {
     buf: Vec<u8>,
@@ -13,31 +13,31 @@ pub struct Encoder {
 }
 
 impl Encoder {
-    /// Um codificador vazio.
+    /// An empty encoder.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Um byte.
+    /// A single byte.
     pub fn u8(&mut self, v: u8) -> &mut Self {
         self.buf.push(v);
         self
     }
 
-    /// Inteiro de 32 bits, big-endian.
+    /// A 32-bit integer, big-endian.
     pub fn u32(&mut self, v: u32) -> &mut Self {
         self.buf.extend_from_slice(&v.to_be_bytes());
         self
     }
 
-    /// Inteiro de 64 bits, big-endian.
+    /// A 64-bit integer, big-endian.
     pub fn u64(&mut self, v: u64) -> &mut Self {
         self.buf.extend_from_slice(&v.to_be_bytes());
         self
     }
 
-    /// Bytes com o tamanho (4 bytes) na frente.
+    /// Bytes with the length (4 bytes) in front.
     pub fn bytes(&mut self, v: &[u8]) -> &mut Self {
         match u32::try_from(v.len()) {
             Ok(n) => {
@@ -49,18 +49,18 @@ impl Encoder {
         self
     }
 
-    /// Texto UTF-8 com o tamanho na frente.
+    /// UTF-8 text with the length in front.
     pub fn string(&mut self, v: &str) -> &mut Self {
         self.bytes(v.as_bytes())
     }
 
-    /// Bytes de tamanho fixo e conhecido de quem lê, sem prefixo (chaves, hashes, assinaturas).
+    /// Fixed-size bytes, with the size known to the reader, without a prefix (keys, hashes, signatures).
     pub fn fixed(&mut self, v: &[u8]) -> &mut Self {
         self.buf.extend_from_slice(v);
         self
     }
 
-    /// Quantidade de itens de uma lista (4 bytes); os itens vêm depois, um a um.
+    /// Number of items in a list (4 bytes); the items follow, one by one.
     pub fn count(&mut self, n: usize) -> &mut Self {
         match u32::try_from(n) {
             Ok(n) => {
@@ -71,7 +71,7 @@ impl Encoder {
         self
     }
 
-    /// Termina. Falha só se algum campo passou de 4 GiB (nunca acontece com mensagens de verdade).
+    /// Finishes. Fails only if some field exceeded 4 GiB (never happens with real messages).
     pub fn finish(self) -> Result<Vec<u8>, DecodeError> {
         if self.overflow {
             Err(DecodeError::TooLong)
@@ -81,14 +81,14 @@ impl Encoder {
     }
 }
 
-/// Lê bytes campo a campo, na mesma ordem em que o [`Encoder`] escreveu.
+/// Reads bytes field by field, in the same order the [`Encoder`] wrote them.
 #[derive(Debug, Clone, Copy)]
 pub struct Decoder<'a> {
     data: &'a [u8],
 }
 
 impl<'a> Decoder<'a> {
-    /// Começa a ler `data`.
+    /// Starts reading `data`.
     #[must_use]
     pub const fn new(data: &'a [u8]) -> Self {
         Self { data }
@@ -103,27 +103,27 @@ impl<'a> Decoder<'a> {
         Ok(head)
     }
 
-    /// Um byte.
+    /// A single byte.
     pub fn u8(&mut self) -> Result<u8, DecodeError> {
         self.take(1)?.first().copied().ok_or(DecodeError::Truncated)
     }
 
-    /// Inteiro de 32 bits.
+    /// A 32-bit integer.
     pub fn u32(&mut self) -> Result<u32, DecodeError> {
         Ok(u32::from_be_bytes(self.fixed::<4>()?))
     }
 
-    /// Inteiro de 64 bits.
+    /// A 64-bit integer.
     pub fn u64(&mut self) -> Result<u64, DecodeError> {
         Ok(u64::from_be_bytes(self.fixed::<8>()?))
     }
 
-    /// Exatamente `N` bytes.
+    /// Exactly `N` bytes.
     pub fn fixed<const N: usize>(&mut self) -> Result<[u8; N], DecodeError> {
         self.take(N)?.try_into().map_err(|_| DecodeError::Truncated)
     }
 
-    /// Bytes com tamanho na frente; recusa mais de `max` (não aloca nada antes de conferir).
+    /// Bytes with a length in front; rejects more than `max` (allocates nothing before checking).
     pub fn bytes(&mut self, max: usize) -> Result<&'a [u8], DecodeError> {
         let n = usize::try_from(self.u32()?).map_err(|_| DecodeError::TooLong)?;
         if n > max {
@@ -132,13 +132,13 @@ impl<'a> Decoder<'a> {
         self.take(n)
     }
 
-    /// Texto UTF-8 com tamanho na frente; recusa mais de `max` bytes.
+    /// UTF-8 text with a length in front; rejects more than `max` bytes.
     pub fn string(&mut self, max: usize) -> Result<&'a str, DecodeError> {
         core::str::from_utf8(self.bytes(max)?).map_err(|_| DecodeError::Utf8)
     }
 
-    /// Quantidade de itens de uma lista; recusa mais de `max` (cada item ocupa ao menos 1 byte, então uma
-    /// contagem maior que os bytes que sobram é truncada).
+    /// Number of items in a list; rejects more than `max` (each item takes at least 1 byte, so a
+    /// count greater than the remaining bytes is truncated).
     pub fn count(&mut self, max: usize) -> Result<usize, DecodeError> {
         let n = usize::try_from(self.u32()?).map_err(|_| DecodeError::TooLong)?;
         if n > max {
@@ -150,13 +150,13 @@ impl<'a> Decoder<'a> {
         Ok(n)
     }
 
-    /// Quantos bytes ainda não foram lidos.
+    /// How many bytes have not been read yet.
     #[must_use]
     pub const fn remaining(&self) -> usize {
         self.data.len()
     }
 
-    /// Confere que não sobrou nada.
+    /// Checks that nothing is left over.
     pub fn finish(self) -> Result<(), DecodeError> {
         if self.data.is_empty() {
             Ok(())

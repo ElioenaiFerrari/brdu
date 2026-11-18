@@ -1,5 +1,5 @@
-//! Valor em BRDU: inteiro de 64 bits em **unidades mínimas** (ADR-0010). 1 BRDU = 1.000.000 unidades = R$ 1.
-//! Nunca usa ponto flutuante.
+//! BRDU amount: 64-bit integer in **minimum units** (ADR-0010). 1 BRDU = 1,000,000 units = R$ 1.
+//! Never uses floating point.
 
 use alloc::format;
 use alloc::string::String;
@@ -7,12 +7,12 @@ use core::fmt;
 
 use crate::error::AmountError;
 
-/// Casas decimais.
+/// Decimal places.
 pub const DECIMALS: usize = 6;
-/// Unidades mínimas em 1 BRDU.
+/// Minimum units in 1 BRDU.
 pub const UNIT: u64 = 1_000_000;
 
-/// Quantia em unidades mínimas.
+/// An amount in minimum units.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Amount(pub u64);
 
@@ -20,26 +20,26 @@ impl Amount {
     /// Zero.
     pub const ZERO: Self = Self(0);
 
-    /// As unidades mínimas.
+    /// The minimum units.
     #[must_use]
     pub const fn units(self) -> u64 {
         self.0
     }
 
-    /// Soma, `None` se passar de 64 bits.
+    /// Addition; `None` if it exceeds 64 bits.
     #[must_use]
     pub fn checked_add(self, other: Self) -> Option<Self> {
         self.0.checked_add(other.0).map(Self)
     }
 
-    /// Subtração, `None` se ficar negativa.
+    /// Subtraction; `None` if the result would be negative.
     #[must_use]
     pub fn checked_sub(self, other: Self) -> Option<Self> {
         self.0.checked_sub(other.0).map(Self)
     }
 
-    /// Lê um valor no formato brasileiro: vírgula decimal e ponto **só** como separador de milhar
-    /// (`12,5`, `1.000,50`, `0,000001`). Recusa `1.5` (ambíguo), sinais, espaços e mais de 6 casas.
+    /// Parses a value in Brazilian format: decimal comma and period **only** as the thousands separator
+    /// (`12,5`, `1.000,50`, `0,000001`). Rejects `1.5` (ambiguous), signs, spaces and more than 6 decimal places.
     pub fn parse(text: &str) -> Result<Self, AmountError> {
         let (int_text, frac_text) = match text.split_once(',') {
             Some((i, f)) => (i, Some(f)),
@@ -60,14 +60,14 @@ impl Amount {
             .ok_or(AmountError::Overflow)
     }
 
-    /// Com as 6 casas: `12.480,570000`.
+    /// With all 6 decimal places: `12.480,570000`.
     #[must_use]
     pub fn to_full(self) -> String {
         let (int, frac) = (self.0 / UNIT, self.0 % UNIT);
         format!("{},{frac:0DECIMALS$}", group_thousands(int))
     }
 
-    /// Sem perder precisão e sem zeros inúteis, mas com ao menos 2 casas: `12.480,57`, `5,00`, `0,001172`.
+    /// Without losing precision or useless zeros, but with at least 2 decimal places: `12.480,57`, `5,00`, `0,001172`.
     #[must_use]
     pub fn to_brl(self) -> String {
         let (int, frac) = (self.0 / UNIT, self.0 % UNIT);
@@ -111,7 +111,7 @@ fn parse_int(text: &str) -> Result<u64, AmountError> {
         return Err(AmountError::Malformed);
     }
     let digits: String = if text.contains('.') {
-        // ponto só como milhar: primeiro grupo de 1 a 3 dígitos, os demais com exatamente 3
+        // period only as thousands separator: first group of 1 to 3 digits, the rest with exactly 3
         let mut groups = text.split('.');
         let first = groups.next().unwrap_or("");
         if first.is_empty() || first.len() > 3 {

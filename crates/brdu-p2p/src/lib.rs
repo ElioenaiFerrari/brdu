@@ -1,7 +1,7 @@
-//! Elos autenticados e cifrados entre validadores (ADR-0013 do BRDU). Só transporte: nenhuma regra de consenso
-//! mora aqui. Um elo é uma sessão Noise XX (`snow`) cuja chave estática é **ligada à chave de consenso Ed25519**
-//! do nó por uma assinatura dentro do aperto de mão: quem está do outro lado é provadamente a instituição que o
-//! conjunto de validadores lista, **nesta rede e nesta gênese**.
+//! Authenticated, encrypted links between validators (BRDU ADR-0013). Transport only: no consensus rule
+//! lives here. A link is a Noise XX session (`snow`) whose static key is **bound to the node's Ed25519 consensus key**
+//! by a signature inside the handshake: whoever is on the other end is provably the institution the
+//! validator set lists, **on this network and this genesis**.
 
 #![forbid(unsafe_code)]
 

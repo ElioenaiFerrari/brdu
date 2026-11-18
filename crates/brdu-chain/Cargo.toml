@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "A cadeia do BRDU: gênese, conjunto de validadores, blocos finais com certificado, réplica verificada e log em disco."
+description = "The BRDU chain: genesis, validator set, finalized blocks with certificate, verified replica and on-disk log."
 
 [dependencies]
 brdu-crypto.workspace = true

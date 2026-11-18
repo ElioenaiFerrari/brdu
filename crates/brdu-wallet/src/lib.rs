@@ -1,12 +1,12 @@
-//! Carteira do BRDU (ADR-0005, 0021): frase BIP-39, derivação SLIP-10 Ed25519 e contas.
+//! BRDU wallet (ADR-0005, 0021): BIP-39 phrase, SLIP-10 Ed25519 derivation and accounts.
 //!
-//! - **A frase** tem 24 palavras (12 também é aceita ao importar). A **passphrase** é a "25ª palavra": a mesma frase
-//!   com outra passphrase gera **outra carteira**, válida e vazia, sem nenhum erro. Por isso a importação pede
-//!   a confirmação do endereço (ver [`Wallet::address`]).
-//! - **A derivação** é SLIP-10 para Ed25519, com todos os índices endurecidos: `m/44'/1112687701'/conta'/0'/índice'`.
-//!   `1112687701` é "BRDU" em ASCII (0x42524455) e **não está registrado no SLIP-44**.
-//! - **Segredos** ficam em buffers `Zeroizing`, sem `Debug` nem `Clone`. A frase só sai daqui para ser mostrada ao
-//!   dono, uma vez. **Não auditado.**
+//! - **The phrase** has 24 words (12 is also accepted on import). The **passphrase** is the "25th word": the same phrase
+//!   with a different passphrase yields a **different wallet**, valid and empty, with no error at all. That is why import asks
+//!   for confirmation of the address (see [`Wallet::address`]).
+//! - **Derivation** is SLIP-10 for Ed25519, with all indices hardened: `m/44'/1112687701'/account'/0'/index'`.
+//!   `1112687701` is "BRDU" in ASCII (0x42524455) and is **not registered in SLIP-44**.
+//! - **Secrets** live in `Zeroizing` buffers, with no `Debug` or `Clone`. The phrase only leaves here to be shown to
+//!   the owner, once. **Not audited.**
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
 use std::fmt;
@@ -18,49 +18,49 @@ use sha2::Sha512;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-/// "BRDU" em ASCII, usado como tipo de moeda no caminho de derivação.
+/// "BRDU" in ASCII, used as the coin type in the derivation path.
 pub const COIN_TYPE: u32 = 0x4252_4455;
-/// Maior passphrase aceita (só ASCII imprimível, para não depender de normalização Unicode).
+/// Longest accepted passphrase (printable ASCII only, so as not to depend on Unicode normalization).
 pub const MAX_PASSPHRASE: usize = 64;
 const HARDENED: u32 = 0x8000_0000;
 
-/// Falhas da carteira. Nenhuma mensagem carrega segredo.
+/// Wallet failures. No message carries a secret.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum WalletError {
-    /// Não deu para obter entropia do sistema.
-    #[error("sem entropia do sistema")]
+    /// Could not obtain system entropy.
+    #[error("no system entropy")]
     Entropy,
-    /// Quantidade de palavras errada, palavra fora da lista ou checksum inválido.
-    #[error("frase inválida")]
+    /// Wrong number of words, a word outside the list, or an invalid checksum.
+    #[error("invalid phrase")]
     InvalidPhrase,
-    /// Passphrase com caractere fora do ASCII imprimível ou longa demais.
-    #[error("passphrase inválida")]
+    /// Passphrase with a character outside printable ASCII, or too long.
+    #[error("invalid passphrase")]
     InvalidPassphrase,
-    /// Caminho de derivação malformado ou com índice não endurecido.
-    #[error("caminho de derivação inválido")]
+    /// Malformed derivation path or a non-hardened index.
+    #[error("invalid derivation path")]
     BadPath,
 }
 
-/// A frase de recuperação. `Debug` é redigido; nunca é `Display`ada nem logada.
+/// The recovery phrase. `Debug` is redacted; it is never `Display`ed or logged.
 pub struct Phrase {
     mnemonic: Zeroizing<String>,
 }
 
 impl fmt::Debug for Phrase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Phrase(<redigida>)")
+        f.write_str("Phrase(<redacted>)")
     }
 }
 
 impl Phrase {
-    /// Gera uma frase nova de 24 palavras com 32 bytes de entropia do sistema.
+    /// Generates a new 24-word phrase with 32 bytes of system entropy.
     pub fn generate() -> Result<Self, WalletError> {
         let mut entropy = Zeroizing::new([0u8; 32]);
         getrandom::fill(entropy.as_mut_slice()).map_err(|_| WalletError::Entropy)?;
         Self::from_entropy(&entropy)
     }
 
-    /// Frase de 24 palavras a partir de 32 bytes de entropia (para testes e vetores).
+    /// A 24-word phrase from 32 bytes of entropy (for tests and vectors).
     pub fn from_entropy(entropy: &[u8; 32]) -> Result<Self, WalletError> {
         let m = Mnemonic::from_entropy_in(Language::English, entropy)
             .map_err(|_| WalletError::InvalidPhrase)?;
@@ -69,8 +69,8 @@ impl Phrase {
         })
     }
 
-    /// Lê palavras digitadas: 12 ou 24, todas da lista BIP-39 em inglês, com checksum válido. Perdoa maiúsculas e
-    /// espaços sobrando.
+    /// Parses typed words: 12 or 24, all from the English BIP-39 list, with a valid checksum. Forgives upper case and
+    /// extra spaces.
     pub fn parse(text: &str) -> Result<Self, WalletError> {
         let words: Vec<String> = text
             .split_whitespace()
@@ -85,25 +85,25 @@ impl Phrase {
         Ok(Self { mnemonic: joined })
     }
 
-    /// As palavras, para mostrar ao dono uma vez (na tela de criação). Quem chama é quem não pode registrar.
+    /// The words, to show to the owner once (on the creation screen). Whoever calls this must not log them.
     #[must_use]
     pub fn words(&self) -> Vec<&str> {
         self.mnemonic.split(' ').collect()
     }
 
-    /// Quantas palavras.
+    /// How many words.
     #[must_use]
     pub fn len(&self) -> usize {
         self.words().len()
     }
 
-    /// Sem palavras? (nunca acontece numa frase válida)
+    /// No words? (never happens in a valid phrase)
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.mnemonic.is_empty()
     }
 
-    /// A semente BIP-39 de 64 bytes (PBKDF2-HMAC-SHA512, 2048 voltas, sal `"mnemonic" + passphrase`).
+    /// The 64-byte BIP-39 seed (PBKDF2-HMAC-SHA512, 2048 rounds, salt `"mnemonic" + passphrase`).
     fn seed(&self, passphrase: &str) -> Result<Zeroizing<[u8; 64]>, WalletError> {
         check_passphrase(passphrase)?;
         let m = Mnemonic::parse_in_normalized(Language::English, self.mnemonic.as_str())
@@ -111,7 +111,7 @@ impl Phrase {
         Ok(Zeroizing::new(m.to_seed_normalized(passphrase)))
     }
 
-    /// A carteira desta frase com esta passphrase (vazia se não houver).
+    /// The wallet of this phrase with this passphrase (empty if there is none).
     pub fn wallet(&self, passphrase: &str) -> Result<Wallet, WalletError> {
         Ok(Wallet {
             seed: self.seed(passphrase)?,
@@ -126,30 +126,30 @@ fn check_passphrase(p: &str) -> Result<(), WalletError> {
     Ok(())
 }
 
-/// A carteira: de uma semente, deriva contas. `Debug` é redigido e não há `Clone`.
+/// The wallet: derives accounts from a seed. `Debug` is redacted and there is no `Clone`.
 pub struct Wallet {
     seed: Zeroizing<[u8; 64]>,
 }
 
 impl fmt::Debug for Wallet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Wallet(<redigida>)")
+        f.write_str("Wallet(<redacted>)")
     }
 }
 
 impl Wallet {
-    /// O caminho de derivação da conta `account` e índice `index`.
+    /// The derivation path of account `account` and index `index`.
     #[must_use]
     pub fn path(account: u32, index: u32) -> String {
         format!("m/44'/{COIN_TYPE}'/{account}'/0'/{index}'")
     }
 
-    /// A conta no caminho padrão.
+    /// The account at the standard path.
     pub fn account(&self, account: u32, index: u32) -> Result<Account, WalletError> {
         self.derive(&Self::path(account, index))
     }
 
-    /// A conta no caminho `path` (todos os índices endurecidos, ex.: `m/0'`). Serve também aos vetores SLIP-10.
+    /// The account at `path` (all indices hardened, e.g. `m/0'`). Also serves the SLIP-10 vectors.
     pub fn derive(&self, path: &str) -> Result<Account, WalletError> {
         let node = derive_path(self.seed.as_slice(), path)?;
         let secret = SecretKey::from_bytes(*node.key);
@@ -162,13 +162,13 @@ impl Wallet {
         })
     }
 
-    /// A raiz da carteira (chave e código de cadeia do nó mestre), para os vetores.
+    /// The wallet root (key and chain code of the master node), for the vectors.
     pub fn master(&self) -> Result<Node, WalletError> {
         master_node(self.seed.as_slice())
     }
 }
 
-/// Uma conta derivada: caminho, chave pública, endereço e a chave privada.
+/// A derived account: path, public key, address and the private key.
 pub struct Account {
     path: String,
     address: Address,
@@ -177,25 +177,25 @@ pub struct Account {
 }
 
 impl Account {
-    /// O caminho de derivação.
+    /// The derivation path.
     #[must_use]
     pub fn path(&self) -> &str {
         &self.path
     }
 
-    /// O endereço `brdu1…`.
+    /// The `brdu1…` address.
     #[must_use]
     pub const fn address(&self) -> &Address {
         &self.address
     }
 
-    /// A chave pública.
+    /// The public key.
     #[must_use]
     pub const fn public_key(&self) -> &PublicKey {
         &self.public
     }
 
-    /// A chave privada (para assinar). Nunca é `Debug`.
+    /// The private key (for signing). Never `Debug`.
     #[must_use]
     pub const fn secret_key(&self) -> &SecretKey {
         &self.secret
@@ -208,17 +208,17 @@ impl fmt::Debug for Account {
     }
 }
 
-/// Um nó SLIP-10: chave de 32 bytes e código de cadeia de 32 bytes.
+/// A SLIP-10 node: a 32-byte key and a 32-byte chain code.
 pub struct Node {
-    /// A chave privada do nó.
+    /// The node's private key.
     pub key: Zeroizing<[u8; 32]>,
-    /// O código de cadeia.
+    /// The chain code.
     pub chain_code: Zeroizing<[u8; 32]>,
 }
 
 impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Node(<redigido>)")
+        f.write_str("Node(<redacted>)")
     }
 }
 
@@ -232,14 +232,14 @@ fn split(mac: &[u8]) -> Result<Node, WalletError> {
     })
 }
 
-/// Nó mestre do SLIP-10 para Ed25519: `HMAC-SHA512("ed25519 seed", semente)`.
+/// SLIP-10 master node for Ed25519: `HMAC-SHA512("ed25519 seed", seed)`.
 fn master_node(seed: &[u8]) -> Result<Node, WalletError> {
     let mut mac = HmacSha512::new_from_slice(b"ed25519 seed").map_err(|_| WalletError::BadPath)?;
     mac.update(seed);
     split(&mac.finalize().into_bytes())
 }
 
-/// Filho endurecido: `HMAC-SHA512(código_de_cadeia, 0x00 ‖ chave ‖ índice_big_endian)`.
+/// Hardened child: `HMAC-SHA512(chain_code, 0x00 ‖ key ‖ big_endian_index)`.
 fn child(parent: &Node, index: u32) -> Result<Node, WalletError> {
     let mut mac = HmacSha512::new_from_slice(parent.chain_code.as_slice())
         .map_err(|_| WalletError::BadPath)?;
@@ -249,8 +249,8 @@ fn child(parent: &Node, index: u32) -> Result<Node, WalletError> {
     split(&mac.finalize().into_bytes())
 }
 
-/// Deriva um nó SLIP-10 Ed25519 de uma semente **qualquer** (não só de 64 bytes) e de um caminho endurecido.
-/// Existe para os vetores oficiais do SLIP-10 (semente de 16 bytes); a carteira usa [`Wallet::derive`].
+/// Derives a SLIP-10 Ed25519 node from **any** seed (not only 64 bytes) and a hardened path.
+/// It exists for the official SLIP-10 vectors (16-byte seed); the wallet uses [`Wallet::derive`].
 pub fn slip10_derive(seed: &[u8], path: &str) -> Result<Node, WalletError> {
     derive_path(seed, path)
 }
@@ -262,7 +262,7 @@ fn derive_path(seed: &[u8], path: &str) -> Result<Node, WalletError> {
     }
     let mut node = master_node(seed)?;
     for part in parts {
-        // só índices endurecidos (`44'`): Ed25519 não tem derivação pública
+        // hardened indices only (`44'`): Ed25519 has no public derivation
         let digits = part.strip_suffix('\'').ok_or(WalletError::BadPath)?;
         let index: u32 = digits.parse().map_err(|_| WalletError::BadPath)?;
         if index >= HARDENED {

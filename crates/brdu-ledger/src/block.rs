@@ -1,4 +1,4 @@
-//! Bloco: cabeçalho e transações, com codificação determinística e hash etiquetado.
+//! Block: header and transactions, with deterministic encoding and a tagged hash.
 
 use brdu_crypto::encoding::{Decoder, Encoder};
 use brdu_crypto::{Address, Hash32, tagged, tags};
@@ -6,30 +6,30 @@ use brdu_crypto::{Address, Hash32, tagged, tags};
 use crate::error::LedgerError;
 use crate::tx::Tx;
 
-/// Mais signatários que isto num cabeçalho é abuso.
+/// More signers than this in a header is abuse.
 pub const MAX_SIGNERS: usize = 256;
 
-/// Um bloco.
+/// A block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
-    /// Altura (o primeiro bloco tem altura 1).
+    /// Height (the first block has height 1).
     pub height: u64,
-    /// Hora em segundos Unix; não decresce.
+    /// Time in Unix seconds; non-decreasing.
     pub time: u64,
-    /// Hash do bloco anterior (`None` no primeiro).
+    /// Hash of the previous block (`None` for the first).
     pub prev_hash: Option<Hash32>,
-    /// Quem propôs.
+    /// Who proposed it.
     pub proposer: Address,
-    /// O conjunto de validadores em vigor, ordenado: a taxa do bloco é repartida entre eles (ADR-0027).
+    /// The validator set in force, ordered: the block fee is split among them (ADR-0027).
     pub signers: Vec<Address>,
-    /// A raiz de estado **depois** de aplicar o bloco.
+    /// The state root **after** applying the block.
     pub state_root: Hash32,
-    /// As transações.
+    /// The transactions.
     pub txs: Vec<Tx>,
 }
 
 impl Block {
-    /// Codificação determinística.
+    /// Deterministic encoding.
     pub fn encode(&self) -> Result<Vec<u8>, LedgerError> {
         let mut e = Encoder::new();
         e.u64(self.height).u64(self.time);
@@ -49,7 +49,7 @@ impl Block {
         e.finish().map_err(LedgerError::Decode)
     }
 
-    /// Lê um bloco, recusando mais de `max_txs` transações e qualquer lixo ou sobra.
+    /// Reads a block, rejecting more than `max_txs` transactions and any garbage or leftovers.
     pub fn decode(bytes: &[u8], max_txs: usize) -> Result<Self, LedgerError> {
         let mut d = Decoder::new(bytes);
         let bad = |_| LedgerError::Malformed;
@@ -86,7 +86,7 @@ impl Block {
         })
     }
 
-    /// Hash do bloco: etiquetado, sobre a codificação completa.
+    /// Block hash: tagged, over the full encoding.
     #[must_use]
     pub fn hash(&self) -> Hash32 {
         self.encode()

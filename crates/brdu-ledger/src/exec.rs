@@ -1,11 +1,11 @@
-//! O executor: aplica transações e blocos ao estado, de forma **determinística e atômica**.
+//! The executor: applies transactions and blocks to the state, **deterministically and atomically**.
 //!
-//! Ordem das conferências de uma transação: forma e assinatura → rede → taxa mínima → nonce → débito da taxa →
-//! regra do tipo. Se qualquer passo falha, nada do que a transação mudou fica.
+//! Order of a transaction's checks: shape and signature → network → minimum fee → nonce → fee debit →
+//! kind rule. If any step fails, nothing the transaction changed remains.
 //!
-//! **Bloco:** vale ou não vale por inteiro. Uma transação inválida derruba o bloco. A taxa de cada transação é
-//! cobrada do remetente e, no fim do bloco, **repartida igualmente entre os validadores** do cabeçalho; o resto
-//! da divisão vai ao proponente (ADR-0027).
+//! **Block:** it is valid or not as a whole. One invalid transaction brings the block down. Each transaction's fee is
+//! charged to the sender and, at the end of the block, **split equally among the validators** in the header; the remainder
+//! of the division goes to the proposer (ADR-0027).
 
 use std::collections::HashSet;
 
@@ -19,29 +19,29 @@ use crate::rules::Rules;
 use crate::state::State;
 use crate::tx::{Tx, kind};
 
-/// Contexto que um módulo recebe ao executar uma transação.
+/// Context a module receives when executing a transaction.
 #[derive(Debug, Clone, Copy)]
 pub struct TxCtx {
-    /// O endereço do remetente.
+    /// The sender's address.
     pub sender: Address,
-    /// A hora do bloco (ou a do estado, ao validar para o mempool).
+    /// The block time (or the state's, when validating for the mempool).
     pub time: u64,
-    /// A altura do bloco em construção.
+    /// The height of the block being built.
     pub height: u64,
 }
 
-/// Um módulo (bens, credenciais, contratos) trata um intervalo de tipos de transação (5 a 21).
+/// A module (assets, credentials, contracts) handles a range of transaction kinds (5 to 21).
 pub trait Module: Send + Sync {
-    /// Os tipos que este módulo executa.
+    /// The kinds this module executes.
     fn kinds(&self) -> core::ops::RangeInclusive<u8>;
 
-    /// Taxa mínima de uma transação do módulo (padrão: zero).
+    /// Minimum fee of a module transaction (default: zero).
     fn min_fee(&self, _rules: &Rules, _tx: &Tx) -> u64 {
         0
     }
 
-    /// Gancho ao **fim de cada bloco** (depois das transações e da repartição das taxas): é onde um módulo
-    /// aplica mudanças agendadas (por exemplo, a troca do conjunto de validadores). Padrão: nada.
+    /// Hook at the **end of each block** (after the transactions and the fee split): this is where a module
+    /// applies scheduled changes (for example, swapping the validator set). Default: nothing.
     fn end_block(
         &self,
         _state: &mut State,
@@ -51,7 +51,7 @@ pub trait Module: Send + Sync {
         Ok(())
     }
 
-    /// Executa. A assinatura, a rede, a taxa e o nonce já foram tratados.
+    /// Executes. The signature, network, fee and nonce have already been handled.
     fn execute(
         &self,
         state: &mut State,
@@ -61,18 +61,18 @@ pub trait Module: Send + Sync {
     ) -> Result<(), LedgerError>;
 }
 
-/// O resultado de aplicar um bloco.
+/// The result of applying a block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockReceipt {
-    /// Hash do bloco.
+    /// Block hash.
     pub hash: Hash32,
-    /// Quantas transações.
+    /// How many transactions.
     pub tx_count: usize,
-    /// Total de taxas repartidas.
+    /// Total fees split.
     pub fees: u64,
 }
 
-/// Aplica transações e blocos conforme as [`Rules`] da rede.
+/// Applies transactions and blocks according to the network [`Rules`].
 pub struct Executor {
     rules: Rules,
     modules: Vec<Box<dyn Module>>,
@@ -80,7 +80,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    /// Um executor só com a moeda.
+    /// An executor with the coin only.
     #[must_use]
     pub fn new(rules: Rules) -> Self {
         Self {
@@ -90,21 +90,21 @@ impl Executor {
         }
     }
 
-    /// Registra um módulo.
+    /// Registers a module.
     #[must_use]
     pub fn with_module(mut self, module: Box<dyn Module>) -> Self {
         self.modules.push(module);
         self
     }
 
-    /// Quantas threads conferem as assinaturas de um bloco (padrão 1; só vale a pena com muitas transações e CPU).
+    /// How many threads verify a block's signatures (default 1; only worthwhile with many transactions and CPU).
     #[must_use]
     pub fn with_verify_threads(mut self, threads: usize) -> Self {
         self.verify_threads = threads.max(1);
         self
     }
 
-    /// As regras da rede.
+    /// The network rules.
     #[must_use]
     pub const fn rules(&self) -> &Rules {
         &self.rules
@@ -117,8 +117,8 @@ impl Executor {
             .map(AsRef::as_ref)
     }
 
-    /// Taxa mínima de `tx`: transferência = base + por_byte × tamanho; mint, burn e atestado = 0 (exigem M
-    /// emissores); módulos definem a sua. Tipo desconhecido é erro.
+    /// Minimum fee of `tx`: transfer = base + per_byte × size; mint, burn and attestation = 0 (they require M
+    /// issuers); modules define their own. Unknown kind is an error.
     pub fn min_fee(&self, tx: &Tx) -> Result<u64, LedgerError> {
         match tx.kind {
             kind::TRANSFER => {
@@ -137,8 +137,8 @@ impl Executor {
         }
     }
 
-    /// Valida e aplica **uma** transação ao `state` (usado no mempool). A taxa é debitada do remetente (no estado
-    /// de um bloco ela é repartida aos validadores; num estado "pendente" ela simplesmente sai da conta).
+    /// Validates and applies **one** transaction to `state` (used in the mempool). The fee is debited from the sender (in a block's
+    /// state it is split among the validators; in a "pending" state it simply leaves the account).
     pub fn apply_tx(&self, state: &mut State, tx: &Tx) -> Result<(), LedgerError> {
         tx.verify()?;
         state.atomically(|s| self.run_verified(s, tx))
@@ -184,7 +184,7 @@ impl Executor {
         }
     }
 
-    // --- blocos --------------------------------------------------------------------------------
+    // --- blocks --------------------------------------------------------------------------------
 
     fn check_block_shape(&self, state: &State, block: &Block) -> Result<(), LedgerError> {
         if block.height != state.height().saturating_add(1) || block.prev_hash != state.last_hash()
@@ -204,7 +204,7 @@ impl Executor {
                 return Err(LedgerError::DuplicateTx(tx.id()));
             }
         }
-        // signatários: não vazio, estritamente crescente (sem repetição) e com o proponente
+        // signers: non-empty, strictly increasing (no repeats) and including the proposer
         let sorted = block.signers.windows(2).all(|w| w[0] < w[1]);
         if block.signers.is_empty()
             || block.signers.len() > MAX_SIGNERS
@@ -216,7 +216,7 @@ impl Executor {
         Ok(())
     }
 
-    /// Confere forma e assinatura de todas as transações (a parte mais cara de um bloco).
+    /// Checks shape and signature of all transactions (the most expensive part of a block).
     pub fn verify_signatures(&self, txs: &[Tx]) -> Result<(), LedgerError> {
         let mut msgs: Vec<Hash32> = Vec::with_capacity(txs.len());
         for tx in txs {
@@ -247,7 +247,7 @@ impl Executor {
         }
     }
 
-    /// Executa as transações do bloco, reparte as taxas e posiciona o estado. Não confere a raiz.
+    /// Executes the block's transactions, splits the fees and positions the state. Does not check the root.
     fn run_block(&self, s: &mut State, block: &Block) -> Result<u64, LedgerError> {
         let mut fees: u128 = 0;
         for tx in &block.txs {
@@ -272,8 +272,8 @@ impl Executor {
         Ok(fees)
     }
 
-    /// Aplica um bloco **inteiro ou nada**. Confere ligação, hora, limites, assinaturas, cada transação e a raiz de
-    /// estado do cabeçalho.
+    /// Applies a **whole** block or nothing. Checks linkage, time, limits, signatures, each transaction and the header's state
+    /// root.
     pub fn apply_block(
         &self,
         state: &mut State,
@@ -284,7 +284,7 @@ impl Executor {
         self.apply_block_presigned(state, block)
     }
 
-    /// Ensaio de um bloco: confere **tudo** (inclusive a raiz) e desfaz. É o que um validador faz antes de votar.
+    /// Dry run of a block: checks **everything** (including the root) and undoes it. This is what a validator does before voting.
     pub fn dry_run_block(&self, state: &mut State, block: &Block) -> Result<(), LedgerError> {
         self.check_block_shape(state, block)?;
         self.verify_signatures(&block.txs)?;
@@ -298,8 +298,8 @@ impl Executor {
         })
     }
 
-    /// Como `apply_block`, mas **sem reconferir as assinaturas**: só para quem acabou de conferi-las (o ensaio de
-    /// `dry_run_block` do mesmo bloco). Forma, ligação e execução continuam conferidas.
+    /// Like `apply_block`, but **without rechecking signatures**: only for whoever just verified them (the
+    /// `dry_run_block` rehearsal of the same block). Shape, linkage and execution are still checked.
     pub fn apply_block_presigned(
         &self,
         state: &mut State,
@@ -321,8 +321,8 @@ impl Executor {
         })
     }
 
-    /// Monta o bloco seguinte com `txs` (todas têm de valer, em ordem) e calcula a raiz de estado **sem alterar**
-    /// `state` (tudo é desfeito ao fim).
+    /// Builds the next block with `txs` (all must be valid, in order) and computes the state root **without changing**
+    /// `state` (everything is undone at the end).
     pub fn build_block(
         &self,
         state: &mut State,

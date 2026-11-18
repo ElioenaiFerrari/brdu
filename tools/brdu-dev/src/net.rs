@@ -1,4 +1,4 @@
-//! O layout de uma rede de teste em disco (a mesma que o laboratório Docker usa): chaves, gênese, carteiras.
+//! The on-disk layout of a test network (the same one the Docker lab uses): keys, genesis, wallets.
 
 use std::fs;
 use std::io::Write;
@@ -8,7 +8,7 @@ use brdu_chain::Genesis;
 use brdu_crypto::{PublicKey, SecretKey, hex};
 use serde_json::{Value, json};
 
-/// Gera uma chave nova em `path` (hex, 0600).
+/// Generates a new key at `path` (hex, 0600).
 pub fn new_key(path: &Path) -> Result<SecretKey, String> {
     let mut seed = [0u8; 32];
     getrandom::fill(&mut seed).map_err(|e| e.to_string())?;
@@ -16,7 +16,7 @@ pub fn new_key(path: &Path) -> Result<SecretKey, String> {
     Ok(SecretKey::from_bytes(seed))
 }
 
-/// Grava um segredo de TESTE com permissão 0600 (não sobrescreve).
+/// Writes a TEST secret with 0600 permission (does not overwrite).
 pub fn write_secret(path: &Path, text: &str) -> Result<(), String> {
     let mut opts = fs::OpenOptions::new();
     opts.write(true).create_new(true);
@@ -31,41 +31,41 @@ pub fn write_secret(path: &Path, text: &str) -> Result<(), String> {
     writeln!(f, "{text}").map_err(|e| e.to_string())
 }
 
-/// Lê uma chave em hex.
+/// Reads a hex key.
 pub fn read_key(path: &Path) -> Result<SecretKey, String> {
     let t = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     hex::decode_array::<32>(t.trim())
         .map(SecretKey::from_bytes)
-        .ok_or_else(|| format!("{}: chave inválida", path.display()))
+        .ok_or_else(|| format!("{}: invalid key", path.display()))
 }
 
-/// Uma rede de teste.
+/// A test network.
 pub struct Layout {
-    /// Pasta raiz.
+    /// Root folder.
     pub dir: PathBuf,
-    /// Descrição (`devnet.json`).
+    /// Description (`devnet.json`).
     pub info: Value,
 }
 
 impl Layout {
-    /// Carrega `DIR/devnet.json`.
+    /// Loads `DIR/devnet.json`.
     pub fn load(dir: &Path) -> Result<Self, String> {
         let p = dir.join("devnet.json");
         let t = fs::read_to_string(&p)
-            .map_err(|_| format!("{} não existe: rode `cargo dev init` antes", p.display()))?;
+            .map_err(|_| format!("{} does not exist: run `cargo dev init` first", p.display()))?;
         Ok(Self {
             dir: dir.to_path_buf(),
             info: serde_json::from_str(&t).map_err(|e| e.to_string())?,
         })
     }
 
-    /// Nome da rede.
+    /// Network name.
     #[must_use]
     pub fn chain_id(&self) -> String {
         self.info["chain_id"].as_str().unwrap_or("").to_string()
     }
 
-    /// Endereços da API de cada nó.
+    /// API address of each node.
     #[must_use]
     pub fn apis(&self) -> Vec<String> {
         self.info["nodes"]
@@ -78,7 +78,7 @@ impl Layout {
             .unwrap_or_default()
     }
 
-    /// Chaves dos emissores.
+    /// Issuer keys.
     pub fn issuers(&self) -> Result<Vec<SecretKey>, String> {
         let n = self.info["issuers"].as_u64().unwrap_or(0);
         (1..=n)
@@ -86,29 +86,29 @@ impl Layout {
             .collect()
     }
 
-    /// A chave que paga o nonce de mint/burn/atestado (taxa zero; quem envia não autoriza).
+    /// The key that pays the nonce of mint/burn/attestation (zero fee; the sender does not authorize).
     pub fn relayer(&self) -> Result<SecretKey, String> {
         read_key(&self.dir.join("keys/relayer.key"))
     }
 }
 
-/// Como uma rede é montada.
+/// How a network is assembled.
 pub struct Spec<'a> {
-    /// Nome da rede.
+    /// Network name.
     pub chain: &'a str,
-    /// Validadores na gênese.
+    /// Validators at genesis.
     pub nodes: usize,
-    /// Chaves reservas (observadores que podem entrar por rotação): `v{nodes+1}`…
+    /// Spare keys (observers that can join by rotation): `v{nodes+1}`…
     pub spare: usize,
-    /// Emissores de teste.
+    /// Test issuers.
     pub issuers: usize,
-    /// Limiar M dos emissores.
+    /// Issuers' threshold M.
     pub threshold: u32,
 }
 
-/// Cria a rede: validadores, reservas, emissores (limiar `threshold`), chave do retransmissor e a gênese.
-/// `p2p_of(i)` e `api_of(i)` dizem como os nós se enxergam entre si; `p2p_host_of(i)` é o endereço P2P visto **do
-/// computador** (para os simuladores de falha).
+/// Creates the network: validators, spares, issuers (threshold `threshold`), relayer key and genesis.
+/// `p2p_of(i)` and `api_of(i)` say how the nodes see each other; `p2p_host_of(i)` is the P2P address as seen **from
+/// the host computer** (for the failure simulators).
 pub fn init(
     dir: &Path,
     spec: &Spec,
@@ -118,7 +118,7 @@ pub fn init(
 ) -> Result<(), String> {
     if dir.join("devnet.json").exists() {
         return Err(format!(
-            "{} já existe (rode `cargo dev reset` para recomeçar)",
+            "{} already exists (run `cargo dev reset` to start over)",
             dir.display()
         ));
     }

@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Livro-razão do BRDU: transações assinadas, estado determinístico com raiz de Merkle, blocos atômicos, taxas e a moeda (transferência, mint/burn M-de-N, atestado de reserva)."
+description = "BRDU ledger: signed transactions, deterministic state with a Merkle root, atomic blocks, fees and the coin (transfer, M-of-N mint/burn, reserve attestation)."
 
 [dependencies]
 brdu-crypto.workspace = true

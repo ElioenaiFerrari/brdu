@@ -1,11 +1,11 @@
-//! `cargo dev docs-check`: confere a documentação (regra permanente do CLAUDE.md). Links relativos e âncoras,
-//! imagens com texto alternativo, todo crate no README, todo ADR no índice, todo fluxo no índice e com as seções do
-//! molde, títulos em pt-BR e nenhum arquivo de segredo versionável.
+//! `cargo dev docs-check`: checks the documentation (a permanent rule of CLAUDE.md). Relative links and anchors,
+//! images with alt text, every crate in the README, every ADR in the index, every flow in the index and with the
+//! template sections, pt-BR titles, and no versionable secret file.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Pastas que não entram na conferência.
+/// Folders excluded from the check.
 const SKIP_DIRS: &[&str] = &[
     "target",
     ".git",
@@ -20,7 +20,7 @@ const SKIP_DIRS: &[&str] = &[
     "gen",
 ];
 
-/// As seções que todo fluxo tem (molde do CLAUDE.md).
+/// The sections every flow has (CLAUDE.md template). They are the Portuguese headings used in the docs.
 pub const FLOW_SECTIONS: &[&str] = &[
     "## Resumo",
     "## Quem participa",
@@ -33,7 +33,7 @@ pub const FLOW_SECTIONS: &[&str] = &[
     "## Limites honestos",
 ];
 
-/// Palavras inglesas que denunciam um título que não está em pt-BR.
+/// English words that betray a doc title that is not in pt-BR (the docs are written in Portuguese).
 const ENGLISH: &[&str] = &[
     "the",
     "and",
@@ -48,12 +48,12 @@ const ENGLISH: &[&str] = &[
     "usage",
 ];
 
-/// Um problema encontrado.
+/// A problem found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
-    /// Onde (arquivo relativo).
+    /// Where (relative file).
     pub file: String,
-    /// O quê.
+    /// What.
     pub what: String,
 }
 
@@ -76,7 +76,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// O "slug" de âncora de um título (como o GitHub).
+/// The anchor "slug" of a heading (like GitHub).
 #[must_use]
 pub fn slug(heading: &str) -> String {
     heading
@@ -110,7 +110,7 @@ fn headings(text: &str) -> Vec<String> {
     out
 }
 
-/// Tira os trechos entre crases (código em linha não é link).
+/// Strips the backtick spans (inline code is not a link).
 fn strip_inline_code(line: &str) -> String {
     let mut out = String::new();
     let mut inside = false;
@@ -124,7 +124,7 @@ fn strip_inline_code(line: &str) -> String {
     out
 }
 
-/// Links e imagens de um texto: `(é_imagem, alt, destino)`.
+/// Links and images of a text: `(is_image, alt, destination)`.
 fn links(text: &str) -> Vec<(bool, String, String)> {
     let mut in_code = false;
     let mut out = Vec::new();
@@ -173,13 +173,13 @@ fn check_links(root: &Path, file: &Path, text: &str, problems: &mut Vec<Problem>
         if image && alt.trim().is_empty() {
             problems.push(Problem {
                 file: rel(root, file),
-                what: format!("imagem sem texto alternativo: {dest}"),
+                what: format!("image without alt text: {dest}"),
             });
         }
         if !target.exists() {
             problems.push(Problem {
                 file: rel(root, file),
-                what: format!("link quebrado: {dest}"),
+                what: format!("broken link: {dest}"),
             });
             continue;
         }
@@ -190,7 +190,7 @@ fn check_links(root: &Path, file: &Path, text: &str, problems: &mut Vec<Problem>
             if !headings(&text).iter().any(|h| h == a) {
                 problems.push(Problem {
                     file: rel(root, file),
-                    what: format!("âncora inexistente: {dest}"),
+                    what: format!("missing anchor: {dest}"),
                 });
             }
         }
@@ -225,7 +225,7 @@ fn english_title(line: &str) -> bool {
     words.iter().any(|w| ENGLISH.contains(&w.as_str()))
 }
 
-/// Confere a árvore a partir de `root` e devolve os problemas.
+/// Checks the tree from `root` and returns the problems.
 #[must_use]
 pub fn check(root: &Path) -> Vec<Problem> {
     let mut problems = Vec::new();
@@ -239,7 +239,7 @@ pub fn check(root: &Path) -> Vec<Problem> {
     {
         let text = fs::read_to_string(f).unwrap_or_default();
         check_links(root, f, &text, &mut problems);
-        // títulos em pt-BR (só os `#` e `##` dos documentos do projeto; ADRs e fluxos incluídos)
+        // pt-BR titles (only the `#` and `##` of the project documents; ADRs and flows included)
         for l in text
             .lines()
             .filter(|l| l.starts_with("# ") || l.starts_with("## "))
@@ -247,13 +247,13 @@ pub fn check(root: &Path) -> Vec<Problem> {
             if english_title(l) {
                 problems.push(Problem {
                     file: rel(root, f),
-                    what: format!("título que não parece pt-BR: {l}"),
+                    what: format!("title does not look like pt-BR: {l}"),
                 });
             }
         }
     }
 
-    // segredos versionáveis
+    // versionable secrets
     for f in &files {
         let name = f
             .file_name()
@@ -266,23 +266,23 @@ pub fn check(root: &Path) -> Vec<Problem> {
         {
             problems.push(Problem {
                 file: rel(root, f),
-                what: "arquivo de segredo fora das pastas ignoradas (net/, compose/, dev/…)".into(),
+                what: "secret file outside the ignored folders (net/, compose/, dev/…)".into(),
             });
         }
     }
 
-    // crates no README
+    // crates in the README
     let readme = fs::read_to_string(root.join("README.md")).unwrap_or_default();
     for name in package_names(root) {
         if !readme.contains(&name) {
             problems.push(Problem {
                 file: "README.md".into(),
-                what: format!("o crate `{name}` não aparece no README"),
+                what: format!("crate `{name}` does not appear in the README"),
             });
         }
     }
 
-    // ADRs no índice
+    // ADRs in the index
     let adr_index = fs::read_to_string(root.join("docs/adr/README.md")).unwrap_or_default();
     for f in files
         .iter()
@@ -295,12 +295,12 @@ pub fn check(root: &Path) -> Vec<Problem> {
         if name != "README.md" && name.ends_with(".md") && !adr_index.contains(&name) {
             problems.push(Problem {
                 file: "docs/adr/README.md".into(),
-                what: format!("ADR fora do índice: {name}"),
+                what: format!("ADR missing from the index: {name}"),
             });
         }
     }
 
-    // fluxos no índice e com as seções do molde
+    // flows in the index and with the template sections
     let docs_index = fs::read_to_string(root.join("docs/README.md")).unwrap_or_default();
     for f in files
         .iter()
@@ -316,7 +316,7 @@ pub fn check(root: &Path) -> Vec<Problem> {
         if !docs_index.contains(&name) {
             problems.push(Problem {
                 file: "docs/README.md".into(),
-                what: format!("fluxo fora do índice: {name}"),
+                what: format!("flow missing from the index: {name}"),
             });
         }
         let text = fs::read_to_string(f).unwrap_or_default();
@@ -324,7 +324,7 @@ pub fn check(root: &Path) -> Vec<Problem> {
             if !text.lines().any(|l| l.trim_end() == *s) {
                 problems.push(Problem {
                     file: rel(root, f),
-                    what: format!("falta a seção `{s}`"),
+                    what: format!("missing section `{s}`"),
                 });
             }
         }
@@ -381,45 +381,45 @@ mod tests {
     }
 
     #[test]
-    fn arvore_correta_passa() {
+    fn a_correct_tree_passes() {
         let d = tree("ok");
         assert_eq!(check(&d), vec![]);
         let _ = fs::remove_dir_all(&d);
     }
 
     #[test]
-    fn link_quebrado_ancora_inexistente_e_imagem_sem_alt() {
+    fn broken_link_missing_anchor_and_image_without_alt() {
         let d = tree("links");
         fs::write(
             d.join("docs/a.md"),
-            "# A\n[x](nada.md) [y](README.md#nao-existe) ![](img.png) ![ok](img.png)\n",
+            "# A\n[x](missing.md) [y](README.md#does-not-exist) ![](img.png) ![ok](img.png)\n",
         )
         .unwrap();
         fs::write(d.join("docs/img.png"), "x").unwrap();
         let w = whats(&d);
         assert!(
-            w.iter().any(|m| m.contains("link quebrado: nada.md")),
+            w.iter().any(|m| m.contains("broken link: missing.md")),
             "{w:?}"
         );
         assert!(
             w.iter()
-                .any(|m| m.contains("âncora inexistente: README.md#nao-existe")),
+                .any(|m| m.contains("missing anchor: README.md#does-not-exist")),
             "{w:?}"
         );
         assert!(
-            w.iter().any(|m| m.contains("imagem sem texto alternativo")),
+            w.iter().any(|m| m.contains("image without alt text")),
             "{w:?}"
         );
         assert_eq!(
             w.len(),
             3,
-            "a imagem com alt e o arquivo existente não geram problema: {w:?}"
+            "the image with alt and the existing file raise no problem: {w:?}"
         );
         let _ = fs::remove_dir_all(&d);
     }
 
     #[test]
-    fn codigo_em_linha_e_em_bloco_nao_vira_link() {
+    fn inline_and_block_code_is_not_a_link() {
         let d = tree("code");
         fs::write(
             d.join("docs/c.md"),
@@ -431,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn crate_fora_do_readme_adr_e_fluxo_fora_do_indice_e_secao_faltando() {
+    fn crate_missing_from_readme_adr_and_flow_missing_from_index_and_missing_section() {
         let d = tree("index");
         fs::create_dir_all(d.join("tools/brdu-y")).unwrap();
         fs::write(
@@ -447,29 +447,29 @@ mod tests {
         .unwrap();
         let w = whats(&d);
         assert!(
-            w.iter().any(|m| m.contains("`brdu-y` não aparece")),
+            w.iter().any(|m| m.contains("`brdu-y` does not appear")),
             "{w:?}"
         );
         assert!(
             w.iter()
-                .any(|m| m.contains("ADR fora do índice: 0002-b.md")),
+                .any(|m| m.contains("ADR missing from the index: 0002-b.md")),
             "{w:?}"
         );
         assert!(
             w.iter()
-                .any(|m| m.contains("fluxo fora do índice: 02-dois.md")),
+                .any(|m| m.contains("flow missing from the index: 02-dois.md")),
             "{w:?}"
         );
         assert!(
             w.iter()
-                .any(|m| m.contains("falta a seção `## Limites honestos`")),
+                .any(|m| m.contains("missing section `## Limites honestos`")),
             "{w:?}"
         );
         let _ = fs::remove_dir_all(&d);
     }
 
     #[test]
-    fn titulo_em_ingles_e_arquivo_de_segredo() {
+    fn english_title_and_secret_file() {
         let d = tree("secret");
         fs::write(d.join("docs/e.md"), "# Getting started with the node\n").unwrap();
         fs::write(d.join("v1.key"), "abc").unwrap();
@@ -477,19 +477,20 @@ mod tests {
         fs::write(d.join("net/keys/v1.key"), "abc").unwrap();
         let w = whats(&d);
         assert!(
-            w.iter().any(|m| m.contains("título que não parece pt-BR")),
+            w.iter()
+                .any(|m| m.contains("title does not look like pt-BR")),
             "{w:?}"
         );
         assert_eq!(
-            w.iter().filter(|m| m.contains("segredo")).count(),
+            w.iter().filter(|m| m.contains("secret")).count(),
             1,
-            "só o de fora da pasta ignorada: {w:?}"
+            "only the one outside the ignored folder: {w:?}"
         );
         let _ = fs::remove_dir_all(&d);
     }
 
     #[test]
-    fn slug_igual_ao_do_github() {
+    fn slug_matches_github() {
         assert_eq!(
             slug(" O que é verificado e por quem "),
             "o-que-é-verificado-e-por-quem"

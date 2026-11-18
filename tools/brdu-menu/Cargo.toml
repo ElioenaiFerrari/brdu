@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Menu de desenvolvimento do BRDU com setas (ratatui) sobre o brdu-dev. SÓ dev; fora da imagem Docker."
+description = "BRDU development menu with arrow keys (ratatui) on top of brdu-dev. DEV ONLY; kept out of the Docker image."
 
 [lib]
 path = "src/lib.rs"

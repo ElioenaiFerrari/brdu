@@ -1,53 +1,53 @@
-//! Transação assinada (formato do ADR-0005, o mesmo do BRDC).
+//! Signed transaction (ADR-0005 format, the same as BRDC).
 //!
-//! Campos: `chain_id`, `kind`, `nonce`, `fee`, `sender` (chave pública), `payload` e `signature`. A assinatura cobre
-//! **todos** os campos, inclusive o `chain_id` (impede reaproveitar a transação em outra rede) e o `nonce` (impede
-//! replay): `assinatura = Ed25519(chave, SHA3-256 etiquetado("brdu/tx", corpo))`.
+//! Fields: `chain_id`, `kind`, `nonce`, `fee`, `sender` (public key), `payload` and `signature`. The signature covers
+//! **all** fields, including `chain_id` (prevents replaying the transaction on another network) and `nonce` (prevents
+//! replay): `signature = Ed25519(key, tagged SHA3-256("brdu/tx", body))`.
 
 use brdu_crypto::encoding::{Decoder, Encoder};
 use brdu_crypto::{Address, Hash32, PublicKey, SecretKey, Signature, tagged, tags};
 
 use crate::error::LedgerError;
 
-/// Maior carga aceita (64 KiB).
+/// Largest accepted payload (64 KiB).
 pub const MAX_PAYLOAD: usize = 64 * 1024;
-/// Maior `chain_id` aceito, em bytes.
+/// Largest accepted `chain_id`, in bytes.
 pub const MAX_CHAIN_ID: usize = 64;
 
-/// Tipos de transação (`kind`). Os de 5 a 21 são dos módulos de bens, credenciais e contratos.
+/// Transaction kinds (`kind`). Those from 5 to 21 belong to the assets, credentials and contracts modules.
 pub mod kind {
-    /// Transferência entre contas.
+    /// Transfer between accounts.
     pub const TRANSFER: u8 = 1;
-    /// Mint: criar BRDU contra reais recebidos (M-de-N emissores).
+    /// Mint: create BRDU against reais received (M-of-N issuers).
     pub const MINT: u8 = 2;
-    /// Burn: destruir BRDU contra reais devolvidos (M-de-N emissores, só do próprio dono).
+    /// Burn: destroy BRDU against reais returned (M-of-N issuers, only from the owner's own balance).
     pub const BURN: u8 = 3;
-    /// Atestado de reserva (M-de-N emissores).
+    /// Reserve attestation (M-of-N issuers).
     pub const ATTESTATION: u8 = 4;
-    /// Primeiro tipo de módulo (bens).
+    /// First module kind (assets).
     pub const FIRST_MODULE: u8 = 5;
-    /// Troca no conjunto de validadores (rotação, ADR-0015).
+    /// Change in the validator set (rotation, ADR-0015).
     pub const VALIDATOR_CHANGE: u8 = 22;
-    /// Último tipo conhecido.
+    /// Last known kind.
     pub const LAST: u8 = 22;
 }
 
-/// Uma transação assinada.
+/// A signed transaction.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Tx {
-    /// A rede.
+    /// The network.
     pub chain_id: String,
-    /// O tipo ([`kind`]).
+    /// The kind ([`kind`]).
     pub kind: u8,
-    /// O nonce do remetente (começa em 0 e sobe de 1 em 1).
+    /// The sender's nonce (starts at 0 and goes up by 1).
     pub nonce: u64,
-    /// A taxa em unidades mínimas.
+    /// The fee in minimum units.
     pub fee: u64,
-    /// A chave pública do remetente.
+    /// The sender's public key.
     pub sender: PublicKey,
-    /// A carga, interpretada conforme o tipo.
+    /// The payload, interpreted according to the kind.
     pub payload: Vec<u8>,
-    /// A assinatura.
+    /// The signature.
     pub signature: Signature,
 }
 
@@ -83,7 +83,7 @@ fn body(
 }
 
 impl Tx {
-    /// Monta e assina. A chave pública do remetente sai da própria chave privada.
+    /// Builds and signs. The sender's public key comes from the private key itself.
     pub fn new_signed(
         key: &SecretKey,
         chain_id: &str,
@@ -106,7 +106,7 @@ impl Tx {
         })
     }
 
-    /// Os bytes que são assinados (tudo, menos a assinatura).
+    /// The bytes that are signed (everything except the signature).
     pub fn signing_bytes(&self) -> Result<Vec<u8>, LedgerError> {
         body(
             &self.chain_id,
@@ -118,12 +118,12 @@ impl Tx {
         )
     }
 
-    /// Confere forma e assinatura (não confere a rede nem o nonce: isso é do executor).
+    /// Checks shape and signature (does not check the network or the nonce: that is the executor's job).
     pub fn verify(&self) -> Result<(), LedgerError> {
         self.verify_with_tag(tags::TX)
     }
 
-    /// Como [`Tx::verify`], com outro prefixo de domínio (os vetores do BRDC usam `brdc/tx`).
+    /// Like [`Tx::verify`], with another domain prefix (the BRDC vectors use `brdc/tx`).
     pub fn verify_with_tag(&self, tag: &str) -> Result<(), LedgerError> {
         self.check_shape()?;
         self.sender
@@ -131,7 +131,7 @@ impl Tx {
             .map_err(|_| LedgerError::BadSignature)
     }
 
-    /// Só a forma (limites e tipo conhecido), sem criptografia.
+    /// Shape only (limits and known kind), without cryptography.
     pub fn check_shape(&self) -> Result<(), LedgerError> {
         if self.payload.len() > MAX_PAYLOAD || self.chain_id.len() > MAX_CHAIN_ID {
             return Err(LedgerError::PayloadTooLarge);
@@ -142,12 +142,12 @@ impl Tx {
         Ok(())
     }
 
-    /// A mensagem (32 bytes) que a assinatura cobre, para quem confere em lote.
+    /// The message (32 bytes) that the signature covers, for whoever verifies in batch.
     pub fn signing_message(&self) -> Result<Hash32, LedgerError> {
         Ok(tagged(tags::TX, &[&self.signing_bytes()?]))
     }
 
-    /// Codificação completa (com a assinatura).
+    /// Full encoding (with the signature).
     pub fn encode(&self) -> Result<Vec<u8>, LedgerError> {
         let mut e = Encoder::new();
         e.string(&self.chain_id)
@@ -160,7 +160,7 @@ impl Tx {
         e.finish().map_err(LedgerError::Decode)
     }
 
-    /// Lê uma transação. Recusa lixo, sobras, tamanhos acima do limite e tipo desconhecido.
+    /// Reads a transaction. Rejects garbage, leftovers, sizes above the limit and unknown kind.
     pub fn decode(bytes: &[u8]) -> Result<Self, LedgerError> {
         let mut d = Decoder::new(bytes);
         let chain_id = d
@@ -190,28 +190,28 @@ impl Tx {
         Ok(tx)
     }
 
-    /// Identificador: hash etiquetado da codificação completa.
+    /// Identifier: tagged hash of the full encoding.
     #[must_use]
     pub fn id(&self) -> Hash32 {
         self.id_with_tag(tags::TXID)
     }
 
-    /// Como [`Tx::id`], com outro prefixo de domínio (os vetores do BRDC usam `brdc/txid`).
+    /// Like [`Tx::id`], with another domain prefix (the BRDC vectors use `brdc/txid`).
     #[must_use]
     pub fn id_with_tag(&self, tag: &str) -> Hash32 {
         self.encode().map_or(Hash32::ZERO, |b| tagged(tag, &[&b]))
     }
 
-    /// O endereço do remetente.
+    /// The sender's address.
     #[must_use]
     pub fn sender_address(&self) -> Address {
         Address::from_public_key(&self.sender)
     }
 
-    /// Tamanho da codificação completa, em bytes (a taxa mínima cresce com ele).
+    /// Size of the full encoding, in bytes (the minimum fee grows with it).
     #[must_use]
     pub fn size(&self) -> usize {
-        // chain_id (4 + n) + kind (1) + nonce (8) + fee (8) + sender (32) + payload (4 + n) + assinatura (64)
+        // chain_id (4 + n) + kind (1) + nonce (8) + fee (8) + sender (32) + payload (4 + n) + signature (64)
         4 + self.chain_id.len() + 1 + 8 + 8 + 32 + 4 + self.payload.len() + 64
     }
 }

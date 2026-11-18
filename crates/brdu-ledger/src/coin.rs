@@ -1,10 +1,10 @@
-//! A moeda (tipos 1 a 4): transferência, mint, burn e atestado de reserva (ADR-0002, 0006).
+//! The coin (kinds 1 to 4): transfer, mint, burn and reserve attestation (ADR-0002, 0006).
 //!
-//! - **Mint e burn** exigem **M assinaturas distintas de emissores** sobre um documento amarrado à rede, à conta, ao
-//!   valor e à referência. Cada referência de depósito vale **uma vez** (por tipo).
-//! - **Burn** só do dono: quem assina a transação é o titular da conta que queima.
-//! - **Atestado**: M emissores declaram o total em reais em caixa, com número de sequência `último + 1`.
-//! - Ninguém congela, estorna ou recupera nada (ADR-0006).
+//! - **Mint and burn** require **M distinct issuer signatures** over a document bound to the network, the account, the
+//!   amount and the reference. Each deposit reference counts **once** (per kind).
+//! - **Burn** by the owner only: whoever signs the transaction is the holder of the account that burns.
+//! - **Attestation**: M issuers declare the total reais in the vault, with sequence number `last + 1`.
+//! - Nobody freezes, reverses or recovers anything (ADR-0006).
 
 use std::collections::BTreeSet;
 
@@ -16,24 +16,24 @@ use crate::rules::Rules;
 use crate::state::{Attestation, State};
 use crate::tx::kind;
 
-/// Maior referência de depósito, em bytes.
+/// Largest deposit reference, in bytes.
 pub const MAX_REF: usize = 64;
-/// Mais aprovações que isto numa transação é abuso.
+/// More approvals than this in one transaction is abuse.
 pub const MAX_APPROVALS: usize = 32;
-/// Tamanho de uma aprovação: chave pública (32) + assinatura (64).
+/// Size of an approval: public key (32) + signature (64).
 pub const APPROVAL_LEN: usize = 96;
 
-/// Uma aprovação de emissor sobre um documento: `chave pública ‖ assinatura`.
+/// An issuer's approval of a document: `public key ‖ signature`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Approval {
-    /// O emissor.
+    /// The issuer.
     pub issuer: PublicKey,
-    /// A assinatura sobre o documento (os 32 bytes do hash).
+    /// The signature over the document (the 32 hash bytes).
     pub signature: Signature,
 }
 
 impl Approval {
-    /// O emissor `key` aprova o documento `doc`.
+    /// The issuer `key` approves the document `doc`.
     #[must_use]
     pub fn new(doc: &Hash32, key: &SecretKey) -> Self {
         Self {
@@ -42,7 +42,7 @@ impl Approval {
         }
     }
 
-    /// `chave pública ‖ assinatura` (96 bytes).
+    /// `public key ‖ signature` (96 bytes).
     #[must_use]
     pub fn to_bytes(&self) -> [u8; APPROVAL_LEN] {
         let mut out = [0u8; APPROVAL_LEN];
@@ -51,7 +51,7 @@ impl Approval {
         out
     }
 
-    /// Lê 96 bytes.
+    /// Reads 96 bytes.
     #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         let (pk, sig) = bytes.split_at_checked(32)?;
@@ -62,9 +62,9 @@ impl Approval {
     }
 }
 
-// --- documentos que os emissores assinam -------------------------------------------------------------------
+// --- documents the issuers sign ----------------------------------------------------------------------------
 
-/// Documento de um mint (`burn = false`) ou burn (`burn = true`).
+/// Document of a mint (`burn = false`) or burn (`burn = true`).
 #[must_use]
 pub fn issuance_doc(
     burn: bool,
@@ -86,7 +86,7 @@ pub fn issuance_doc(
     )
 }
 
-/// Como [`issuance_doc`], com outro prefixo de domínio (os vetores do BRDC usam `brdc/issuance/…`).
+/// Like [`issuance_doc`], with another domain prefix (the BRDC vectors use `brdc/issuance/…`).
 #[must_use]
 pub fn issuance_doc_with_tag(
     tag: &str,
@@ -103,7 +103,7 @@ pub fn issuance_doc_with_tag(
     tagged(tag, &[&e.finish().unwrap_or_default()])
 }
 
-/// Documento de um atestado de reserva.
+/// Document of a reserve attestation.
 #[must_use]
 pub fn attestation_doc(chain_id: &str, seq: u64, reserve: u64, reference: &str) -> Hash32 {
     let mut e = Encoder::new();
@@ -111,9 +111,9 @@ pub fn attestation_doc(chain_id: &str, seq: u64, reserve: u64, reference: &str) 
     tagged(tags::ATTESTATION, &[&e.finish().unwrap_or_default()])
 }
 
-// --- cargas -----------------------------------------------------------------------------------------------
+// --- payloads ----------------------------------------------------------------------------------------------
 
-/// Carga de transferência: `destino (32) ‖ valor (u64)`.
+/// Transfer payload: `destination (32) ‖ amount (u64)`.
 #[must_use]
 pub fn transfer_payload(to: &Address, amount: u64) -> Vec<u8> {
     let mut e = Encoder::new();
@@ -121,7 +121,7 @@ pub fn transfer_payload(to: &Address, amount: u64) -> Vec<u8> {
     e.finish().unwrap_or_default()
 }
 
-/// Carga de mint ou burn: conta, valor, referência única e aprovações.
+/// Mint or burn payload: account, amount, unique reference and approvals.
 #[must_use]
 pub fn issuance_payload(
     account: &Address,
@@ -140,7 +140,7 @@ pub fn issuance_payload(
     e.finish().unwrap_or_default()
 }
 
-/// Carga de atestado: sequência, reserva, referência e aprovações.
+/// Attestation payload: sequence, reserve, reference and approvals.
 #[must_use]
 pub fn attestation_payload(
     seq: u64,
@@ -177,7 +177,7 @@ fn read_ref<'a>(d: &mut Decoder<'a>) -> Result<&'a str, LedgerError> {
     Ok(r)
 }
 
-/// Quantas aprovações **válidas e de emissores distintos** o documento tem.
+/// How many approvals are **valid and from distinct issuers** the document has.
 fn valid_approvals(rules: &Rules, doc: &Hash32, approvals: &[Approval]) -> usize {
     let distinct: BTreeSet<PublicKey> = approvals
         .iter()
@@ -200,9 +200,9 @@ fn need_approvals(rules: &Rules, doc: &Hash32, approvals: &[Approval]) -> Result
     Ok(())
 }
 
-// --- execução ---------------------------------------------------------------------------------------------
+// --- execution ---------------------------------------------------------------------------------------------
 
-/// Executa uma transação de moeda (tipos 1 a 4). A taxa, o nonce e a assinatura já foram tratados.
+/// Executes a coin transaction (kinds 1 to 4). The fee, nonce and signature have already been handled.
 pub(crate) fn execute(
     state: &mut State,
     rules: &Rules,

@@ -1,40 +1,40 @@
-//! Regras da rede, fixadas na gênese: taxas, limites e emissores (ADR-0002, 0008, 0014).
+//! Network rules, fixed at genesis: fees, limits and issuers (ADR-0002, 0008, 0014).
 
 use brdu_crypto::PublicKey;
 
 use crate::error::LedgerError;
 
-/// Regras imutáveis de uma rede. O estado muda; as regras não.
+/// Immutable rules of a network. State changes; rules do not.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rules {
-    /// Identificador da rede (entra em toda assinatura: impede reaproveitar transação em outra rede).
+    /// Network identifier (goes into every signature: prevents replaying a transaction on another network).
     pub chain_id: String,
-    /// Taxa mínima base de uma transferência, em unidades mínimas (padrão 1.000 = 0,001 BRDU).
+    /// Base minimum fee of a transfer, in minimum units (default 1,000 = 0.001 BRDU).
     pub transfer_base: u64,
-    /// Taxa mínima por byte da transação codificada (padrão 1).
+    /// Minimum fee per byte of the encoded transaction (default 1).
     pub per_byte: u64,
-    /// Transações por bloco (padrão 1.000).
+    /// Transactions per block (default 1,000).
     pub max_block_txs: usize,
-    /// Bytes de transações por bloco (padrão 1.000.000).
+    /// Bytes of transactions per block (default 1,000,000).
     pub max_block_bytes: usize,
-    /// Os emissores (chaves públicas, sem repetição, em ordem).
+    /// The issuers (public keys, no repeats, in order).
     issuers: Vec<PublicKey>,
-    /// Quantas aprovações distintas de emissores são exigidas (M de N).
+    /// How many distinct issuer approvals are required (M of N).
     issuer_threshold: usize,
 }
 
 impl Rules {
-    /// Taxa base padrão (0,001 BRDU).
+    /// Default base fee (0.001 BRDU).
     pub const DEFAULT_TRANSFER_BASE: u64 = 1_000;
-    /// Taxa por byte padrão.
+    /// Default fee per byte.
     pub const DEFAULT_PER_BYTE: u64 = 1;
-    /// Transações por bloco padrão.
+    /// Default transactions per block.
     pub const DEFAULT_MAX_BLOCK_TXS: usize = 1_000;
-    /// Bytes por bloco padrão.
+    /// Default bytes per block.
     pub const DEFAULT_MAX_BLOCK_BYTES: usize = 1_000_000;
 
-    /// Regras com os padrões, para `chain_id`, `issuers` e o limiar M. Falha se o limiar não estiver em
-    /// `1..=N` ou se não houver emissores.
+    /// Rules with the defaults, for `chain_id`, `issuers` and the threshold M. Fails if the threshold is not in
+    /// `1..=N` or if there are no issuers.
     pub fn new(
         chain_id: &str,
         issuers: &[PublicKey],
@@ -61,19 +61,19 @@ impl Rules {
         })
     }
 
-    /// Os emissores.
+    /// The issuers.
     #[must_use]
     pub fn issuers(&self) -> &[PublicKey] {
         &self.issuers
     }
 
-    /// O limiar M.
+    /// The threshold M.
     #[must_use]
     pub const fn issuer_threshold(&self) -> usize {
         self.issuer_threshold
     }
 
-    /// `key` é um emissor?
+    /// Is `key` an issuer?
     #[must_use]
     pub fn is_issuer(&self, key: &PublicKey) -> bool {
         self.issuers.binary_search(key).is_ok()

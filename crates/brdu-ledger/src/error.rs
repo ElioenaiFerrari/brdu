@@ -1,116 +1,116 @@
-//! Erros do livro-razão. Nenhuma mensagem carrega segredo.
+//! Ledger errors. No message carries a secret.
 
 use brdu_crypto::{DecodeError, Hash32};
 use thiserror::Error;
 
-/// Por que uma transação ou um bloco foi recusado.
+/// Why a transaction or a block was rejected.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum LedgerError {
-    // --- transação (forma e assinatura)
-    /// Bytes que não são uma transação.
-    #[error("transação malformada")]
+    // --- transaction (shape and signature)
+    /// Bytes that are not a transaction.
+    #[error("malformed transaction")]
     Malformed,
-    /// A carga passa do limite.
-    #[error("carga grande demais")]
+    /// The payload exceeds the limit.
+    #[error("payload too large")]
     PayloadTooLarge,
-    /// A assinatura não confere.
-    #[error("assinatura inválida")]
+    /// The signature does not match.
+    #[error("invalid signature")]
     BadSignature,
-    /// A transação é de outra rede.
-    #[error("rede errada")]
+    /// The transaction is for another network.
+    #[error("wrong network")]
     WrongChain,
-    /// Tipo de transação que esta rede não conhece.
-    #[error("tipo de transação desconhecido: {0}")]
+    /// Transaction kind this network does not know.
+    #[error("unknown transaction kind: {0}")]
     UnknownKind(u8),
-    // --- contas e taxas
-    /// O nonce não é o esperado (replay ou transação fora de ordem).
-    #[error("nonce errado: esperado {expected}, veio {got}")]
+    // --- accounts and fees
+    /// The nonce is not the expected one (replay or out-of-order transaction).
+    #[error("wrong nonce: expected {expected}, got {got}")]
     BadNonce {
-        /// O próximo nonce da conta.
+        /// The account's next nonce.
         expected: u64,
-        /// O que veio na transação.
+        /// What came in the transaction.
         got: u64,
     },
-    /// A taxa é menor que a mínima.
-    #[error("taxa abaixo do mínimo: mínimo {min}, veio {got}")]
+    /// The fee is lower than the minimum.
+    #[error("fee below minimum: minimum {min}, got {got}")]
     FeeTooLow {
-        /// A taxa mínima.
+        /// The minimum fee.
         min: u64,
-        /// A que veio.
+        /// The one that came.
         got: u64,
     },
-    /// Saldo menor que o necessário.
-    #[error("saldo insuficiente")]
+    /// Balance lower than required.
+    #[error("insufficient funds")]
     InsufficientFunds,
-    /// A conta passaria de 64 bits.
-    #[error("estouro de 64 bits")]
+    /// The account would exceed 64 bits.
+    #[error("64-bit overflow")]
     Overflow,
-    // --- moeda
-    /// Valor zero.
-    #[error("valor zero")]
+    // --- coin
+    /// Zero amount.
+    #[error("zero amount")]
     ZeroAmount,
-    /// A referência de depósito já foi usada.
-    #[error("referência já usada")]
+    /// The deposit reference was already used.
+    #[error("reference already used")]
     RefUsed,
-    /// Referência vazia ou grande demais.
-    #[error("referência inválida")]
+    /// Empty or too-long reference.
+    #[error("invalid reference")]
     BadRef,
-    /// Menos de M aprovações distintas de emissores.
-    #[error("aprovações de emissores insuficientes: {valid} de {needed}")]
+    /// Fewer than M distinct issuer approvals.
+    #[error("insufficient issuer approvals: {valid} of {needed}")]
     NotEnoughApprovals {
-        /// Quantas aprovações válidas e distintas.
+        /// How many approvals are valid and distinct.
         valid: usize,
-        /// Quantas são exigidas.
+        /// How many are required.
         needed: usize,
     },
-    /// Só o dono da conta pode queimar o próprio saldo.
-    #[error("só o dono queima o próprio saldo")]
+    /// Only the account owner can burn their own balance.
+    #[error("only the owner burns their own balance")]
     NotOwner,
-    /// O número de sequência do atestado não é o seguinte.
-    #[error("sequência do atestado errada: esperada {expected}, veio {got}")]
+    /// The attestation sequence number is not the next one.
+    #[error("wrong attestation sequence: expected {expected}, got {got}")]
     BadSequence {
-        /// A sequência esperada.
+        /// The expected sequence.
         expected: u64,
-        /// A que veio.
+        /// The one that came.
         got: u64,
     },
-    // --- bloco
-    /// O bloco não é o seguinte (altura ou hash anterior).
-    #[error("bloco fora de lugar")]
+    // --- block
+    /// The block is not the next one (height or previous hash).
+    #[error("block out of place")]
     BadLinkage,
-    /// A hora do bloco volta no tempo.
-    #[error("hora do bloco anterior à do estado")]
+    /// The block time goes backwards.
+    #[error("block time earlier than the state time")]
     TimeWentBack,
-    /// Mais transações ou bytes que o limite.
-    #[error("bloco grande demais")]
+    /// More transactions or bytes than the limit.
+    #[error("block too large")]
     BlockTooLarge,
-    /// A mesma transação duas vezes no bloco.
-    #[error("transação repetida no bloco")]
+    /// The same transaction twice in the block.
+    #[error("duplicate transaction in block")]
     DuplicateTx(Hash32),
-    /// A raiz de estado do cabeçalho não bate com a execução.
-    #[error("raiz de estado diferente da calculada")]
+    /// The header's state root does not match the execution.
+    #[error("state root differs from the computed one")]
     StateRootMismatch,
-    /// Uma transação do bloco é inválida (o bloco todo é recusado).
-    #[error("transação {id} inválida: {reason}")]
+    /// A transaction in the block is invalid (the whole block is rejected).
+    #[error("transaction {id} invalid: {reason}")]
     InvalidTx {
-        /// Qual.
+        /// Which one.
         id: Hash32,
-        /// Por quê.
+        /// Why.
         reason: Box<LedgerError>,
     },
-    /// Falha ao ler bytes codificados.
-    #[error("decodificação: {0}")]
+    /// Failure reading encoded bytes.
+    #[error("decoding: {0}")]
     Decode(#[from] DecodeError),
-    /// Uma regra do módulo recusou (módulos de bens, credenciais, contratos).
-    #[error("módulo: {0}")]
+    /// A module rule rejected it (assets, credentials, contracts modules).
+    #[error("module: {0}")]
     Module(&'static str),
-    /// Regras da rede inválidas (limiar fora de 1..=emissores, por exemplo).
-    #[error("regras da rede inválidas")]
+    /// Invalid network rules (threshold outside 1..=issuers, for example).
+    #[error("invalid network rules")]
     BadRules,
 }
 
 impl LedgerError {
-    /// Um rótulo estável e curto, para contar recusas por motivo (fofoca, métricas).
+    /// A short, stable label, to count rejections by reason (gossip, metrics).
     #[must_use]
     pub const fn label(&self) -> &'static str {
         match self {

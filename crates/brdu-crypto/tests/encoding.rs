@@ -4,42 +4,42 @@ use brdu_crypto::encoding::{Decoder, Encoder};
 use proptest::prelude::*;
 
 #[test]
-fn formato_fixo_big_endian_com_tamanho_na_frente() {
+fn fixed_big_endian_format_with_length_prefix() {
     let mut e = Encoder::new();
     e.u8(1)
         .u32(0x0102_0304)
         .u64(5)
-        .string("oi")
+        .string("hi")
         .fixed(&[9, 9])
         .count(2);
     assert_eq!(
         e.finish().unwrap(),
         [
-            1, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, b'o', b'i', 9, 9, 0, 0, 0, 2
+            1, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, b'h', b'i', 9, 9, 0, 0, 0, 2
         ]
     );
 }
 
 #[test]
-fn ida_e_volta() {
+fn round_trip() {
     let mut e = Encoder::new();
     e.u8(7)
         .u64(u64::MAX)
         .bytes(&[1, 2, 3])
-        .string("olá, çã")
+        .string("hello, 世界")
         .fixed(&[0xaa; 4]);
     let bytes = e.finish().unwrap();
     let mut d = Decoder::new(&bytes);
     assert_eq!(d.u8(), Ok(7));
     assert_eq!(d.u64(), Ok(u64::MAX));
     assert_eq!(d.bytes(10), Ok(&[1u8, 2, 3][..]));
-    assert_eq!(d.string(100), Ok("olá, çã"));
+    assert_eq!(d.string(100), Ok("hello, 世界"));
     assert_eq!(d.fixed::<4>(), Ok([0xaa; 4]));
     assert_eq!(d.finish(), Ok(()));
 }
 
 #[test]
-fn truncado_sobra_utf8_e_limite() {
+fn truncated_trailing_utf8_and_limit() {
     assert_eq!(Decoder::new(&[0, 0, 0]).u32(), Err(DecodeError::Truncated));
     assert_eq!(
         Decoder::new(&[0, 0, 0, 9, 1]).bytes(100),
@@ -50,7 +50,7 @@ fn truncado_sobra_utf8_e_limite() {
         Decoder::new(&[0, 0, 0, 2, 0xff, 0xfe]).string(10),
         Err(DecodeError::Utf8)
     );
-    // tamanho declarado gigante: recusa SEM tentar alocar nada
+    // huge declared size: rejects WITHOUT trying to allocate anything
     assert_eq!(
         Decoder::new(&[0xff, 0xff, 0xff, 0xff]).bytes(1000),
         Err(DecodeError::TooLong)
@@ -62,8 +62,8 @@ fn truncado_sobra_utf8_e_limite() {
 }
 
 #[test]
-fn contagem_maior_que_os_bytes_que_restam_e_recusada() {
-    // 1 milhão de itens declarados com 2 bytes sobrando: nada de alocar um vetor de 1 milhão
+fn count_greater_than_remaining_bytes_is_rejected() {
+    // 1 million items declared with 2 bytes left: no allocating a 1-million vector
     let data = [0, 0x0f, 0x42, 0x40, 1, 2];
     assert_eq!(
         Decoder::new(&data).count(u32::MAX as usize),
@@ -74,7 +74,7 @@ fn contagem_maior_que_os_bytes_que_restam_e_recusada() {
 
 proptest! {
     #[test]
-    fn qualquer_sequencia_de_campos_volta_igual(
+    fn any_sequence_of_fields_round_trips(
         a in any::<u8>(), b in any::<u32>(), c in any::<u64>(),
         d in proptest::collection::vec(any::<u8>(), 0..200), s in ".{0,40}"
     ) {
@@ -90,9 +90,9 @@ proptest! {
         prop_assert_eq!(dec.finish(), Ok(()));
     }
 
-    // um decodificador nunca entra em pânico, seja qual for a entrada
+    // a decoder never panics, whatever the input
     #[test]
-    fn lixo_nunca_causa_panico(data in proptest::collection::vec(any::<u8>(), 0..64)) {
+    fn garbage_never_panics(data in proptest::collection::vec(any::<u8>(), 0..64)) {
         let mut d = Decoder::new(&data);
         let _ = d.u8();
         let _ = d.bytes(16);

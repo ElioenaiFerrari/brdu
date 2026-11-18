@@ -6,24 +6,24 @@ use brdu_ledger::{Block, BlockReceipt, Executor, State};
 use crate::error::ChainError;
 use crate::genesis::Genesis;
 
-/// Um bloco final: o bloco e o certificado de commit (precommits de mais de 2/3 dos validadores).
+/// A finalized block: the block and the commit certificate (precommits from more than 2/3 of the validators).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecidedBlock {
-    /// O bloco.
+    /// The block.
     pub block: Block,
-    /// O certificado.
+    /// The certificate.
     pub cert: Certificate,
 }
 
 impl DecidedBlock {
-    /// Codificação determinística.
+    /// Deterministic encoding.
     pub fn encode(&self) -> Result<Vec<u8>, ChainError> {
         let mut e = Encoder::new();
         e.bytes(&self.block.encode()?).bytes(&self.cert.encode());
         Ok(e.finish()?)
     }
 
-    /// Lê um bloco final (o bloco tem no máximo `max_txs` transações).
+    /// Reads a finalized block (the block has at most `max_txs` transactions).
     pub fn decode(
         bytes: &[u8],
         max_txs: usize,
@@ -37,7 +37,7 @@ impl DecidedBlock {
     }
 }
 
-/// Réplica verificada: só avança por `apply`, que confere **tudo** (certificado, proponente, conjunto, execução).
+/// Verified replica: only advances through `apply`, which checks **everything** (certificate, proposer, set, execution).
 pub struct Chain {
     genesis: Genesis,
     genesis_hash: Hash32,
@@ -48,12 +48,12 @@ pub struct Chain {
 }
 
 impl Chain {
-    /// Cria a cadeia vazia a partir da gênese.
+    /// Creates the empty chain from the genesis.
     pub fn new(genesis: Genesis) -> Result<Self, ChainError> {
         Self::with_executor(genesis, Executor::new)
     }
 
-    /// Como `new`, com um executor customizado (módulos, threads de verificação).
+    /// Like `new`, with a custom executor (modules, verification threads).
     pub fn with_executor(
         genesis: Genesis,
         make: impl FnOnce(brdu_ledger::Rules) -> Executor,
@@ -69,43 +69,43 @@ impl Chain {
         })
     }
 
-    /// A gênese.
+    /// The genesis.
     #[must_use]
     pub const fn genesis(&self) -> &Genesis {
         &self.genesis
     }
 
-    /// O hash da gênese.
+    /// The genesis hash.
     #[must_use]
     pub const fn genesis_hash(&self) -> &Hash32 {
         &self.genesis_hash
     }
 
-    /// O executor (regras, taxa mínima).
+    /// The executor (rules, minimum fee).
     #[must_use]
     pub const fn executor(&self) -> &Executor {
         &self.exec
     }
 
-    /// O estado atual.
+    /// The current state.
     #[must_use]
     pub const fn state(&self) -> &State {
         &self.state
     }
 
-    /// Altura (número de blocos). O próximo tem altura `height() + 1`.
+    /// Height (number of blocks). The next one has height `height() + 1`.
     #[must_use]
     pub const fn height(&self) -> u64 {
         self.blocks.len() as u64
     }
 
-    /// Os blocos finais.
+    /// The finalized blocks.
     #[must_use]
     pub fn blocks(&self) -> &[DecidedBlock] {
         &self.blocks
     }
 
-    /// Blocos com altura maior que `after`.
+    /// Blocks with height greater than `after`.
     #[must_use]
     pub fn blocks_after(&self, after: u64) -> &[DecidedBlock] {
         let i = usize::try_from(after)
@@ -114,25 +114,25 @@ impl Chain {
         self.blocks.get(i..).unwrap_or(&[])
     }
 
-    /// Os validadores, na ordem do rodízio.
+    /// The validators, in rotation order.
     #[must_use]
     pub fn validators(&self) -> Vec<PublicKey> {
         brdu_ledger::gov::validators(&self.state)
     }
 
-    /// A época do conjunto de validadores (0 = gênese; sobe a cada troca efetivada).
+    /// The validator set epoch (0 = genesis; increases with each change that takes effect).
     #[must_use]
     pub fn epoch(&self) -> u64 {
         brdu_ledger::gov::epoch(&self.state)
     }
 
-    /// A troca de validadores pendente, se houver.
+    /// The pending validator change, if any.
     #[must_use]
     pub fn pending_change(&self) -> Option<brdu_ledger::gov::Pending> {
         brdu_ledger::gov::pending(&self.state)
     }
 
-    /// Os endereços dos validadores, ordenados (o `signers` do cabeçalho).
+    /// The validators' addresses, sorted (the header's `signers`).
     #[must_use]
     pub fn signers(&self) -> Vec<Address> {
         let mut v: Vec<Address> = self
@@ -144,14 +144,14 @@ impl Chain {
         v
     }
 
-    /// O proponente da `round` na altura do próximo bloco.
+    /// The proposer of `round` at the next block's height.
     #[must_use]
     pub fn proposer(&self, round: u64) -> Option<PublicKey> {
         proposer_of(&self.validators(), self.height() + 1, round)
     }
 
-    /// Monta o próximo bloco com `txs` (sem alterar a cadeia). `proposer` tem de ser o da rodada, o que o
-    /// `apply` confere depois.
+    /// Builds the next block with `txs` (without altering the chain). `proposer` must be the round's proposer, which
+    /// `apply` checks later.
     pub fn build(
         &mut self,
         proposer: Address,
@@ -164,9 +164,9 @@ impl Chain {
             .build_block(&mut self.state, proposer, signers, time, txs)?)
     }
 
-    /// Escolhe, **em ordem**, as transações de `candidates` que valem juntas no próximo bloco (até os limites de
-    /// transações e de bytes), ensaiando cada uma sobre o estado e desfazendo tudo ao fim. Devolve as escolhidas e
-    /// as que falharam (o chamador as descarta).
+    /// Chooses, **in order**, the transactions from `candidates` that are valid together in the next block (up to the
+    /// transaction and byte limits), trying each one against the state and undoing everything at the end. Returns the chosen ones and
+    /// the ones that failed (the caller discards them).
     pub fn select_txs<'a>(
         &mut self,
         candidates: impl Iterator<Item = &'a brdu_ledger::Tx>,
@@ -197,7 +197,7 @@ impl Chain {
         })
     }
 
-    /// Confere **sem aplicar**: certificado, proponente, conjunto de signatários e (via ledger) o resto.
+    /// Checks **without applying**: certificate, proposer, signer set and (via the ledger) the rest.
     fn check(&self, d: &DecidedBlock) -> Result<(), ChainError> {
         let b = &d.block;
         if d.cert.height != b.height || b.height != self.height() + 1 {
@@ -219,8 +219,8 @@ impl Chain {
         Ok(())
     }
 
-    /// Aplica um bloco final. **Tudo ou nada.** Se o bloco acabou de passar por `validate`, as assinaturas das
-    /// transações não são conferidas de novo.
+    /// Applies a finalized block. **All or nothing.** If the block has just gone through `validate`, the transaction
+    /// signatures are not checked again.
     pub fn apply(&mut self, d: DecidedBlock) -> Result<BlockReceipt, ChainError> {
         self.check(&d)?;
         let hash = d.block.hash();
@@ -234,8 +234,8 @@ impl Chain {
         Ok(receipt)
     }
 
-    /// O que um validador confere antes de votar numa proposta: o proponente da rodada, o conjunto de signatários
-    /// e o ensaio completo do ledger (sem alterar a cadeia). Lembra o último bloco aprovado para `apply`.
+    /// What a validator checks before voting on a proposal: the round's proposer, the signer set
+    /// and the full ledger dry run (without altering the chain). Remembers the last approved block for `apply`.
     pub fn validate(&mut self, block: &Block, round: u64) -> Result<(), ChainError> {
         let want = proposer_of(&self.validators(), block.height, round)
             .map(|k| Address::from_public_key(&k));
@@ -251,7 +251,7 @@ impl Chain {
     }
 }
 
-/// `validators[(altura + rodada) % n]`, a mesma regra do motor BFT.
+/// `validators[(height + round) % n]`, the same rule as the BFT engine.
 #[must_use]
 pub fn proposer_of(validators: &[PublicKey], height: u64, round: u64) -> Option<PublicKey> {
     let n = u64::try_from(validators.len()).ok().filter(|n| *n > 0)?;
@@ -259,7 +259,7 @@ pub fn proposer_of(validators: &[PublicKey], height: u64, round: u64) -> Option<
     validators.get(i).copied()
 }
 
-/// O estado antes do bloco 1: só o conjunto inicial de validadores e seus limites (rotação, ADR-0015).
+/// The state before block 1: just the initial validator set and its limits (rotation, ADR-0015).
 fn seed_state(g: &Genesis) -> State {
     let mut s = State::new();
     brdu_ledger::gov::init(

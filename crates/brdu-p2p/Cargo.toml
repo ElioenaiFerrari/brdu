@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Transporte entre validadores do BRDU: Noise XX ligado à chave de consenso, sessão cifrada, limites e registros de endereço assinados."
+description = "BRDU validator transport: Noise XX bound to the consensus key, encrypted session, limits and signed address records."
 
 [dependencies]
 brdu-crypto.workspace = true

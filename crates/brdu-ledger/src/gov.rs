@@ -1,10 +1,10 @@
-//! Governança do conjunto de validadores (rotação, ADR-0015). O conjunto em vigor é **estado da cadeia**
-//! (`val/set`, `val/epoch`, `val/pending` no armazenamento de módulos), então entra na raiz de estado e todo nó
-//! chega ao mesmo conjunto em cada altura.
+//! Governance of the validator set (rotation, ADR-0015). The set in force is **chain state**
+//! (`val/set`, `val/epoch`, `val/pending` in module storage), so it enters the state root and every node
+//! reaches the same set at every height.
 //!
-//! Uma troca (`add` ou `remove` de **uma** chave) vale com **mais de 2/3 do conjunto em vigor** aprovando o
-//! documento exato; só uma troca pode estar pendente; o conjunto fica entre `min` e `max`; a altura efetiva é
-//! futura. Ao fim do bloco `efetiva − 1` o conjunto novo passa a valer e a época sobe.
+//! A change (`add` or `remove` of **one** key) takes effect with **more than 2/3 of the set in force** approving the
+//! exact document; only one change can be pending; the set stays between `min` and `max`; the effective height is
+//! in the future. At the end of block `effective − 1` the new set takes effect and the epoch goes up.
 
 use brdu_crypto::encoding::{Decoder, Encoder};
 use brdu_crypto::{Hash32, PublicKey, tagged};
@@ -16,9 +16,9 @@ use crate::rules::Rules;
 use crate::state::State;
 use crate::tx::{Tx, kind};
 
-/// Prefixo de domínio do documento que os validadores assinam.
+/// Domain prefix of the document the validators sign.
 pub const CHANGE_TAG: &str = "brdu/validators/change";
-/// Com quantos blocos de antecedência uma troca precisa ser agendada (mínimo).
+/// How many blocks in advance a change must be scheduled (minimum).
 pub const MIN_LEAD: u64 = 2;
 
 const K_SET: &[u8] = b"val/set";
@@ -27,12 +27,12 @@ const K_PENDING: &[u8] = b"val/pending";
 const K_MIN: &[u8] = b"val/min";
 const K_MAX: &[u8] = b"val/max";
 
-/// O que a troca faz.
+/// What the change does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
-    /// Entra um validador (vai para o fim da ordem do rodízio).
+    /// A validator joins (goes to the end of the rotation order).
     Add,
-    /// Sai um validador.
+    /// A validator leaves.
     Remove,
 }
 
@@ -53,20 +53,20 @@ impl Action {
     }
 }
 
-/// Uma troca agendada.
+/// A scheduled change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pending {
-    /// O que faz.
+    /// What it does.
     pub action: Action,
-    /// Quem entra ou sai.
+    /// Who joins or leaves.
     pub key: PublicKey,
-    /// A primeira altura em que o conjunto novo vale.
+    /// The first height at which the new set takes effect.
     pub effective_height: u64,
 }
 
-// --- leitura do estado -------------------------------------------------------------------------------------
+// --- state reads -------------------------------------------------------------------------------------------
 
-/// O conjunto de validadores em vigor, **na ordem do rodízio**.
+/// The validator set in force, **in rotation order**.
 #[must_use]
 pub fn validators(state: &State) -> Vec<PublicKey> {
     state
@@ -75,13 +75,13 @@ pub fn validators(state: &State) -> Vec<PublicKey> {
         .unwrap_or_default()
 }
 
-/// A época (sobe a cada troca efetivada; 0 é a gênese).
+/// The epoch (goes up with each change that takes effect; 0 is genesis).
 #[must_use]
 pub fn epoch(state: &State) -> u64 {
     num(state, K_EPOCH)
 }
 
-/// A troca pendente, se houver.
+/// The pending change, if any.
 #[must_use]
 pub fn pending(state: &State) -> Option<Pending> {
     let raw = state.ext_get(K_PENDING)?;
@@ -95,7 +95,7 @@ pub fn pending(state: &State) -> Option<Pending> {
     Some(p)
 }
 
-/// Limites de tamanho do conjunto: `(mínimo, máximo)`.
+/// Size limits of the set: `(minimum, maximum)`.
 #[must_use]
 pub fn limits(state: &State) -> (usize, usize) {
     (num(state, K_MIN) as usize, num(state, K_MAX) as usize)
@@ -132,7 +132,7 @@ fn decode_set(raw: &[u8]) -> Option<Vec<PublicKey>> {
     Some(out)
 }
 
-/// Grava o conjunto inicial (a gênese). Só o `Chain` chama, uma vez, antes do bloco 1.
+/// Writes the initial set (genesis). Only `Chain` calls this, once, before block 1.
 pub fn init(state: &mut State, set: &[PublicKey], min: usize, max: usize) {
     state.ext_put(K_SET.to_vec(), encode_set(set));
     put_num(state, K_EPOCH, 0);
@@ -140,10 +140,10 @@ pub fn init(state: &mut State, set: &[PublicKey], min: usize, max: usize) {
     put_num(state, K_MAX, max as u64);
 }
 
-// --- documento e carga --------------------------------------------------------------------------------------
+// --- document and payload ----------------------------------------------------------------------------------
 
-/// O documento que os validadores assinam: rede, ação, chave, altura efetiva e **época atual** (impede reaproveitar
-/// uma aprovação depois de outra troca).
+/// The document the validators sign: network, action, key, effective height and **current epoch** (prevents replaying
+/// an approval after another change).
 #[must_use]
 pub fn change_doc(
     chain_id: &str,
@@ -161,7 +161,7 @@ pub fn change_doc(
     tagged(CHANGE_TAG, &[&e.finish().unwrap_or_default()])
 }
 
-/// A carga da transação `VALIDATOR_CHANGE`.
+/// The `VALIDATOR_CHANGE` transaction payload.
 #[must_use]
 pub fn change_payload(
     action: Action,
@@ -207,9 +207,9 @@ fn decode_change(payload: &[u8]) -> Result<Change, LedgerError> {
     })
 }
 
-// --- o módulo ---------------------------------------------------------------------------------------------------
+// --- the module --------------------------------------------------------------------------------------------
 
-/// O módulo de governança do conjunto de validadores (tipo 22).
+/// The module for governance of the validator set (kind 22).
 pub struct GovModule;
 
 impl Module for GovModule {
@@ -228,26 +228,26 @@ impl Module for GovModule {
         let set = validators(state);
         let (min, max) = limits(state);
         if pending(state).is_some() {
-            return Err(LedgerError::Module(
-                "já há uma troca de validadores pendente",
-            ));
+            return Err(LedgerError::Module("a validator change is already pending"));
         }
         if c.effective_height < ctx.height.saturating_add(MIN_LEAD) {
-            return Err(LedgerError::Module("a altura efetiva tem de ser futura"));
+            return Err(LedgerError::Module(
+                "the effective height must be in the future",
+            ));
         }
         let present = set.contains(&c.key);
         let new_len = match c.action {
-            Action::Add if present => return Err(LedgerError::Module("a chave já é validadora")),
+            Action::Add if present => {
+                return Err(LedgerError::Module("the key is already a validator"));
+            }
             Action::Remove if !present => {
-                return Err(LedgerError::Module("a chave não é validadora"));
+                return Err(LedgerError::Module("the key is not a validator"));
             }
             Action::Add => set.len() + 1,
             Action::Remove => set.len() - 1,
         };
         if new_len < min || new_len > max {
-            return Err(LedgerError::Module(
-                "o conjunto sairia dos limites de tamanho",
-            ));
+            return Err(LedgerError::Module("the set would leave the size limits"));
         }
         let doc = change_doc(
             &rules.chain_id,

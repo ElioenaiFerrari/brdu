@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! 4 validadores em processo; o 4º é parado; o simulador equivoca com a chave dele; os 3 restantes expõem a evidência.
+//! 4 validators in process; the 4th is stopped; the simulator equivocates with its key; the remaining 3 expose the evidence.
 
 use std::time::{Duration, Instant};
 
@@ -12,7 +12,7 @@ fn key(n: u8) -> SecretKey {
 }
 
 #[test]
-fn equivocacao_de_um_validador_e_detectada_pelos_tres_honestos() {
+fn a_validators_equivocation_is_detected_by_the_three_honest_ones() {
     let dir = std::env::temp_dir().join(format!("brdu-sim-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let vals: Vec<SecretKey> = (20..24).map(key).collect();
@@ -40,10 +40,10 @@ fn equivocacao_de_um_validador_e_detectada_pelos_tres_honestos() {
     }
     let end = Instant::now() + Duration::from_secs(20);
     while nodes.iter().any(|n| n.peer_count() < 3) {
-        assert!(Instant::now() < end, "malha");
+        assert!(Instant::now() < end, "mesh");
         std::thread::sleep(Duration::from_millis(50));
     }
-    // o validador 4 sai do ar: sua chave fica livre para o simulador
+    // validator 4 goes down: its key is free for the simulator
     nodes.pop().unwrap().stop();
     let targets: Vec<String> = nodes.iter().map(|n| n.listen_addr().to_string()).collect();
     let delivered = brdu_sim::equivocate(&genesis, &vals[3], &targets, 1).unwrap();
@@ -52,12 +52,12 @@ fn equivocacao_de_um_validador_e_detectada_pelos_tres_honestos() {
     while nodes.iter().any(|n| n.evidence_count() == 0) {
         assert!(
             Instant::now() < end,
-            "evidência em {:?}",
+            "evidence at {:?}",
             nodes.iter().map(Node::evidence_count).collect::<Vec<_>>()
         );
         std::thread::sleep(Duration::from_millis(50));
     }
-    // a evidência nomeia o equivocador e os dois blocos diferentes
+    // the evidence names the equivocator and the two different blocks
     let ev = nodes[0].shared().info.lock().unwrap().evidence.clone();
     let (a, b) = &ev[0];
     assert_eq!(a.voter, vals[3].public());

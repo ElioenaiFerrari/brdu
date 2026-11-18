@@ -268,6 +268,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "brdu-explorer"
+version = "0.1.0"
+dependencies = [
+ "brdu-bft",
+ "brdu-chain",
+ "brdu-crypto",
+ "brdu-ledger",
+ "brdu-node",
+ "serde_json",
+ "tiny_http",
+]
+
+[[package]]
 name = "brdu-ledger"
 version = "0.1.0"
 dependencies = [

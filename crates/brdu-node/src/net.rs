@@ -1,6 +1,6 @@
-//! Rede: aceitar, discar e tocar uma conexão. Cada par tem **uma** thread que é dona da `Session` (o Noise guarda
-//! um contador por direção dentro do mesmo objeto): ela esvazia a fila de saída e espia a entrada, sem nunca ler
-//! um quadro pela metade.
+//! Networking: accepting, dialing and driving a connection. Each peer has **one** thread that owns the `Session`
+//! (Noise keeps one counter per direction inside the same object): it drains the outbound queue and peeks at the
+//! inbound side, never reading a frame halfway.
 
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::Arc;
@@ -21,8 +21,8 @@ const OUT_QUEUE: usize = 8192;
 const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Só validadores em vigor (mais quem entra numa troca pendente), e nunca nós mesmos. O conjunto é do `Shared`,
-/// atualizado pelo núcleo a cada bloco (rotação, ADR-0015).
+/// Only validators currently in force (plus whoever joins in a pending change), and never ourselves. The set lives
+/// in `Shared`, updated by the core on every block (rotation, ADR-0015).
 struct SetPolicy {
     shared: Arc<Shared>,
     me: PublicKey,
@@ -34,7 +34,7 @@ impl PeerPolicy for SetPolicy {
     }
 }
 
-/// O que as threads de rede compartilham.
+/// What the network threads share.
 pub struct NetCtx {
     identity: Arc<NetIdentity>,
     policy: SetPolicy,
@@ -93,7 +93,7 @@ fn sleep_unless_stopped(ctx: &NetCtx, total: Duration) {
     }
 }
 
-/// Aceita conexões de validadores.
+/// Accepts connections from validators.
 pub fn spawn_listener(listener: TcpListener, ctx: Arc<NetCtx>) -> JoinHandle<()> {
     std::thread::spawn(move || {
         let mut workers: Vec<JoinHandle<()>> = Vec::new();
@@ -130,7 +130,7 @@ pub fn spawn_listener(listener: TcpListener, ctx: Arc<NetCtx>) -> JoinHandle<()>
     })
 }
 
-/// Disca a um endereço e **volta a discar** quando a conexão cai.
+/// Dials an address and **dials again** when the connection drops.
 pub fn spawn_dialer(addr: String, ctx: Arc<NetCtx>) -> JoinHandle<()> {
     std::thread::spawn(move || {
         let mut known: Option<PublicKey> = None;
@@ -158,7 +158,7 @@ pub fn spawn_dialer(addr: String, ctx: Arc<NetCtx>) -> JoinHandle<()> {
     })
 }
 
-/// Espera até `wait` por dados **sem consumi-los**.
+/// Waits up to `wait` for data **without consuming it**.
 fn readable(stream: &TcpStream, wait: Duration) -> std::io::Result<bool> {
     stream.set_read_timeout(Some(wait))?;
     let mut b = [0u8; 1];
@@ -197,7 +197,7 @@ fn run_session(mut session: Session, outbound: bool, ctx: &NetCtx) {
     let max_for = move |k: u32| limits.max_for(k);
     let mut last_activity = Instant::now();
     'conn: while !ctx.stopped() {
-        // saída
+        // outbound
         loop {
             match rx.try_recv() {
                 Ok(m) => {
@@ -207,10 +207,10 @@ fn run_session(mut session: Session, outbound: bool, ctx: &NetCtx) {
                     last_activity = Instant::now();
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => break,
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'conn, // o núcleo largou esta conexão
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'conn, // the core dropped this connection
             }
         }
-        // entrada
+        // inbound
         let poll = if last_activity.elapsed() < Duration::from_millis(200) {
             Duration::from_millis(2)
         } else {
@@ -224,7 +224,7 @@ fn run_session(mut session: Session, outbound: bool, ctx: &NetCtx) {
                     let Some(wire) = Wire::decode(kind, &body, &limits) else {
                         break;
                     };
-                    // as assinaturas das transações se conferem AQUI, em paralelo entre os pares
+                    // transaction signatures are checked HERE, in parallel across peers
                     let wire = match wire {
                         Wire::Txs(mut txs) => {
                             txs.retain(|t| t.verify().is_ok());

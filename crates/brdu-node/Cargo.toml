@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Runtime do validador do BRDU: consenso, mempool O(1), diário e log de blocos, sincronização, rede Noise e API HTTP."
+description = "BRDU validator runtime: consensus, O(1) mempool, journal and block log, sync, Noise networking and HTTP API."
 
 [dependencies]
 brdu-crypto.workspace = true

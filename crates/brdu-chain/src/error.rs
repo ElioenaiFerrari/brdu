@@ -3,22 +3,22 @@ use brdu_crypto::DecodeError;
 use brdu_ledger::LedgerError;
 use thiserror::Error;
 
-/// Erros da cadeia.
+/// Chain errors.
 #[derive(Debug, Error, PartialEq)]
 pub enum ChainError {
-    /// Gênese inválida.
+    /// Invalid genesis.
     #[error("invalid genesis: {0}")]
     Genesis(&'static str),
-    /// Bloco malformado ou fora de regra.
+    /// Malformed block or one that breaks the rules.
     #[error("bad block: {0}")]
     Block(&'static str),
-    /// Certificado inválido.
+    /// Invalid certificate.
     #[error("bad certificate: {0}")]
     Certificate(#[from] CertError),
-    /// O ledger recusou o bloco.
+    /// The ledger rejected the block.
     #[error("ledger: {0}")]
     Ledger(#[from] LedgerError),
-    /// Bytes malformados.
+    /// Malformed bytes.
     #[error("decode: {0}")]
     Decode(#[from] DecodeError),
 }

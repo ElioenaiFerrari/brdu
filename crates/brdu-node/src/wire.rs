@@ -1,4 +1,4 @@
-//! Mensagens entre validadores. Cada tipo tem um limite de tamanho conferido **antes** de ler o corpo.
+//! Messages between validators. Each type has a size limit checked **before** the body is read.
 
 use brdu_bft::{Proposal, Vote};
 use brdu_chain::DecidedBlock;
@@ -6,55 +6,55 @@ use brdu_crypto::Hash32;
 use brdu_crypto::encoding::{Decoder, Encoder};
 use brdu_ledger::Tx;
 
-/// Tipos de mensagem.
+/// Message kinds.
 pub mod kind {
-    /// Proposta de bloco.
+    /// Block proposal.
     pub const PROPOSAL: u32 = 1;
-    /// Voto.
+    /// Vote.
     pub const VOTE: u32 = 2;
-    /// Lote de transações (fofoca).
+    /// Batch of transactions (gossip).
     pub const TXS: u32 = 3;
-    /// Altura e ponta do remetente.
+    /// Sender's height and tip.
     pub const STATUS: u32 = 4;
-    /// Pedido de blocos.
+    /// Request for blocks.
     pub const GET_BLOCKS: u32 = 5;
-    /// Blocos finais.
+    /// Final blocks.
     pub const BLOCKS: u32 = 6;
 }
 
-/// Quantos blocos finais cabem numa resposta.
+/// How many final blocks fit in one reply.
 pub const MAX_BLOCKS_PER_REPLY: usize = 32;
-/// Quantas transações cabem num lote de fofoca.
+/// How many transactions fit in one gossip batch.
 pub const MAX_TXS_PER_MSG: usize = 500;
 
-/// Uma mensagem já decodificada.
+/// A decoded message.
 #[derive(Debug, Clone)]
 pub enum Wire {
-    /// Proposta.
+    /// Proposal.
     Proposal(Proposal),
-    /// Voto.
+    /// Vote.
     Vote(Vote),
-    /// Transações.
+    /// Transactions.
     Txs(Vec<Tx>),
-    /// Altura e hash do último bloco.
+    /// Height and hash of the last block.
     Status { height: u64, tip: Option<Hash32> },
-    /// "Mande-me os blocos a partir de `from`."
+    /// "Send me the blocks starting at `from`."
     GetBlocks { from: u64, max: u32 },
-    /// Blocos finais.
+    /// Final blocks.
     Blocks(Vec<DecidedBlock>),
 }
 
-/// Limites de tamanho de corpo por tipo.
+/// Body size limits per kind.
 #[derive(Debug, Clone, Copy)]
 pub struct Limits {
-    /// Bytes de um bloco.
+    /// Bytes in a block.
     pub max_block_bytes: usize,
-    /// Transações de um bloco.
+    /// Transactions in a block.
     pub max_block_txs: usize,
 }
 
 impl Limits {
-    /// Maior corpo que o tipo `k` pode ter.
+    /// Largest body that kind `k` may have.
     #[must_use]
     pub const fn max_for(&self, k: u32) -> usize {
         match k {
@@ -70,7 +70,7 @@ impl Limits {
 }
 
 impl Wire {
-    /// `(tipo, corpo)`.
+    /// `(kind, body)`.
     #[must_use]
     pub fn encode(&self) -> (u32, Vec<u8>) {
         match self {
@@ -106,7 +106,7 @@ impl Wire {
         }
     }
 
-    /// Lê uma mensagem; `None` se malformada.
+    /// Parses a message; `None` if malformed.
     #[must_use]
     pub fn decode(k: u32, body: &[u8], lim: &Limits) -> Option<Self> {
         match k {

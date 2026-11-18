@@ -1,5 +1,6 @@
-//! O núcleo: dono do consenso, do mempool, do diário e da cadeia. Tudo o que chega (rede, API, prazos) entra por
-//! `Input`; tudo o que sai vai por canais das conexões. Sem E/S bloqueante aqui, exceto o disco.
+//! The core: owner of consensus, the mempool, the journal and the chain. Everything that arrives (network, API,
+//! timeouts) comes in through `Input`; everything that leaves goes over the connections' channels. No blocking I/O
+//! here, except the disk.
 
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
@@ -17,26 +18,26 @@ use crate::mempool::{Mempool, PoolError};
 use crate::node::{Config, NodeError, Shared, Timeouts};
 use crate::wire::{MAX_BLOCKS_PER_REPLY, MAX_TXS_PER_MSG, Wire};
 
-/// O que entra no núcleo.
+/// What enters the core.
 pub enum Input {
-    /// Mensagem de um par.
+    /// A message from a peer.
     Net(PublicKey, Wire),
-    /// Uma conexão estabeleceu (e passou na prova de identidade).
+    /// A connection was established (and passed the identity proof).
     PeerUp {
         key: PublicKey,
         outbound: bool,
         tx: SyncSender<Arc<(u32, Vec<u8>)>>,
         id: u64,
     },
-    /// Uma conexão caiu.
+    /// A connection dropped.
     PeerDown { key: PublicKey, id: u64 },
-    /// Transação já conferida (assinatura e forma), vinda da API ou de um par.
+    /// An already checked transaction (signature and shape), coming from the API or a peer.
     Tx {
         tx: Tx,
         from: Option<PublicKey>,
         reply: Option<Sender<Result<Hash32, String>>>,
     },
-    /// Parar.
+    /// Stop.
     Stop,
 }
 
@@ -65,7 +66,7 @@ fn now_secs() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-/// O núcleo do nó.
+/// The node core.
 pub struct Core {
     shared: Arc<Shared>,
     rx: Receiver<Input>,
@@ -95,7 +96,7 @@ pub struct Core {
 }
 
 impl Core {
-    /// Abre o disco, refaz a cadeia a partir do log de blocos e prepara o diário.
+    /// Opens the disk, rebuilds the chain from the block log and prepares the journal.
     pub fn new(
         cfg: Config,
         shared: Arc<Shared>,
@@ -154,7 +155,7 @@ impl Core {
         })
     }
 
-    /// O laço principal.
+    /// The main loop.
     pub fn run(mut self) {
         self.refresh_set();
         self.timers.push(Reverse((
@@ -176,7 +177,7 @@ impl Core {
                 Ok(input) => self.on_input(input),
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
             }
-            // drena o que já está na fila antes de olhar os prazos (agrupa trabalho sob carga)
+            // drain what is already queued before looking at the deadlines (batches work under load)
             let mut drained = 0;
             while drained < 256 {
                 match self.rx.try_recv() {
@@ -193,7 +194,7 @@ impl Core {
         }
     }
 
-    // ------------------------------------------------------------------ entradas
+    // ------------------------------------------------------------------ inputs
 
     fn on_input(&mut self, input: Input) {
         match input {
@@ -231,18 +232,18 @@ impl Core {
         tx: SyncSender<Arc<(u32, Vec<u8>)>>,
         id: u64,
     ) {
-        // duas conexões com o mesmo par: vale a iniciada pela chave **menor**
+        // two connections to the same peer: the one initiated by the **lower** key wins
         if let Some(old) = self.peers.get(&key) {
             let initiator = |outbound: bool| if outbound { self.me } else { key };
             let responder = |outbound: bool| if outbound { key } else { self.me };
             let preferred = |o: bool| initiator(o) < responder(o);
             if preferred(old.outbound) && !preferred(outbound) {
-                return; // a nova some (o `tx` cai e o laço dela encerra)
+                return; // the new one goes away (its `tx` drops and its loop ends)
             }
         }
         self.peers.insert(key, Peer { tx, outbound, id });
         self.publish_peers();
-        // ao (re)conectar: estado, mempool e o que o consenso sabe
+        // on (re)connect: state, mempool and what consensus knows
         self.send_to(
             &key,
             &Wire::Status {
@@ -332,7 +333,7 @@ impl Core {
             return;
         }
         if !self.in_set && self.engine.is_none() {
-            return; // observador: não vota
+            return; // observer: does not vote
         }
         match self.engine.is_some() {
             true => self.feed(match msg {
@@ -348,7 +349,7 @@ impl Core {
         }
     }
 
-    // ------------------------------------------------------------------ transações
+    // ------------------------------------------------------------------ transactions
 
     fn admit(&mut self, tx: Tx, from: Option<PublicKey>) -> Result<Hash32, String> {
         let id = tx.id();
@@ -360,7 +361,7 @@ impl Core {
             if from.is_some() {
                 return Err("duplicate".into());
             }
-            // reenvio pela API: pendente = ok (idempotente); já incluída = recusa clara
+            // resubmission through the API: pending = ok (idempotent); already included = clear refusal
             let included = self
                 .shared
                 .info
@@ -385,7 +386,7 @@ impl Core {
                     .stats
                     .txs_accepted
                     .fetch_add(1, Ordering::Relaxed);
-                // fofoca **sem eco**: não devolve a quem mandou
+                // gossip **without echo**: do not send it back to whoever sent it
                 let msg = Wire::Txs(vec![tx]).encode();
                 let msg = Arc::new(msg);
                 for (k, p) in &self.peers {
@@ -410,7 +411,7 @@ impl Core {
         }
     }
 
-    /// Confere o que não é assinatura (já conferida): rede, taxa mínima, saldo para a taxa. Devolve o nonce da conta.
+    /// Checks everything except the signature (already checked): network, minimum fee, balance for the fee. Returns the account nonce.
     fn check_admission(&self, tx: &Tx) -> Result<u64, String> {
         let chain = self.shared.chain.lock().map_err(|_| "busy".to_string())?;
         if tx.chain_id != self.chain_id {
@@ -438,7 +439,7 @@ impl Core {
         }
     }
 
-    // ------------------------------------------------------------------ consenso
+    // ------------------------------------------------------------------ consensus
 
     fn tip(&self) -> Option<Hash32> {
         self.shared
@@ -449,7 +450,7 @@ impl Core {
     }
 
     fn should_start(&self) -> bool {
-        // observador (fora do conjunto em vigor): só sincroniza, não vota
+        // observer (outside the set in force): only syncs, does not vote
         self.in_set
             && (self.empty_blocks
                 || !self.pool.is_empty()
@@ -457,7 +458,7 @@ impl Core {
                 || !self.journal_msgs.is_empty())
     }
 
-    /// Marca a hora de começar a próxima altura (respeitando o espaço mínimo entre blocos).
+    /// Marks the time to start the next height (respecting the minimum spacing between blocks).
     fn schedule_start(&mut self, force: bool) {
         if self.engine.is_some() || self.starting || !self.in_set || !(force || self.should_start())
         {
@@ -525,7 +526,7 @@ impl Core {
         };
         self.set_running(true);
         self.drive(engine, actions.into());
-        // o que chegou antes de começarmos
+        // what arrived before we started
         for m in std::mem::take(&mut self.early) {
             let h = match &m {
                 Message::Proposal(p) => p.height,
@@ -548,7 +549,7 @@ impl Core {
         self.drive(e, actions.into());
     }
 
-    /// Executa as ações do motor (e as que elas provocam) até esvaziar ou até o bloco ficar final.
+    /// Runs the engine's actions (and the ones they trigger) until drained or until the block is final.
     fn drive(&mut self, mut e: Engine, mut queue: VecDeque<Action>) {
         while let Some(a) = queue.pop_front() {
             match a {
@@ -594,7 +595,7 @@ impl Core {
         base + self.timeouts.delta * u32::try_from(round.min(20)).unwrap_or(20)
     }
 
-    /// Diário **antes** de transmitir: o que saiu da máquina está no diário, e o que não foi gravado nunca saiu.
+    /// Journal **before** transmitting: whatever left the machine is in the journal, and whatever was not recorded never left.
     fn journal_and_broadcast(&mut self, m: &Message) {
         let (tag, body) = match m {
             Message::Proposal(p) => (JOURNAL_PROPOSAL, p.encode()),
@@ -603,7 +604,7 @@ impl Core {
         let mut rec = vec![tag];
         rec.extend_from_slice(&body);
         if self.journal.append(&rec, true).is_err() {
-            return; // sem diário não se assina nem se transmite
+            return; // without the journal we neither sign nor transmit
         }
         self.journal_msgs.push(m.clone());
         let msg = Arc::new(wire_of(m.clone()).encode());
@@ -640,12 +641,12 @@ impl Core {
         }
     }
 
-    /// Aplica um bloco final, grava no log e limpa o diário. `own` = decidido por nós (conta rodadas).
+    /// Applies a final block, writes it to the log and clears the journal. `own` = decided by us (counts rounds).
     fn apply_decided(&mut self, d: DecidedBlock, _own: bool) -> bool {
         let Ok(raw) = d.encode() else { return false };
         let ids: Vec<Hash32> = d.block.txs.iter().map(Tx::id).collect();
         let height = d.block.height;
-        // o índice de transações muda **com a cadeia travada**: quem vê a altura nova já vê o índice novo
+        // the transaction index changes **with the chain locked**: whoever sees the new height already sees the new index
         let ok = self.shared.chain.lock().is_ok_and(|mut c| {
             let applied = c.apply(d).is_ok();
             if applied && let Ok(mut i) = self.shared.info.lock() {
@@ -684,7 +685,7 @@ impl Core {
         self.schedule_start(false);
     }
 
-    // ------------------------------------------------------------------ prazos e sincronização
+    // ------------------------------------------------------------------ deadlines and sync
 
     fn fire_timers(&mut self) {
         let now = Instant::now();
@@ -749,13 +750,13 @@ impl Core {
         );
     }
 
-    // ------------------------------------------------------------------ saída
+    // ------------------------------------------------------------------ output
 
     fn send_to(&mut self, key: &PublicKey, w: &Wire) {
         if let Some(p) = self.peers.get(key) {
             match p.tx.try_send(Arc::new(w.encode())) {
                 Ok(()) | Err(TrySendError::Disconnected(_)) => {}
-                Err(TrySendError::Full(_)) => {} // par lento: perde esta mensagem; a sincronização repõe
+                Err(TrySendError::Full(_)) => {} // slow peer: it loses this message; sync restores it
             }
         }
     }
@@ -767,9 +768,9 @@ impl Core {
         }
     }
 
-    /// Depois de cada bloco: a cabeça de cada fila do mempool que **não vale mais** (um mint com referência já usada,
-    /// por exemplo) sai, junto com as seguintes do remetente. Sem isso ela ficaria parada para sempre nos nós que
-    /// não montaram o bloco e travaria o nonce do remetente.
+    /// After each block: the head of each mempool queue that is **no longer valid** (a mint whose reference was
+    /// already used, for example) is removed, together with the sender's following transactions. Without this it
+    /// would stay stuck forever on the nodes that did not build the block and would block the sender's nonce.
     fn drop_dead_heads(&mut self) {
         let heads = {
             let Ok(chain) = self.shared.chain.lock() else {
@@ -795,8 +796,8 @@ impl Core {
         }
     }
 
-    /// Relê o conjunto de validadores em vigor (a rotação muda a cada bloco): atualiza quem pode conectar, derruba
-    /// pares que saíram e decide se este nó vota (em vigor) ou só observa.
+    /// Re-reads the validator set in force (rotation changes it block by block): updates who may connect, drops
+    /// peers that left and decides whether this node votes (in force) or only observes.
     fn refresh_set(&mut self) {
         let (set, pending) = self
             .shared

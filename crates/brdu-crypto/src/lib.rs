@@ -1,13 +1,13 @@
-//! Primitivas criptográficas do BRDU (ADR-0005, 0010, 0011).
+//! BRDU cryptographic primitives (ADR-0005, 0010, 0011).
 //!
-//! - [`hash`]: SHA3-256 com prefixo de domínio.
-//! - [`sign`]: Ed25519 estrito, chave privada sem `Debug` e zerada ao sair da memória.
-//! - [`address`] e [`bech32m`]: endereços `brdu1…` com checksum.
-//! - [`encoding`]: codificação determinística de mensagens.
-//! - [`amount`]: valores em unidades mínimas (6 casas), sem ponto flutuante.
-//! - [`merkle`]: árvore de Merkle com domínios separados.
+//! - [`hash`]: SHA3-256 with a domain prefix.
+//! - [`sign`]: strict Ed25519, private key without `Debug` and zeroed when dropped from memory.
+//! - [`address`] and [`bech32m`]: `brdu1…` addresses with a checksum.
+//! - [`encoding`]: deterministic message encoding.
+//! - [`amount`]: amounts in minimum units (6 decimal places), no floating point.
+//! - [`merkle`]: Merkle tree with separated domains.
 //!
-//! `no_std` com `alloc`: serve ao nó, à carteira desktop e, no futuro, ao navegador (WASM). **Não auditado.**
+//! `no_std` with `alloc`: serves the node, the desktop wallet and, in the future, the browser (WASM). **Not audited.**
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 

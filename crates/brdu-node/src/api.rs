@@ -1,5 +1,5 @@
-//! API HTTP (JSON). Só leitura, exceto `POST /tx`, que leva uma transação **já assinada**: o nó nunca tem chave
-//! de usuário.
+//! HTTP API (JSON). Read-only, except `POST /tx`, which carries an **already signed** transaction: the node never
+//! holds a user key.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -19,7 +19,7 @@ use crate::node::Shared;
 const WORKERS: usize = 4;
 const MAX_BODY: usize = 128 * 1024;
 
-/// Verifica e envia uma transação ao núcleo. A assinatura é conferida **na thread de quem chama** (em paralelo).
+/// Verifies a transaction and sends it to the core. The signature is checked **on the caller's thread** (in parallel).
 pub fn submit_raw(shared: &Shared, core: &Sender<Input>, raw: &[u8]) -> Result<Hash32, String> {
     let tx = Tx::decode(raw).map_err(|e| e.to_string())?;
     tx.verify().map_err(|e| e.to_string())?;
@@ -35,7 +35,7 @@ pub fn submit_raw(shared: &Shared, core: &Sender<Input>, raw: &[u8]) -> Result<H
         .map_err(|_| "timeout".to_string())?
 }
 
-/// Sobe as threads da API.
+/// Spawns the API threads.
 pub fn spawn(
     addr: SocketAddr,
     shared: Arc<Shared>,
@@ -182,7 +182,7 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
                 json!({
                     "minted": s.minted(), "burned": s.burned(), "supply": s.supply(),
                     "reserve": s.attestation().map(|a| a.reserve), "attestation_seq": s.attestation().map(|a| a.seq),
-                    "coverage": cov, "unit": "ypy (1 BRDU = 1.000.000)",
+                    "coverage": cov, "unit": "1 BRDU = 1,000,000 base units",
                 }),
             )
         }
@@ -204,7 +204,7 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
             .and_then(|h| chain.blocks().get(usize::try_from(h - 1).ok()?))
         {
             Some(d) => (200, block_json(d, true)),
-            None => (404, json!({"error": "no such block"})),
+            None => (404, json!({"error": "block not found"})),
         },
         ["blocks"] => {
             let from = q(query, "from").unwrap_or(1).max(1);
@@ -214,6 +214,19 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
                 .iter()
                 .take(usize::try_from(limit).unwrap_or(20))
                 .map(|d| block_json(d, false))
+                .collect();
+            (200, json!({"height": chain.height(), "blocks": list}))
+        }
+        ["blocks", "raw"] => {
+            // encoded final blocks (block + certificate) in hex: whoever does not trust the node re-verifies them itself
+            let from = q(query, "from").unwrap_or(1).max(1);
+            let limit = usize::try_from(q(query, "limit").unwrap_or(16).clamp(1, 32)).unwrap_or(16);
+            let list: Vec<String> = chain
+                .blocks_after(from - 1)
+                .iter()
+                .take(limit)
+                .filter_map(|d| d.encode().ok())
+                .map(|raw| hex::encode(&raw))
                 .collect();
             (200, json!({"height": chain.height(), "blocks": list}))
         }
@@ -233,9 +246,9 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
                         200,
                         json!({"id": id.to_hex(), "height": d.block.height, "tx": tx_json(t)}),
                     ),
-                    None => (404, json!({"error": "not found"})),
+                    None => (404, json!({"error": "transaction not found"})),
                 },
-                None => (404, json!({"error": "not found"})),
+                None => (404, json!({"error": "transaction not found"})),
             }
         }
         ["evidence"] => {

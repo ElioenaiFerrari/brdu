@@ -7,20 +7,20 @@ fn leaves(n: usize) -> Vec<Hash32> {
 }
 
 #[test]
-fn vazia_tem_raiz_propria_e_fixa() {
+fn empty_has_its_own_fixed_root() {
     assert_eq!(merkle::root(&[]), merkle::root(&[]));
     assert_ne!(merkle::root(&[]), merkle::root(&leaves(1)));
 }
 
 #[test]
-fn a_folha_nunca_e_a_raiz_dela_mesma() {
-    // domínios separados: um nó interno não pode passar por folha
+fn a_leaf_is_never_its_own_root() {
+    // separated domains: an internal node cannot pass as a leaf
     let one = leaves(1);
     assert_ne!(merkle::root(&one), one[0]);
 }
 
 #[test]
-fn a_ordem_importa_e_cada_folha_muda_a_raiz() {
+fn order_matters_and_each_leaf_changes_the_root() {
     let l = leaves(7);
     let base = merkle::root(&l);
     let mut swapped = l.clone();
@@ -28,30 +28,30 @@ fn a_ordem_importa_e_cada_folha_muda_a_raiz() {
     assert_ne!(merkle::root(&swapped), base);
     for i in 0..l.len() {
         let mut changed = l.clone();
-        changed[i] = sha3(b"outra");
-        assert_ne!(merkle::root(&changed), base, "folha {i}");
+        changed[i] = sha3(b"other");
+        assert_ne!(merkle::root(&changed), base, "leaf {i}");
     }
 }
 
 #[test]
-fn tamanhos_diferentes_dao_raizes_diferentes_sem_duplicar_a_ultima() {
-    // a ambiguidade clássica: [a, b, c] e [a, b, c, c] NÃO podem ter a mesma raiz
+fn different_sizes_give_different_roots_without_duplicating_the_last() {
+    // the classic ambiguity: [a, b, c] and [a, b, c, c] must NOT have the same root
     let l = leaves(3);
     let mut dup = l.clone();
     dup.push(l[2]);
     assert_ne!(merkle::root(&l), merkle::root(&dup));
     let roots: std::collections::HashSet<_> = (0..40).map(|n| merkle::root(&leaves(n))).collect();
-    assert_eq!(roots.len(), 40, "tamanhos distintos colidiram");
+    assert_eq!(roots.len(), 40, "distinct sizes collided");
 }
 
 proptest! {
     #[test]
-    fn deterministica(n in 0usize..64) {
+    fn deterministic(n in 0usize..64) {
         prop_assert_eq!(merkle::root(&leaves(n)), merkle::root(&leaves(n)));
     }
 
     #[test]
-    fn prefixo_diferente_dos_dados_muda_a_raiz(n in 1usize..40, k in 0usize..40) {
+    fn different_prefix_of_the_data_changes_the_root(n in 1usize..40, k in 0usize..40) {
         let l = leaves(n);
         let cut = k % n;
         prop_assume!(cut != 0);

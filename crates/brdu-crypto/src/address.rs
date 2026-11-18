@@ -1,7 +1,7 @@
-//! Endereço BRDU (ADR-0010): `brdu1…` em bech32m.
+//! BRDU address (ADR-0010): `brdu1…` in bech32m.
 //!
-//! `endereço = bech32m("brdu", hash_etiquetado("brdu/addr", chave_pública))`. O endereço guarda o **hash** da chave,
-//! então não revela a chave pública até a primeira assinatura.
+//! `address = bech32m("brdu", tagged_hash("brdu/addr", public_key))`. The address holds the **hash** of the key,
+//! so it does not reveal the public key until the first signature.
 
 use alloc::string::String;
 use core::fmt;
@@ -11,34 +11,34 @@ use crate::error::AddressError;
 use crate::hash::{Hash32, tagged, tags};
 use crate::sign::PublicKey;
 
-/// Prefixo legível dos endereços do BRDU.
+/// Human-readable prefix of BRDU addresses.
 pub const HRP: &str = "brdu";
 
-/// O hash que identifica uma conta no livro-razão.
+/// The hash that identifies an account in the ledger.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Address(pub Hash32);
 
 impl Address {
-    /// Endereço de uma chave pública.
+    /// The address of a public key.
     #[must_use]
     pub fn from_public_key(key: &PublicKey) -> Self {
         Self(tagged(tags::ADDR, &[key.as_bytes()]))
     }
 
-    /// O hash de 32 bytes que o livro-razão guarda.
+    /// The 32-byte hash the ledger stores.
     #[must_use]
     pub const fn hash(&self) -> &Hash32 {
         &self.0
     }
 
-    /// O texto `brdu1…`.
+    /// The `brdu1…` text.
     #[must_use]
     pub fn encode(&self) -> String {
-        // o prefixo é constante e válido, e o conteúdo tem 32 bytes: não há como falhar
+        // the prefix is constant and valid, and the content is 32 bytes: it cannot fail
         bech32m::encode(HRP, self.0.as_bytes()).unwrap_or_default()
     }
 
-    /// Lê e valida um endereço `brdu1…`.
+    /// Parses and validates a `brdu1…` address.
     pub fn decode(text: &str) -> Result<Self, AddressError> {
         let (hrp, data) = bech32m::decode(text)?;
         if hrp != HRP {
@@ -48,7 +48,7 @@ impl Address {
         Ok(Self(Hash32(bytes)))
     }
 
-    /// A chave pública corresponde a este endereço?
+    /// Does the public key match this address?
     #[must_use]
     pub fn matches(&self, key: &PublicKey) -> bool {
         *self == Self::from_public_key(key)

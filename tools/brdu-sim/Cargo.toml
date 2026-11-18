@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Simuladores SÓ de dev do BRDU: equivocação de um validador de teste. Nunca entra na imagem de produção."
+description = "Dev-only BRDU simulators: equivocation by a test validator. Never ships in the production image."
 
 [lib]
 path = "src/lib.rs"

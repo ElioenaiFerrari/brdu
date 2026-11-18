@@ -77,7 +77,7 @@ impl Net {
         Tx::new_signed(from, CHAIN, kind::TRANSFER, nonce, fee, payload).unwrap()
     }
 
-    /// O bloco do proponente da rodada `round`, certificado por `signers` validadores.
+    /// The round proposer's block for `round`, certified by `signers` validators.
     fn decide(
         &self,
         chain: &mut Chain,
@@ -114,13 +114,13 @@ impl Net {
 }
 
 #[test]
-fn genesis_ida_e_volta_hash_muda_com_qualquer_campo_e_regras_invalidas_sao_recusadas() {
+fn genesis_round_trips_hash_changes_with_any_field_and_invalid_rules_are_rejected() {
     let n = Net::new();
     let g = n.genesis();
     assert_eq!(Genesis::decode(&g.encode()).unwrap(), g);
     let mut variants = vec![];
     let mut v = g.clone();
-    v.chain_id = "outra".into();
+    v.chain_id = "other".into();
     variants.push(v);
     let mut v = g.clone();
     v.validators.reverse();
@@ -143,13 +143,13 @@ fn genesis_ida_e_volta_hash_muda_com_qualquer_campo_e_regras_invalidas_sao_recus
     for t in [0, 4] {
         let mut bad = g.clone();
         bad.issuer_threshold = t;
-        assert!(Chain::new(bad).is_err(), "limiar {t}");
+        assert!(Chain::new(bad).is_err(), "threshold {t}");
     }
     assert!(Genesis::decode(&g.encode()[..10]).is_err());
 }
 
 #[test]
-fn bloco_com_certificado_de_3_de_4_entra_e_a_replica_chega_ao_mesmo_estado() {
+fn block_with_3_of_4_certificate_is_accepted_and_the_replica_reaches_the_same_state() {
     let n = Net::new();
     let mut leader = n.chain();
     let mut replica = n.chain();
@@ -159,7 +159,7 @@ fn bloco_com_certificado_de_3_de_4_entra_e_a_replica_chega_ao_mesmo_estado() {
     let t2 = n.transfer(&leader, &n.alice, &n.bob, 1_000_000);
     let d2 = n.decide(&mut leader, 1, 105, vec![t2], 4);
     leader.apply(d2.clone()).unwrap();
-    // a réplica só recebe os blocos finais
+    // the replica only receives the finalized blocks
     replica.apply(d1).unwrap();
     replica.apply(d2).unwrap();
     assert_eq!(replica.height(), 2);
@@ -175,7 +175,7 @@ fn bloco_com_certificado_de_3_de_4_entra_e_a_replica_chega_ao_mesmo_estado() {
 }
 
 #[test]
-fn certificado_fraco_de_outro_bloco_ou_de_outra_altura_e_recusado_e_a_cadeia_nao_muda() {
+fn weak_certificate_for_another_block_or_height_is_rejected_and_the_chain_does_not_change() {
     let n = Net::new();
     let mut c = n.chain();
     let t = n.mint(&c, &n.alice, 10, "d");
@@ -197,7 +197,7 @@ fn certificado_fraco_de_outro_bloco_ou_de_outra_altura_e_recusado_e_a_cadeia_nao
     height.cert.height = 9;
     assert!(matches!(c.apply(height), Err(ChainError::Block("height"))));
 
-    // votos de uma rede estranha
+    // votes from a foreign network
     let stranger: Vec<Vote> = (60..64)
         .map(|i| {
             Vote::sign(
@@ -219,11 +219,11 @@ fn certificado_fraco_de_outro_bloco_ou_de_outra_altura_e_recusado_e_a_cadeia_nao
 }
 
 #[test]
-fn proponente_errado_ou_signatarios_errados_sao_recusados() {
+fn wrong_proposer_or_wrong_signers_are_rejected() {
     let n = Net::new();
     let mut c = n.chain();
     let t = n.mint(&c, &n.alice, 10, "d");
-    // o proponente da rodada 0 é validators[1 % 4]; o da rodada 2 é validators[3]
+    // the proposer of round 0 is validators[1 % 4]; that of round 2 is validators[3]
     let block = c
         .build(
             Address::from_public_key(&c.proposer(2).unwrap()),
@@ -237,7 +237,7 @@ fn proponente_errado_ou_signatarios_errados_sao_recusados() {
         Err(ChainError::Block("not the proposer of the round"))
     ));
 
-    // o proponente certo, mas com o conjunto de signatários adulterado (tiraria a parte de alguém na taxa)
+    // the right proposer, but with a tampered signer set (it would take someone's share of the fee)
     let proposer = Address::from_public_key(&c.proposer(0).unwrap());
     let mut sig = c.signers().to_vec();
     sig.pop();
@@ -251,12 +251,12 @@ fn proponente_errado_ou_signatarios_errados_sao_recusados() {
 }
 
 #[test]
-fn bloco_com_transacao_ruim_ou_raiz_errada_e_recusado_mesmo_com_certificado_valido() {
+fn block_with_bad_transaction_or_wrong_root_is_rejected_even_with_valid_certificate() {
     let n = Net::new();
     let mut c = n.chain();
     let t = n.mint(&c, &n.alice, 1_000, "d");
     let mut d = n.decide(&mut c, 0, 100, vec![t], 4);
-    // adultera a raiz de estado e recertifica (3 de 4 assinam um bloco que mente)
+    // tampers with the state root and recertifies (3 of 4 sign a block that lies)
     d.block.state_root.0[0] ^= 1;
     let lying = n.certify(d.block, 0, 4);
     assert_eq!(
@@ -267,7 +267,7 @@ fn bloco_com_transacao_ruim_ou_raiz_errada_e_recusado_mesmo_com_certificado_vali
 }
 
 #[test]
-fn repetir_um_bloco_ja_aplicado_e_recusado() {
+fn replaying_an_already_applied_block_is_rejected() {
     let n = Net::new();
     let mut c = n.chain();
     let t = n.mint(&c, &n.alice, 10, "d");
@@ -277,7 +277,7 @@ fn repetir_um_bloco_ja_aplicado_e_recusado() {
 }
 
 #[test]
-fn bloco_final_ida_e_volta_e_lixo_nao_causa_panico() {
+fn decided_block_round_trips_and_garbage_does_not_panic() {
     let n = Net::new();
     let mut c = n.chain();
     let t = n.mint(&c, &n.alice, 10, "d");
@@ -287,13 +287,13 @@ fn bloco_final_ida_e_volta_e_lixo_nao_causa_panico() {
     assert!(DecidedBlock::decode(&bytes[..bytes.len() - 1], 1_000, 1 << 20).is_err());
     assert!(
         DecidedBlock::decode(&bytes, 1_000, 10).is_err(),
-        "limite de bytes"
+        "byte limit"
     );
 }
 
 proptest! {
     #[test]
-    fn lixo_nunca_causa_panico(data in proptest::collection::vec(any::<u8>(), 0..400)) {
+    fn garbage_never_panics(data in proptest::collection::vec(any::<u8>(), 0..400)) {
         let _ = DecidedBlock::decode(&data, 1_000, 1 << 20);
         let _ = Genesis::decode(&data);
     }
@@ -306,20 +306,20 @@ fn tmp(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn log_guarda_reabre_e_corta_o_rabo_incompleto_ou_corrompido() {
+fn log_stores_reopens_and_truncates_an_incomplete_or_corrupted_tail() {
     let p = tmp("log");
     {
         let (mut log, old) = RecordLog::open(&p).unwrap();
         assert!(old.is_empty());
-        for r in [&b"um"[..], b"dois", b""] {
+        for r in [&b"one"[..], b"two", b""] {
             log.append(r, true).unwrap();
         }
     }
     let (mut log, old) = RecordLog::open(&p).unwrap();
-    assert_eq!(old, vec![b"um".to_vec(), b"dois".to_vec(), vec![]]);
-    log.append(b"quatro", false).unwrap();
+    assert_eq!(old, vec![b"one".to_vec(), b"two".to_vec(), vec![]]);
+    log.append(b"four", false).unwrap();
     drop(log);
-    // queda no meio da escrita: corta o último byte
+    // crash in the middle of a write: cut the last byte
     let len = std::fs::metadata(&p).unwrap().len();
     std::fs::OpenOptions::new()
         .write(true)
@@ -331,14 +331,14 @@ fn log_guarda_reabre_e_corta_o_rabo_incompleto_ou_corrompido() {
     assert_eq!(
         old.len(),
         3,
-        "o registro incompleto some, os anteriores ficam"
+        "the incomplete record disappears, the earlier ones stay"
     );
-    // e o log continua usável: o próximo registro não fica atrás de lixo
-    log.append(b"cinco", false).unwrap();
+    // and the log stays usable: the next record does not end up behind garbage
+    log.append(b"five", false).unwrap();
     drop(log);
     let (_, old) = RecordLog::open(&p).unwrap();
-    assert_eq!(old.last().unwrap(), b"cinco");
-    // corrupção no meio: tudo a partir dela é descartado
+    assert_eq!(old.last().unwrap(), b"five");
+    // corruption in the middle: everything from it onward is discarded
     let mut raw = std::fs::read(&p).unwrap();
     raw[9] ^= 0xff;
     std::fs::write(&p, &raw).unwrap();
@@ -348,7 +348,7 @@ fn log_guarda_reabre_e_corta_o_rabo_incompleto_ou_corrompido() {
 }
 
 #[test]
-fn log_clear_esvazia() {
+fn log_clear_empties() {
     let p = tmp("clear");
     let (mut log, _) = RecordLog::open(&p).unwrap();
     log.append(b"x", true).unwrap();
@@ -360,7 +360,7 @@ fn log_clear_esvazia() {
     RecordLog::remove(&p).unwrap();
 }
 
-// ---------------------------------------------------------------- rotação de validadores
+// ---------------------------------------------------------------- validator rotation
 
 fn certify_with(block: Block, round: u64, keys: &[&SecretKey]) -> DecidedBlock {
     let h = block.hash();
@@ -403,7 +403,7 @@ fn change_tx(
     .unwrap()
 }
 
-/// Próximo bloco, certificado por `keys` na rodada `round`.
+/// Next block, certified by `keys` in round `round`.
 fn next(chain: &mut Chain, round: u64, txs: Vec<Tx>, keys: &[&SecretKey]) -> DecidedBlock {
     let proposer = Address::from_public_key(&chain.proposer(round).unwrap());
     let time = 100 + chain.height();
@@ -412,7 +412,7 @@ fn next(chain: &mut Chain, round: u64, txs: Vec<Tx>, keys: &[&SecretKey]) -> Dec
 }
 
 #[test]
-fn genesis_recusa_limites_de_validadores_incoerentes() {
+fn genesis_rejects_inconsistent_validator_limits() {
     let n = Net::new();
     for (min, max) in [(0, 21), (5, 21), (1, 33), (1, 3)] {
         let mut g = n.genesis();
@@ -426,12 +426,12 @@ fn genesis_recusa_limites_de_validadores_incoerentes() {
 }
 
 #[test]
-fn depois_da_troca_so_vale_o_conjunto_novo_e_o_velho_nao_certifica_mais() {
+fn after_the_change_only_the_new_set_counts_and_the_old_one_no_longer_certifies() {
     let n = Net::new();
     let newcomer = key(30);
     let mut c = n.chain();
     let old: Vec<&SecretKey> = n.vals.iter().collect();
-    // bloco 1: troca "entra o 5º" efetiva na altura 4, aprovada por 3 dos 4
+    // block 1: "the 5th joins" change effective at height 4, approved by 3 of 4
     let tx = change_tx(
         &n,
         &c,
@@ -448,31 +448,27 @@ fn depois_da_troca_so_vale_o_conjunto_novo_e_o_velho_nao_certifica_mais() {
         let b = next(&mut c, 0, vec![], &old[..3]);
         c.apply(b).unwrap();
     }
-    // os blocos 2 e 3 ainda foram do conjunto velho; agora a época é 1 com 5 validadores
+    // blocks 2 and 3 were still from the old set; now the epoch is 1 with 5 validators
     assert_eq!((c.epoch(), c.validators().len(), c.height()), (1, 5, 3));
     let five: Vec<&SecretKey> = n.vals.iter().chain(std::iter::once(&newcomer)).collect();
 
-    // bloco 4 com 3 votos (2/3 de 4, mas não de 5): recusado
+    // block 4 with 3 votes (2/3 of 4, but not of 5): rejected
     let weak = next(&mut c, 0, vec![], &five[..3]);
     assert_eq!(
         c.apply(weak),
         Err(ChainError::Certificate(brdu_bft::CertError::NoQuorum))
     );
-    // com 4 de 5 (inclui o novato) entra; o proponente já é calculado sobre os 5
+    // with 4 of 5 (includes the newcomer) it is accepted; the proposer is already computed over the 5
     let good = next(&mut c, 0, vec![], &five[..4]);
-    assert_eq!(
-        good.block.signers.len(),
-        5,
-        "a taxa agora é repartida entre 5"
-    );
+    assert_eq!(good.block.signers.len(), 5, "the fee is now split among 5");
     c.apply(good).unwrap();
-    // o novato pode votar sozinho com outros 3 (sem ele também passaria: 4 de 5)
+    // the newcomer can vote alone with 3 others (it would also pass without him: 4 of 5)
     let b5 = next(&mut c, 1, vec![], &[five[1], five[2], five[3], five[4]]);
     c.apply(b5).unwrap();
 }
 
 #[test]
-fn bloco_com_signatarios_do_conjunto_velho_e_recusado_depois_da_troca() {
+fn block_with_signers_from_the_old_set_is_rejected_after_the_change() {
     let n = Net::new();
     let newcomer = key(30);
     let mut c = n.chain();
@@ -490,7 +486,7 @@ fn bloco_com_signatarios_do_conjunto_velho_e_recusado_depois_da_troca() {
     let b2 = next(&mut c, 0, vec![], &old[..3]);
     c.apply(b2).unwrap();
     assert_eq!(c.validators().len(), 5);
-    // um bloco montado com o conjunto velho de signatários (4) é recusado, mesmo com certificado de 4 de 5
+    // a block built with the old signer set (4) is rejected, even with a 4-of-5 certificate
     let proposer = Address::from_public_key(&c.proposer(0).unwrap());
     let mut b = c.build(proposer, 500, vec![]).unwrap();
     b.signers.pop();
@@ -502,13 +498,13 @@ fn bloco_com_signatarios_do_conjunto_velho_e_recusado_depois_da_troca() {
 }
 
 #[test]
-fn removido_nao_conta_mais_e_a_replica_refaz_o_mesmo_conjunto() {
+fn removed_validator_no_longer_counts_and_the_replica_rebuilds_the_same_set() {
     let n = Net::new();
     let mut leader = n.chain();
     let mut replica = n.chain();
     let all: Vec<&SecretKey> = n.vals.iter().collect();
     let out = &n.vals[3];
-    // remove o 4º (4 → 3 validadores; o mínimo da gênese de teste é 1)
+    // removes the 4th (4 -> 3 validators; the test genesis minimum is 1)
     let tx = change_tx(
         &n,
         &leader,
@@ -523,11 +519,11 @@ fn removido_nao_conta_mais_e_a_replica_refaz_o_mesmo_conjunto() {
     leader.apply(b2.clone()).unwrap();
     blocks.push(b2);
     assert_eq!(leader.validators().len(), 3);
-    // com 3 validadores, precisa de 3 votos (2 de 3 não passa de 2/3), e o removido não conta
+    // with 3 validators, 3 votes are needed (2 of 3 does not exceed 2/3), and the removed one does not count
     let with_removed = next(&mut leader, 0, vec![], &[all[0], all[1], out]);
     assert!(
         leader.apply(with_removed).is_err(),
-        "o removido não é mais validador"
+        "the removed one is no longer a validator"
     );
     let ok = next(&mut leader, 0, vec![], &all[..3]);
     leader.apply(ok.clone()).unwrap();

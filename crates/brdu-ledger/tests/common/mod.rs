@@ -1,5 +1,5 @@
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! Ambiente de teste: 3 emissores (limiar 2), contas de teste e 4 validadores.
+//! Test environment: 3 issuers (threshold 2), test accounts and 4 validators.
 
 use brdu_crypto::{Address, SecretKey};
 use brdu_ledger::coin::{self, Approval};
@@ -50,7 +50,7 @@ impl Env {
         self.exec.rules()
     }
 
-    /// Os validadores em ordem de endereço (como vai no cabeçalho).
+    /// The validators in address order (as they go in the header).
     pub fn signers(&self) -> Vec<Address> {
         let mut v: Vec<Address> = self.validators.iter().map(addr).collect();
         v.sort();
@@ -61,7 +61,7 @@ impl Env {
         self.signers()[0]
     }
 
-    /// Aprovações de `n` emissores (os primeiros) sobre `doc`.
+    /// Approvals from `n` issuers (the first ones) over `doc`.
     pub fn approvals(&self, doc: &brdu_crypto::Hash32, n: usize) -> Vec<Approval> {
         self.issuers
             .iter()
@@ -90,7 +90,7 @@ pub fn tx(key: &SecretKey, kind: u8, nonce: u64, fee: u64, payload: Vec<u8>) -> 
     Tx::new_signed(key, CHAIN, kind, nonce, fee, payload).unwrap()
 }
 
-/// Uma transferência com a taxa mínima e o nonce certo para o estado.
+/// A transfer with the minimum fee and the right nonce for the state.
 pub fn transfer(env: &Env, state: &State, from: &SecretKey, to: &Address, amount: u64) -> Tx {
     let nonce = state.nonce(&addr(from));
     let mut t = tx(
@@ -144,7 +144,7 @@ pub fn attest(env: &Env, state: &State, seq: u64, reserve: u64, reference: &str)
     )
 }
 
-/// Aplica uma transação ao estado e exige sucesso.
+/// Applies a transaction to the state and requires success.
 pub fn ok(env: &Env, state: &mut State, t: &Tx) {
     env.exec.apply_tx(state, t).unwrap();
 }
@@ -153,7 +153,7 @@ pub fn err(env: &Env, state: &mut State, t: &Tx) -> LedgerError {
     env.exec.apply_tx(state, t).unwrap_err()
 }
 
-/// Monta e aplica um bloco com `txs`.
+/// Builds and applies a block with `txs`.
 pub fn block_of(env: &Env, state: &mut State, time: u64, txs: Vec<Tx>) -> Block {
     let b = env
         .exec
@@ -163,12 +163,12 @@ pub fn block_of(env: &Env, state: &mut State, time: u64, txs: Vec<Tx>) -> Block 
     b
 }
 
-/// Soma de todos os saldos.
+/// Sum of all balances.
 pub fn total_balances(state: &State) -> u128 {
     state.accounts().map(|(_, a)| u128::from(a.balance)).sum()
 }
 
-/// `okm!(env, estado, expressão_da_tx)`: monta a transação (lendo o estado) e só depois a aplica (escrevendo).
+/// `okm!(env, state, tx_expression)`: builds the transaction (reading the state) and only then applies it (writing).
 #[macro_export]
 macro_rules! okm {
     ($env:expr, $s:expr, $t:expr) => {{
@@ -177,7 +177,7 @@ macro_rules! okm {
     }};
 }
 
-/// Como `okm!`, mas espera o erro e o devolve.
+/// Like `okm!`, but expects the error and returns it.
 #[macro_export]
 macro_rules! errm {
     ($env:expr, $s:expr, $t:expr) => {{

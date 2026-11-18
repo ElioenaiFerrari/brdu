@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! Simulador determinístico: fila de mensagens entregue em ordem sorteada por semente, prazos disparados só
-//! quando nada mais anda. Comportamentos: honesto, caído, silencioso, partição, equivocador.
+//! Deterministic simulator: message queue delivered in a seed-drawn order, timeouts fired only
+//! when nothing else moves. Behaviors: honest, crashed, mute, partition, equivocator.
 
 use std::collections::BTreeSet;
 
@@ -37,7 +37,7 @@ fn engine(ks: &[SecretKey], i: usize, valid: fn(u64, &[u8]) -> bool) -> Engine {
 enum Mode {
     Honest,
     Crashed,
-    /// Recebe, mas nunca transmite nada (proponente mudo, votante mudo).
+    /// Receives, but never transmits anything (mute proposer, mute voter).
     Mute,
 }
 
@@ -47,7 +47,7 @@ struct Sim {
     modes: Vec<Mode>,
     queue: Vec<(usize, Event)>,
     timers: Vec<(usize, Step, u64)>,
-    /// `group[i]`: nós de grupos diferentes não se falam (partição).
+    /// `group[i]`: nodes in different groups do not talk to each other (partition).
     group: Vec<u8>,
     seed: u64,
     decided: Vec<Option<(Vec<u8>, Certificate)>>,
@@ -98,7 +98,7 @@ impl Sim {
                 }
                 Action::ScheduleTimeout(s, r) => self.timers.push((from, s, r)),
                 Action::NeedBlock(r) => {
-                    let b = format!("bloco-{HEIGHT}-{r}-{from}").into_bytes();
+                    let b = format!("block-{HEIGHT}-{r}-{from}").into_bytes();
                     self.queue.push((from, Event::Block(b)));
                 }
                 Action::Decide(b, c) => self.decided[from] = Some((b, c)),
@@ -119,7 +119,7 @@ impl Sim {
                 return;
             }
             if self.queue.is_empty() {
-                // nada anda: dispara o prazo mais antigo de um nó vivo
+                // nothing moves: fire the oldest timeout of a live node
                 let Some(pos) = self
                     .timers
                     .iter()
@@ -152,11 +152,11 @@ impl Sim {
         self.ks.iter().map(SecretKey::public).collect()
     }
 
-    /// Segurança: todos os que decidiram, decidiram o mesmo bloco, e todo certificado confere.
+    /// Safety: everyone who decided, decided the same block, and every certificate checks out.
     fn assert_safety(&self) {
         let vals = self.validators();
         let blocks: BTreeSet<&Vec<u8>> = self.decided.iter().flatten().map(|(b, _)| b).collect();
-        assert!(blocks.len() <= 1, "dois blocos finais: {blocks:?}");
+        assert!(blocks.len() <= 1, "two final blocks: {blocks:?}");
         for (b, c) in self.decided.iter().flatten() {
             c.verify(CHAIN, &vals).unwrap();
             assert_eq!(c.block_hash, hash(b));
@@ -166,32 +166,32 @@ impl Sim {
 }
 
 #[test]
-fn quatro_honestos_decidem_o_mesmo_bloco_na_rodada_zero() {
+fn four_honest_validators_decide_the_same_block_in_round_zero() {
     let mut s = Sim::new(4, vec![Mode::Honest; 4], 1);
     s.run(10_000);
     assert!(s.live_all_decided());
     s.assert_safety();
     let (_, c) = s.decided[0].as_ref().unwrap();
     assert_eq!(c.round, 0);
-    assert!(c.votes.len() >= 3, "mais de 2/3 de 4");
+    assert!(c.votes.len() >= 3, "more than 2/3 of 4");
     assert_eq!(s.evidence, 0);
 }
 
 #[test]
-fn um_validador_caido_de_quatro_nao_para_a_rede() {
+fn one_crashed_validator_out_of_four_does_not_stop_the_network() {
     for crashed in 0..4 {
         let mut modes = vec![Mode::Honest; 4];
         modes[crashed] = Mode::Crashed;
         let mut s = Sim::new(4, modes, 10 + crashed as u64);
         s.run(20_000);
-        assert!(s.live_all_decided(), "caído = {crashed}");
+        assert!(s.live_all_decided(), "crashed = {crashed}");
         s.assert_safety();
     }
 }
 
 #[test]
-fn proponente_mudo_perde_a_rodada_e_o_seguinte_decide() {
-    // altura 7, rodada 0 → proponente = validators[7 % 4 = 3]; ele recebe mas nunca transmite
+fn mute_proposer_loses_the_round_and_the_next_one_decides() {
+    // height 7, round 0 -> proposer = validators[7 % 4 = 3]; it receives but never transmits
     let mut modes = vec![Mode::Honest; 4];
     modes[3] = Mode::Mute;
     let mut s = Sim::new(4, modes, 5);
@@ -199,11 +199,11 @@ fn proponente_mudo_perde_a_rodada_e_o_seguinte_decide() {
     assert!(s.live_all_decided());
     s.assert_safety();
     let (_, c) = s.decided[0].as_ref().unwrap();
-    assert!(c.round >= 1, "a rodada 0 não pode ter decidido");
+    assert!(c.round >= 1, "round 0 cannot have decided");
 }
 
 #[test]
-fn dois_caidos_de_quatro_nao_decidem_nada_mas_nunca_divergem() {
+fn two_crashed_out_of_four_decide_nothing_but_never_diverge() {
     let mut s = Sim::new(
         4,
         vec![Mode::Honest, Mode::Honest, Mode::Crashed, Mode::Crashed],
@@ -212,19 +212,22 @@ fn dois_caidos_de_quatro_nao_decidem_nada_mas_nunca_divergem() {
     s.run(5_000);
     assert!(
         s.decided.iter().all(Option::is_none),
-        "sem mais de 2/3 não há bloco final"
+        "without more than 2/3 there is no final block"
     );
     s.assert_safety();
 }
 
 #[test]
-fn particao_2_a_2_trava_e_ao_curar_decide() {
+fn two_two_partition_stalls_and_decides_once_healed() {
     let mut s = Sim::new(4, vec![Mode::Honest; 4], 9);
     s.group = vec![0, 0, 1, 1];
     s.run(3_000);
-    assert!(s.decided.iter().all(Option::is_none), "2 de 4 não é quórum");
+    assert!(
+        s.decided.iter().all(Option::is_none),
+        "2 of 4 is not a quorum"
+    );
     s.assert_safety();
-    // cura: religa e reenvia o que cada um sabe (regossip ao reconectar)
+    // heal: reconnect and resend what each one knows (regossip on reconnect)
     s.group = vec![0; 4];
     for i in 0..4 {
         for m in s.nodes[i].known_messages(4) {
@@ -240,12 +243,12 @@ fn particao_2_a_2_trava_e_ao_curar_decide() {
         }
     }
     s.run(50_000);
-    assert!(s.live_all_decided(), "depois da cura todos decidem");
+    assert!(s.live_all_decided(), "after healing everyone decides");
     s.assert_safety();
 }
 
 #[test]
-fn votos_de_equivocador_geram_evidencia() {
+fn equivocator_votes_generate_evidence() {
     let ks = keys(4);
     let mut e = engine(&ks, 0, |_, _| true);
     let _ = e.start();
@@ -275,15 +278,15 @@ fn votos_de_equivocador_geram_evidencia() {
 }
 
 #[test]
-fn mensagens_invalidas_sao_ignoradas() {
+fn invalid_messages_are_ignored() {
     let ks = keys(4);
     let mut e = engine(&ks, 0, |_, _| true);
     let _ = e.start();
-    // de quem não é validador
+    // from someone who is not a validator
     let outsider = SecretKey::from_bytes([99; 32]);
     let v = Vote::sign(CHAIN, VoteType::Prevote, HEIGHT, 0, None, &outsider);
-    // assinatura de outra rede; altura errada; assinatura adulterada
-    let other = Vote::sign("outra", VoteType::Prevote, HEIGHT, 0, None, &ks[1]);
+    // signature from another network; wrong height; tampered signature
+    let other = Vote::sign("other", VoteType::Prevote, HEIGHT, 0, None, &ks[1]);
     let wrong_h = Vote::sign(CHAIN, VoteType::Prevote, HEIGHT + 1, 0, None, &ks[1]);
     let mut bad = Vote::sign(CHAIN, VoteType::Prevote, HEIGHT, 0, None, &ks[1]);
     bad.signature.0[0] ^= 1;
@@ -293,12 +296,12 @@ fn mensagens_invalidas_sao_ignoradas() {
 }
 
 #[test]
-fn bloco_invalido_recebe_prevote_nulo() {
+fn invalid_block_gets_a_nil_prevote() {
     let ks = keys(4);
-    // altura 7, rodada 0: proponente = validators[3]
+    // height 7, round 0: proposer = validators[3]
     let mut e = engine(&ks, 0, |_, _| false);
     let _ = e.start();
-    let block = b"ruim".to_vec();
+    let block = b"bad".to_vec();
     let p = brdu_bft::Proposal::sign(CHAIN, HEIGHT, 0, -1, block.clone(), hash(&block), &ks[3]);
     let out = e.handle(Event::Proposal(p));
     let vote = out.iter().find_map(|a| match a {
@@ -308,27 +311,27 @@ fn bloco_invalido_recebe_prevote_nulo() {
     assert_eq!(
         vote.map(|v| v.block_hash),
         Some(None),
-        "valid_fn falso = prevote nulo"
+        "false valid_fn = nil prevote"
     );
 }
 
 #[test]
-fn proposta_de_quem_nao_e_o_proponente_da_rodada_e_ignorada() {
+fn proposal_from_someone_who_is_not_the_round_proposer_is_ignored() {
     let ks = keys(4);
     let mut e = engine(&ks, 0, |_, _| true);
     let _ = e.start();
     let block = b"x".to_vec();
     let p = brdu_bft::Proposal::sign(CHAIN, HEIGHT, 0, -1, block.clone(), hash(&block), &ks[1]);
     assert!(e.handle(Event::Proposal(p)).is_empty());
-    // hash que não bate com o bloco
-    let p = brdu_bft::Proposal::sign(CHAIN, HEIGHT, 0, -1, block, hash(b"outro"), &ks[3]);
+    // hash that does not match the block
+    let p = brdu_bft::Proposal::sign(CHAIN, HEIGHT, 0, -1, block, hash(b"another"), &ks[3]);
     assert!(e.handle(Event::Proposal(p)).is_empty());
 }
 
 #[test]
-fn restaurar_do_diario_nao_contradiz_o_que_ja_foi_assinado() {
+fn restoring_from_the_journal_does_not_contradict_what_was_already_signed() {
     let ks = keys(4);
-    // nó 0 vota prevote em A (proposta do nó 3), cai e volta com o diário
+    // node 0 prevotes A (proposal from node 3), crashes and comes back with the journal
     let mut e = engine(&ks, 0, |_, _| true);
     let mut journal = Vec::new();
     let log = |acts: &[Action], j: &mut Vec<Message>| {
@@ -356,10 +359,14 @@ fn restaurar_do_diario_nao_contradiz_o_que_ja_foi_assinado() {
 
     let mut e2 = engine(&ks, 0, |_, _| true);
     let acts = e2.restore(&journal);
-    assert_eq!(e2.step(), Step::Prevote, "retoma depois do prevote já dado");
+    assert_eq!(
+        e2.step(),
+        Step::Prevote,
+        "resumes after the prevote already cast"
+    );
     assert_eq!(e2.round(), 0);
     assert!(acts.contains(&Action::ScheduleTimeout(Step::Prevote, 0)));
-    // reentregar a mesma proposta não gera novo prevote (já votou)
+    // redelivering the same proposal does not generate a new prevote (already voted)
     let again = e2.handle(Event::Proposal(p));
     assert!(again.iter().all(
         |a| !matches!(a, Action::Broadcast(Message::Vote(v)) if v.vote_type == VoteType::Prevote)
@@ -369,10 +376,10 @@ fn restaurar_do_diario_nao_contradiz_o_que_ja_foi_assinado() {
 proptest! {
     #![proptest_config(ProptestConfig { cases: std::env::var("PROPTEST_CASES").ok().and_then(|v| v.parse().ok()).unwrap_or(40), ..ProptestConfig::default() })]
 
-    /// Segurança sob qualquer ordem de entrega e com até f=1 caído ou mudo de 4: nunca dois blocos finais, todo
-    /// certificado confere, e (com ≤ f falhas) todos os vivos decidem.
+    /// Safety under any delivery order and with up to f=1 crashed or mute out of 4: never two final blocks, every
+    /// certificate checks out, and (with <= f failures) all live nodes decide.
     #[test]
-    fn seguranca_e_vivacidade_com_ate_f_falhas(seed in any::<u64>(), faulty in 0usize..4, kind in 0u8..3) {
+    fn safety_and_liveness_with_up_to_f_failures(seed in any::<u64>(), faulty in 0usize..4, kind in 0u8..3) {
         let mut modes = vec![Mode::Honest; 4];
         match kind {
             1 => modes[faulty] = Mode::Crashed,
@@ -385,9 +392,9 @@ proptest! {
         prop_assert!(s.live_all_decided());
     }
 
-    /// Mais falhas que f: pode não decidir, mas **nunca diverge**.
+    /// More failures than f: it may not decide, but it **never diverges**.
     #[test]
-    fn nunca_diverge_nem_com_mais_de_f_falhas(seed in any::<u64>(), mask in 0u8..16) {
+    fn never_diverges_even_with_more_than_f_failures(seed in any::<u64>(), mask in 0u8..16) {
         let modes: Vec<Mode> = (0..4).map(|i| if mask >> i & 1 == 1 { Mode::Mute } else { Mode::Honest }).collect();
         let mut s = Sim::new(4, modes, seed);
         s.run(20_000);

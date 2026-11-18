@@ -1,4 +1,4 @@
-//! `cargo menu`: menu de desenvolvimento com setas. Só dev: roda o `brdu-dev` como subprocesso.
+//! `cargo menu`: development menu with arrow keys. Dev only: runs `brdu-dev` as a subprocess.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
 use std::io::{BufRead, BufReader};
@@ -68,7 +68,7 @@ fn brdu_dev() -> Result<std::path::PathBuf, String> {
             .map_err(|e| e.to_string())?
             .success();
         if !ok || !bin.exists() {
-            return Err("não consegui compilar o brdu-dev".into());
+            return Err("could not build brdu-dev".into());
         }
     }
     Ok(bin)
@@ -112,7 +112,7 @@ fn spawn(args: Vec<String>) -> Screen {
                 let _ = h.join();
                 let code = c.wait().ok().and_then(|s| s.code());
                 let _ = tx.send(Some(format!(
-                    "— terminou (código {})",
+                    "— finished (exit code {})",
                     code.map_or("?".into(), |c| c.to_string())
                 )));
             }
@@ -161,9 +161,9 @@ fn draw(f: &mut ratatui::Frame, app: &mut App) {
                 .bg(GREEN)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw("  menu de desenvolvimento  "),
+        Span::raw("  development menu  "),
         Span::styled(format!("[--dir {}]", app.dir), Style::new().fg(GOLD)),
-        Span::raw("   só dev: chaves de teste"),
+        Span::raw("   dev only: test keys"),
     ]);
     f.render_widget(
         Paragraph::new(title).block(Block::default().borders(Borders::BOTTOM)),
@@ -188,7 +188,7 @@ fn draw(f: &mut ratatui::Frame, app: &mut App) {
             f.render_stateful_widget(list, body, &mut app.list);
             f.render_widget(
                 Paragraph::new(
-                    "↑/↓ escolhe · Enter abre · d troca a pasta (net ⇄ compose) · q sai",
+                    "↑/↓ choose · Enter open · d switch folder (net ⇄ compose) · q quit",
                 ),
                 foot,
             );
@@ -227,9 +227,7 @@ fn draw(f: &mut ratatui::Frame, app: &mut App) {
             ));
             f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), body);
             f.render_widget(
-                Paragraph::new(
-                    "digite para editar · Tab/↑/↓ troca de campo · Enter executa · Esc volta",
-                ),
+                Paragraph::new("type to edit · Tab/↑/↓ switch field · Enter run · Esc back"),
                 foot,
             );
         }
@@ -254,9 +252,9 @@ fn draw(f: &mut ratatui::Frame, app: &mut App) {
             );
             f.render_widget(
                 Paragraph::new(if *done {
-                    "terminou · ↑/↓ rola · Esc volta"
+                    "finished · ↑/↓ scroll · Esc back"
                 } else {
-                    "rodando… · ↑/↓ rola · Esc volta (não interrompe)"
+                    "running… · ↑/↓ scroll · Esc back (does not interrupt)"
                 }),
                 foot,
             );

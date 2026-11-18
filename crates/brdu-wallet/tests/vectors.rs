@@ -1,4 +1,4 @@
-//! Vetores: o padrão SLIP-10 para Ed25519 e os do BRDC (BIP-39 com passphrase → SLIP-10 → chave pública).
+//! Vectors: the SLIP-10 standard for Ed25519 and those of BRDC (BIP-39 with passphrase → SLIP-10 → public key).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use brdu_crypto::hex;
@@ -13,9 +13,9 @@ fn load() -> Value {
     serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 
-/// Vetor 1 do SLIP-10 para ed25519 (do próprio documento do SLIP-10).
+/// SLIP-10 vector 1 for ed25519 (from the SLIP-10 document itself).
 #[test]
-fn slip10_vetor_oficial_1() {
+fn slip10_official_vector_1() {
     let seed = hex::decode("000102030405060708090a0b0c0d0e0f").unwrap();
     let cases = [
         (
@@ -36,17 +36,17 @@ fn slip10_vetor_oficial_1() {
     ];
     for (path, key, chain) in cases {
         let n = slip10_derive(&seed, path).unwrap();
-        assert_eq!(hex::encode(n.key.as_slice()), key, "chave de {path}");
+        assert_eq!(hex::encode(n.key.as_slice()), key, "key of {path}");
         assert_eq!(
             hex::encode(n.chain_code.as_slice()),
             chain,
-            "código de cadeia de {path}"
+            "chain code of {path}"
         );
     }
 }
 
 #[test]
-fn slip10_do_brdc_bate() {
+fn brdc_slip10_matches() {
     let v = &load()["slip10"];
     let seed = hex::decode(v["seed"].as_str().unwrap()).unwrap();
     let n = slip10_derive(&seed, v["path"].as_str().unwrap()).unwrap();
@@ -57,11 +57,11 @@ fn slip10_do_brdc_bate() {
     );
 }
 
-/// Mesma frase, três passphrases (inclusive o clássico "TREZOR" do BIP-39): as chaves públicas do BRDC.
-/// O caminho do BRDC usa o tipo de moeda do BRDC (`1112687683`); o do BRDU usa o dele, então aqui o caminho
-/// vem do vetor.
+/// Same phrase, three passphrases (including the classic BIP-39 "TREZOR"): the BRDC public keys.
+/// The BRDC path uses the BRDC coin type (`1112687683`); BRDU uses its own, so here the path
+/// comes from the vector.
 #[test]
-fn bip39_e_slip10_do_brdc_batem_com_tres_passphrases() {
+fn brdc_bip39_and_slip10_match_with_three_passphrases() {
     let v = load();
     let phrase = Phrase::parse(v["mnemonic"].as_str().unwrap()).unwrap();
     let accounts = v["accounts"].as_array().unwrap();

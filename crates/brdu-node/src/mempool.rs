@@ -1,25 +1,25 @@
-//! Mempool com **dedupe O(1)** (conjunto de ids; a lição do BRDC: refazer o hash de todas as pendentes a cada
-//! envio custava 0,5 → 15 ms com 7.500 pendentes), limite em transações **e em bytes**, e nonce contíguo por
-//! remetente.
+//! Mempool with **O(1) dedupe** (a set of ids; the BRDC lesson: re-hashing every pending transaction on each
+//! submission cost 0.5 → 15 ms with 7,500 pending), a limit in transactions **and in bytes**, and a contiguous
+//! nonce per sender.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-/// Quantos nonces à frente do esperado o pool aceita guardar (envio rápido a nós diferentes chega fora de ordem).
+/// How many nonces ahead of the expected one the pool agrees to hold (fast submission to different nodes arrives out of order).
 pub const MAX_NONCE_GAP: u64 = 16;
 
 use brdu_crypto::{Address, Hash32};
 use brdu_ledger::Tx;
 
-/// Por que uma transação não entrou.
+/// Why a transaction was not admitted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PoolError {
-    /// Já está no pool.
+    /// Already in the pool.
     Duplicate,
-    /// O pool está cheio (transações ou bytes).
+    /// The pool is full (transactions or bytes).
     Full,
-    /// O nonce já foi usado (ou é menor que o esperado).
+    /// The nonce was already used (or is lower than expected).
     StaleNonce { expected: u64, got: u64 },
-    /// Buraco grande demais: faltam muitas transações anteriores do remetente.
+    /// Gap too large: many earlier transactions from the sender are missing.
     NonceGap { expected: u64, got: u64 },
 }
 
@@ -38,9 +38,9 @@ impl std::fmt::Display for PoolError {
     }
 }
 
-/// O pool.
+/// The pool.
 pub struct Mempool {
-    /// Transações com buraco de nonce (esperam as anteriores).
+    /// Transactions with a nonce gap (waiting for the earlier ones).
     queued: BTreeMap<(Address, u64), Tx>,
     queued_ids: HashSet<Hash32>,
     max_txs: usize,
@@ -49,12 +49,12 @@ pub struct Mempool {
     next_seq: u64,
     by_seq: BTreeMap<u64, Tx>,
     ids: HashMap<Hash32, u64>,
-    /// Próximo nonce esperado por remetente, contando o que já está no pool.
+    /// Next expected nonce per sender, counting what is already in the pool.
     next_nonce: HashMap<Address, u64>,
 }
 
 impl Mempool {
-    /// Pool vazio com os limites.
+    /// Empty pool with the given limits.
     #[must_use]
     pub fn new(max_txs: usize, max_bytes: usize) -> Self {
         Self {
@@ -70,37 +70,37 @@ impl Mempool {
         }
     }
 
-    /// Quantas transações.
+    /// How many transactions.
     #[must_use]
     pub fn len(&self) -> usize {
         self.by_seq.len() + self.queued.len()
     }
 
-    /// Vazio?
+    /// Empty?
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.by_seq.is_empty() && self.queued.is_empty()
     }
 
-    /// Quantas já podem ir num bloco (sem buraco de nonce).
+    /// How many can already go into a block (no nonce gap).
     #[must_use]
     pub fn ready_len(&self) -> usize {
         self.by_seq.len()
     }
 
-    /// Bytes retidos.
+    /// Bytes held.
     #[must_use]
     pub const fn bytes(&self) -> usize {
         self.bytes
     }
 
-    /// Está no pool? O(1).
+    /// Is it in the pool? O(1).
     #[must_use]
     pub fn contains(&self, id: &Hash32) -> bool {
         self.ids.contains_key(id) || self.queued_ids.contains(id)
     }
 
-    /// Tenta admitir. `committed_nonce` é o nonce da conta no estado final. A assinatura já foi conferida.
+    /// Tries to admit a transaction. `committed_nonce` is the account's nonce in the final state. The signature has already been checked.
     pub fn add(&mut self, tx: Tx, id: Hash32, committed_nonce: u64) -> Result<(), PoolError> {
         if self.contains(&id) {
             return Err(PoolError::Duplicate);
@@ -148,25 +148,25 @@ impl Mempool {
         self.by_seq.insert(seq, tx);
     }
 
-    /// Passa para a fila de prontas as transações do remetente que deixaram de ter buraco.
+    /// Moves the sender's transactions that no longer have a gap to the ready queue.
     fn promote(&mut self, sender: &Address) {
         while let Some(next) = self.next_nonce.get(sender).copied()
             && let Some(tx) = self.queued.remove(&(*sender, next))
         {
             let id = tx.id();
             self.queued_ids.remove(&id);
-            self.bytes = self.bytes.saturating_sub(tx.size()); // push_ready soma de volta
+            self.bytes = self.bytes.saturating_sub(tx.size()); // push_ready adds it back
             self.push_ready(tx, id);
         }
     }
 
-    /// As transações em ordem de chegada (o nonce por remetente já vem em ordem).
+    /// The transactions in arrival order (the per-sender nonce is already in order).
     pub fn iter(&self) -> impl Iterator<Item = &Tx> {
         self.by_seq.values()
     }
 
-    /// As transações **prontas** que são a próxima da conta (nonce igual ao da cadeia): é a cabeça de cada fila,
-    /// a única que pode entrar no próximo bloco.
+    /// The **ready** transactions that are the account's next one (nonce equal to the chain's): the head of each
+    /// queue, the only one that can enter the next block.
     pub fn heads(&self, committed_nonce: &dyn Fn(&Address) -> u64) -> Vec<Tx> {
         self.by_seq
             .values()
@@ -175,8 +175,8 @@ impl Mempool {
             .collect()
     }
 
-    /// Remove as transações do remetente com nonce ≥ `from` (prontas e em espera): se a de `from` não vale, as
-    /// seguintes também não valem.
+    /// Removes the sender's transactions with nonce ≥ `from` (ready and queued): if the one at `from` is not valid,
+    /// the following ones are not either.
     pub fn remove_sender_from(&mut self, sender: &Address, from: u64) {
         let ids: Vec<Hash32> = self
             .by_seq
@@ -190,14 +190,14 @@ impl Mempool {
         }
     }
 
-    /// Remove por id (O(log n)).
+    /// Removes by id (O(log n)).
     pub fn remove(&mut self, id: &Hash32) {
         if let Some(seq) = self.ids.remove(id)
             && let Some(tx) = self.by_seq.remove(&seq)
         {
             self.bytes = self.bytes.saturating_sub(tx.size());
-            // uma transação que sai (falhou ao montar o bloco) devolve o nonce dela: a próxima do remetente pode
-            // usá-lo (senão o pool recusaria como "nonce vencido" uma transação válida)
+            // a transaction that leaves (failed while building the block) gives its nonce back: the sender's next
+            // one can use it (otherwise the pool would reject a valid transaction as a "stale nonce")
             self.next_nonce
                 .entry(tx.sender_address())
                 .and_modify(|n| *n = (*n).min(tx.nonce));
@@ -213,7 +213,7 @@ impl Mempool {
         }
     }
 
-    /// Depois de um bloco: tira o que já passou do nonce da conta e refaz os "próximos nonces". O(pool).
+    /// After a block: drops what is already past the account nonce and rebuilds the "next nonces". O(pool).
     pub fn purge(&mut self, committed_nonce: &dyn Fn(&Address) -> u64) {
         let stale: Vec<Hash32> = self
             .by_seq
@@ -229,7 +229,7 @@ impl Mempool {
             let e = self.next_nonce.entry(tx.sender_address()).or_insert(0);
             *e = (*e).max(tx.nonce + 1);
         }
-        // as que esperavam: descarta as vencidas e promove as que agora encaixam
+        // the queued ones: discard the stale ones and promote those that now fit
         let stale_q: Vec<(Address, u64)> = self
             .queued
             .iter()

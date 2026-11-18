@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! O CLI contra nós de verdade: `brdu-dev init` gera a rede, 4 nós sobem em processo com as chaves geradas e os
-//! comandos (carteira, fund, send, reserve, burn, supply, blocks…) rodam contra as APIs.
+//! The CLI against real nodes: `brdu-dev init` generates the network, 4 nodes start in-process with the generated keys and the
+//! commands (wallet, fund, send, reserve, burn, supply, blocks…) run against the APIs.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -26,7 +26,7 @@ fn dev(dir: &Path, args: &[&str]) -> (bool, String) {
 
 fn ok(dir: &Path, args: &[&str]) -> String {
     let (good, text) = dev(dir, args);
-    assert!(good, "`{}` falhou: {text}", args.join(" "));
+    assert!(good, "`{}` failed: {text}", args.join(" "));
     text
 }
 
@@ -38,7 +38,7 @@ fn wait(what: &str, f: impl Fn() -> bool) {
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    panic!("tempo esgotado: {what}");
+    panic!("timed out: {what}");
 }
 
 fn start_nodes(dir: &Path, base: u16) -> Vec<Node> {
@@ -61,7 +61,7 @@ fn start_nodes(dir: &Path, base: u16) -> Vec<Node> {
         };
         nodes.push(Node::start(c).unwrap());
     }
-    wait("malha", || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", || nodes.iter().all(|n| n.peer_count() == 3));
     nodes
 }
 
@@ -72,12 +72,12 @@ fn tmp(name: &str) -> PathBuf {
 }
 
 #[test]
-fn o_cli_faz_o_ciclo_completo_contra_nos_de_verdade() {
+fn the_cli_runs_the_full_cycle_against_real_nodes() {
     let dir = tmp("cycle");
     let base = 17_100;
     let text = ok(&dir, &["init", "--port-base", &base.to_string()]);
-    assert!(text.contains("4 validadores"), "{text}");
-    // init recusa recriar por cima
+    assert!(text.contains("4 validators"), "{text}");
+    // init refuses to recreate over an existing network
     assert!(!dev(&dir, &["init"]).0);
     let nodes = start_nodes(&dir, base);
 
@@ -86,11 +86,11 @@ fn o_cli_faz_o_ciclo_completo_contra_nos_de_verdade() {
     assert!(ok(&dir, &["wallet", "list"]).contains("alice"));
     assert!(
         !dev(&dir, &["wallet", "new", "alice"]).0,
-        "não sobrescreve a frase existente"
+        "does not overwrite the existing phrase"
     );
 
     ok(&dir, &["fund", "alice", "1000"]);
-    wait("saldo de alice", || {
+    wait("alice balance", || {
         ok(&dir, &["balance", "alice"]).contains("1.000,000000 BRDU")
     });
     ok(
@@ -99,42 +99,54 @@ fn o_cli_faz_o_ciclo_completo_contra_nos_de_verdade() {
             "send", "--from", "alice", "--to", "bob", "--amount", "12,5", "--count", "3",
         ],
     );
-    wait("bob recebeu", || {
+    wait("bob received", || {
         ok(&dir, &["balance", "bob"]).contains("37,500000 BRDU")
     });
 
     ok(&dir, &["reserve", "--amount", "1000"]);
-    wait("atestado", || ok(&dir, &["supply"]).contains("atestado #1"));
+    wait("attestation", || {
+        ok(&dir, &["supply"]).contains("attestation #1")
+    });
     ok(
         &dir,
         &[
-            "burn", "--from", "alice", "--amount", "10", "--ref", "saque-1",
+            "burn",
+            "--from",
+            "alice",
+            "--amount",
+            "10",
+            "--ref",
+            "withdrawal-1",
         ],
     );
     wait("burn", || {
-        ok(&dir, &["supply"]).contains("queimado 10,000000 BRDU")
+        ok(&dir, &["supply"]).contains("burned   10,000000 BRDU")
     });
     let supply = ok(&dir, &["supply"]);
     assert!(
-        supply.contains("cobertura: coberta, sobra 10,000000 BRDU"),
+        supply.contains("coverage: covered, surplus 10,000000 BRDU"),
         "{supply}"
     );
 
-    // erros claros: valor inválido, carteira inexistente, mint com referência repetida
+    // clear errors: invalid amount, missing wallet, mint with a repeated reference
     assert!(
         dev(
             &dir,
             &["send", "--from", "alice", "--to", "bob", "--amount", "abc"]
         )
         .1
-        .contains("valor")
+        .contains("amount")
     );
-    assert!(dev(&dir, &["balance", "fantasma"]).1.contains("não existe"));
+    assert!(
+        dev(&dir, &["balance", "ghost"])
+            .1
+            .contains("does not exist")
+    );
     ok(
         &dir,
         &["mint", "--to", "bob", "--amount", "1", "--ref", "dep-x"],
     );
-    wait("mint de bob", || {
+    wait("bob mint", || {
         ok(&dir, &["balance", "bob"]).contains("38,500000 BRDU")
     });
     let again = dev(
@@ -143,16 +155,16 @@ fn o_cli_faz_o_ciclo_completo_contra_nos_de_verdade() {
     );
     assert!(
         !again.0 || ok(&dir, &["balance", "bob"]).contains("38,500000 BRDU"),
-        "a referência repetida não pode mintar duas vezes"
+        "a repeated reference must not mint twice"
     );
 
     let blocks = ok(&dir, &["blocks", "--limit", "3"]);
     assert!(
-        blocks.contains("assinado por 3/4") || blocks.contains("assinado por 4/4"),
+        blocks.contains("signed by 3/4") || blocks.contains("signed by 4/4"),
         "{blocks}"
     );
     let status = ok(&dir, &["status"]);
-    assert_eq!(status.matches("pares 3").count(), 4, "{status}");
+    assert_eq!(status.matches("peers 3").count(), 4, "{status}");
     ok(&dir, &["blocks-sim", "--count", "2"]);
 
     for n in nodes {
@@ -162,16 +174,16 @@ fn o_cli_faz_o_ciclo_completo_contra_nos_de_verdade() {
 }
 
 #[test]
-fn comandos_sem_rede_pedem_init_e_o_reset_so_apaga_o_que_criou() {
+fn commands_without_a_network_ask_for_init_and_reset_only_deletes_what_it_created() {
     let dir = tmp("noinit");
     let (good, text) = dev(&dir, &["status"]);
     assert!(!good && text.contains("cargo dev init"), "{text}");
     ok(&dir, &["init", "--nodes", "3", "--port-base", "17300"]);
-    std::fs::write(dir.join("meu-arquivo.txt"), "fica").unwrap();
+    std::fs::write(dir.join("my-file.txt"), "stays").unwrap();
     ok(&dir, &["reset"]);
     assert!(
-        dir.join("meu-arquivo.txt").exists(),
-        "o reset não apaga o que não criou"
+        dir.join("my-file.txt").exists(),
+        "reset does not delete what it did not create"
     );
     assert!(!dir.join("devnet.json").exists() && !dir.join("keys").exists());
     let _ = std::fs::remove_dir_all(&dir);

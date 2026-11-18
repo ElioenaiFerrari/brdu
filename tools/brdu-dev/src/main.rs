@@ -1,4 +1,4 @@
-//! `cargo dev …`: o CLI de desenvolvimento do BRDU. **Só dev**: chaves e frases de TESTE em texto puro.
+//! `cargo dev …`: the BRDU development CLI. **Dev only**: TEST keys and phrases in plain text.
 
 mod compose;
 mod docs_check;
@@ -17,49 +17,50 @@ use brdu_wallet::Phrase;
 use net::Layout;
 use serde_json::Value;
 
-const HELP: &str = "cargo dev <comando>
+const HELP: &str = "cargo dev <command>
 
-rede local (processos)
-  init [--dir net] [--nodes 4] [--spare 0] [--issuers 3] [--threshold 2] [--chain brdu-devnet] [--port-base 7100]   cria chaves e gênese
-  up [--dir net]                      sobe os validadores (logs em net/logs)
-  down [--dir net]                    derruba os validadores
-  stop N                              derruba o nó N (falha simulada; libera a chave dele)
-  start N                             religa o nó N (lê o log e sincroniza)
-  reset [--dir net]                   derruba e apaga a rede (só a pasta indicada)
-  status [--dir net]                  altura, pares, mempool, raiz de cada nó
+local network (processes)
+  init [--dir net] [--nodes 4] [--spare 0] [--issuers 3] [--threshold 2] [--chain brdu-devnet] [--port-base 7100]   creates keys and genesis
+  up [--dir net]                      starts the validators (logs in net/logs)
+  down [--dir net]                    stops the validators
+  explorer [stop] [--listen 127.0.0.1:8545] [--node 1]   opens the web explorer (re-verifies every block)
+  stop N                              stops node N (simulated failure; frees its key)
+  start N                             restarts node N (reads the log and syncs)
+  reset [--dir net]                   stops and deletes the network (only the given folder)
+  status [--dir net]                  height, peers, mempool, root of each node
 
-laboratório Docker (imagem única, limites de CPU e memória; use --dir compose ou BRDU_DIR=compose nos outros comandos)
+Docker lab (single image, CPU and memory limits; use --dir compose or BRDU_DIR=compose on the other commands)
   compose init [--dir compose] [--nodes 4] [--spare 0] [--cpus 0.5] [--mem 256] [--min-block-ms 200]
   compose up | down | ps | logs [N] | pause N | unpause N | kill N | start N | stop N | restart N | stats | clean
 
-carteira de teste (frase em net/wallets, texto puro: SÓ DEV)
-  wallet new NOME                     cria uma carteira e mostra o endereço
-  wallet list                         lista as carteiras
-  balance NOME|ENDEREÇO               saldo e nonce
-  send --from NOME --to NOME|ENDEREÇO --amount 1,50 [--count N] [--node I]
-  fund NOME|ENDEREÇO VALOR            faucet de teste: mint assinado pelos emissores de teste
+test wallet (phrase in net/wallets, plain text: DEV ONLY)
+  wallet new NAME                     creates a wallet and shows the address
+  wallet list                         lists the wallets
+  balance NAME|ADDRESS                balance and nonce
+  send --from NAME --to NAME|ADDRESS --amount 1,50 [--count N] [--node I]   (amounts use the Brazilian format: decimal comma, `.` only as thousands separator)
+  fund NAME|ADDRESS AMOUNT            test faucet: mint signed by the test issuers
 
-emissão e reserva (emissores de teste)
-  mint --to NOME|ENDEREÇO --amount 100 --ref dep-1
-  burn --from NOME --amount 10 --ref saque-1
-  reserve --amount 1000 [--ref extrato-1]        atestado de reserva
-  supply                              emitido, queimado, oferta, reserva, cobertura
+issuance and reserve (test issuers)
+  mint --to NAME|ADDRESS --amount 100 --ref dep-1
+  burn --from NAME --amount 10 --ref withdrawal-1
+  reserve --amount 1000 [--ref statement-1]      reserve attestation
+  supply                              minted, burned, supply, reserve, coverage
 
-simuladores (SÓ dev; funcionam na rede local e no laboratório, com --dir)
-  equivocate --as N                   o validador N (parado antes!) manda 2 votos conflitantes: a rede deve expor a evidência
-  rotate [--in N] [--out M]           troca de validadores por mais de 2/3 (N = reserva criada com `init --spare`)
-  blocks-sim [--count 5]              N transferências espaçadas para forçar N blocos pequenos
+simulators (dev ONLY; work on the local network and in the lab, with --dir)
+  equivocate --as N                   validator N (stopped first!) sends 2 conflicting votes: the network must expose the evidence
+  rotate [--in N] [--out M]           validator swap by more than 2/3 (N = spare created with `init --spare`)
+  blocks-sim [--count 5]              N spaced-out transfers to force N small blocks
 
-teste de carga (laboratório Docker; mede CPU e memória por cgroup)
+load test (Docker lab; measures CPU and memory per cgroup)
   load [--dir compose] [--rates 50,100,200,400,800] [--secs 20] [--accounts 8] [--warmup 10] [--repeats 1]
 
-qualidade
-  docs-check [--root .]               confere links, imagens, crates, ADRs, fluxos, títulos e segredos nos docs
-  check                               fmt + clippy + testes + docs-check (o que o CI roda)
+quality
+  docs-check [--root .]               checks links, images, crates, ADRs, flows, titles and secrets in the docs
+  check                               fmt + clippy + tests + docs-check (what CI runs)
 
-consulta
-  blocks [--from N] [--limit N]       últimos blocos
-  tx ID                               uma transação
+query
+  blocks [--from N] [--limit N]       latest blocks
+  tx ID                               a transaction
 ";
 
 fn die(msg: &str) -> ! {
@@ -78,7 +79,7 @@ impl Args {
     }
     fn need(&self, flag: &str) -> String {
         self.one(flag)
-            .unwrap_or_else(|| die(&format!("falta {flag}")))
+            .unwrap_or_else(|| die(&format!("missing {flag}")))
     }
     fn dir(&self) -> PathBuf {
         PathBuf::from(
@@ -90,10 +91,10 @@ impl Args {
     fn num<T: std::str::FromStr>(&self, flag: &str, default: T) -> T {
         self.one(flag).map_or(default, |v| {
             v.parse()
-                .unwrap_or_else(|_| die(&format!("{flag}: número inválido")))
+                .unwrap_or_else(|_| die(&format!("{flag}: invalid number")))
         })
     }
-    /// Posicionais (o que não é flag nem valor de flag).
+    /// Positionals (whatever is neither a flag nor a flag's value).
     fn positional(&self) -> Vec<String> {
         let mut out = Vec::new();
         let mut skip = false;
@@ -122,6 +123,7 @@ fn main() {
         "up" => cmd_up(&a),
         "down" => cmd_down(&a.dir()),
         "stop" => cmd_stop(&a),
+        "explorer" => cmd_explorer(&a),
         "start" => cmd_start(&a),
         "equivocate" => cmd_equivocate(&a),
         "rotate" => cmd_rotate(&a),
@@ -146,14 +148,14 @@ fn main() {
             print!("{HELP}");
             Ok(())
         }
-        other => Err(format!("comando desconhecido: {other}\n\n{HELP}")),
+        other => Err(format!("unknown command: {other}\n\n{HELP}")),
     };
     if let Err(e) = r {
         die(&e);
     }
 }
 
-// ---------------------------------------------------------------------------- rede local
+// ---------------------------------------------------------------------------- local network
 
 fn cmd_init(a: &Args) -> Result<(), String> {
     let dir = a.dir();
@@ -161,7 +163,7 @@ fn cmd_init(a: &Args) -> Result<(), String> {
     let issuers: usize = a.num("--issuers", 3);
     let threshold: u32 = a.num("--threshold", 2);
     if nodes == 0 || nodes > 32 {
-        return Err("--nodes entre 1 e 32".into());
+        return Err("--nodes must be between 1 and 32".into());
     }
     let spare: usize = a.num("--spare", 0);
     let base: usize = a.num("--port-base", 7100);
@@ -180,10 +182,10 @@ fn cmd_init(a: &Args) -> Result<(), String> {
         &|i| format!("127.0.0.1:{}", base + 100 + i),
     )?;
     println!(
-        "rede de teste criada em {} ({nodes} validadores + {spare} reserva(s), {issuers} emissores, M = {threshold})",
+        "test network created in {} ({nodes} validators + {spare} spare(s), {issuers} issuers, M = {threshold})",
         dir.display()
     );
-    println!("próximo: cargo dev up");
+    println!("next: cargo dev up");
     Ok(())
 }
 
@@ -191,20 +193,20 @@ fn node_binary() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let bin = exe.with_file_name("brdu-node");
     if !bin.exists() {
-        println!("compilando o validador (cargo build -p brdu-nodebin)…");
+        println!("building the validator (cargo build -p brdu-nodebin)…");
         let ok = Command::new("cargo")
             .args(["build", "-q", "-p", "brdu-nodebin"])
             .status()
             .map_err(|e| e.to_string())?
             .success();
         if !ok || !bin.exists() {
-            return Err("não consegui compilar o brdu-node".into());
+            return Err("could not build brdu-node".into());
         }
     }
     Ok(bin)
 }
 
-/// Sobe o processo do nó `idx` (1-based). `all_others`: disca a todos os outros (reentrada); senão só aos anteriores.
+/// Starts the process of node `idx` (1-based). `all_others`: dials every other node (rejoin); otherwise only the earlier ones.
 fn spawn_node(
     dir: &Path,
     l: &Layout,
@@ -215,7 +217,7 @@ fn spawn_node(
     let nodes = l.info["nodes"].as_array().cloned().unwrap_or_default();
     let n = nodes
         .get(idx - 1)
-        .ok_or_else(|| format!("nó {idx} não existe"))?;
+        .ok_or_else(|| format!("node {idx} does not exist"))?;
     let mut cmd = Command::new(bin);
     cmd.arg("run")
         .args(["--genesis", &dir.join("genesis.hex").to_string_lossy()])
@@ -271,36 +273,36 @@ fn cmd_up(a: &Args) -> Result<(), String> {
     }
     write_pids(&dir, &pids)?;
     println!(
-        "{count} nós no ar ({} validadores + reservas). APIs: {}",
+        "{count} nodes up ({} validators + spares). APIs: {}",
         l.info["genesis_nodes"],
         l.apis().join(", ")
     );
-    println!("próximo: cargo dev status");
+    println!("next: cargo dev status");
     Ok(())
 }
 
-/// `stop N`: derruba o nó N (para simular falha, ou liberar a chave dele para o simulador).
+/// `stop N`: stops node N (to simulate a failure, or to free its key for the simulator).
 fn cmd_stop(a: &Args) -> Result<(), String> {
     let dir = a.dir();
     let n: usize = a
         .positional()
         .first()
         .and_then(|v| v.parse().ok())
-        .ok_or("stop NÚMERO_DO_NÓ")?;
+        .ok_or("stop NODE_NUMBER")?;
     let mut pids = read_pids(&dir);
-    let pid = pids.get_mut(n.saturating_sub(1)).ok_or("nó desconhecido")?;
+    let pid = pids.get_mut(n.saturating_sub(1)).ok_or("unknown node")?;
     if pid.chars().all(|c| c.is_ascii_digit()) && !pid.is_empty() && pid != "0" {
         let _ = Command::new("kill").arg(pid.as_str()).status();
         *pid = "-".into();
         write_pids(&dir, &pids)?;
-        println!("nó {n} derrubado");
+        println!("node {n} stopped");
     } else {
-        println!("nó {n} já estava parado");
+        println!("node {n} was already stopped");
     }
     Ok(())
 }
 
-/// `start N`: sobe de novo o nó N (mesma pasta de dados: lê o log e sincroniza).
+/// `start N`: starts node N again (same data folder: reads the log and syncs).
 fn cmd_start(a: &Args) -> Result<(), String> {
     let dir = a.dir();
     let l = Layout::load(&dir)?;
@@ -308,22 +310,22 @@ fn cmd_start(a: &Args) -> Result<(), String> {
         .positional()
         .first()
         .and_then(|v| v.parse().ok())
-        .ok_or("start NÚMERO_DO_NÓ")?;
+        .ok_or("start NODE_NUMBER")?;
     let mut pids = read_pids(&dir);
     if pids.get(n.saturating_sub(1)).is_none() {
-        return Err("nó desconhecido (rode `cargo dev up`)".into());
+        return Err("unknown node (run `cargo dev up`)".into());
     }
     let pid = spawn_node(&dir, &l, &node_binary()?, n, true)?;
     pids[n - 1] = pid.to_string();
     write_pids(&dir, &pids)?;
-    println!("nó {n} no ar (pid {pid})");
+    println!("node {n} up (pid {pid})");
     Ok(())
 }
 
 fn cmd_down(dir: &Path) -> Result<(), String> {
     let p = dir.join("pids");
     let Ok(text) = fs::read_to_string(&p) else {
-        println!("nada rodando em {}", dir.display());
+        println!("nothing running in {}", dir.display());
         return Ok(());
     };
     let mut n = 0;
@@ -340,28 +342,29 @@ fn cmd_down(dir: &Path) -> Result<(), String> {
         }
     }
     let _ = fs::remove_file(&p);
-    println!("{n} validadores derrubados");
+    stop_explorer(dir);
+    println!("{n} validators stopped");
     Ok(())
 }
 
 fn cmd_reset(dir: &Path) -> Result<(), String> {
     cmd_down(dir)?;
-    // só apaga o que ESTE comando cria dentro da pasta indicada
+    // only deletes what THIS command creates inside the given folder
     for sub in ["keys", "wallets", "data", "logs"] {
         let _ = fs::remove_dir_all(dir.join(sub));
     }
-    for f in ["devnet.json", "genesis.hex", "pids"] {
+    for f in ["devnet.json", "genesis.hex", "pids", "explorer.pid"] {
         let _ = fs::remove_file(dir.join(f));
     }
     let _ = fs::remove_dir(dir);
-    println!("rede de teste em {} apagada", dir.display());
+    println!("test network in {} deleted", dir.display());
     Ok(())
 }
 
 fn cmd_status(a: &Args) -> Result<(), String> {
     let l = Layout::load(&a.dir())?;
     println!(
-        "rede {} (gênese {})",
+        "network {} (genesis {})",
         l.chain_id(),
         l.info["genesis_hash"]
             .as_str()
@@ -372,15 +375,15 @@ fn cmd_status(a: &Args) -> Result<(), String> {
     for (i, api) in l.apis().iter().enumerate() {
         match http::get(api, "/status") {
             Ok(s) => println!(
-                "  v{}  altura {:<5} pares {}  mempool {:<4} consenso {}  raiz {}  evidências {}",
+                "  v{}  height {:<5} peers {}  mempool {:<4} consensus {}  root {}  evidence {}",
                 i + 1,
                 s["height"],
                 s["peers"],
                 s["mempool"],
                 if s["consensus_running"] == true {
-                    "rodando"
+                    "running"
                 } else {
-                    "dormindo"
+                    "sleeping"
                 },
                 s["state_root"]
                     .as_str()
@@ -389,13 +392,13 @@ fn cmd_status(a: &Args) -> Result<(), String> {
                     .unwrap_or(""),
                 s["evidence"]
             ),
-            Err(e) => println!("  v{}  FORA DO AR ({e})", i + 1),
+            Err(e) => println!("  v{}  DOWN ({e})", i + 1),
         }
     }
     Ok(())
 }
 
-// ---------------------------------------------------------------------------- carteiras
+// ---------------------------------------------------------------------------- wallets
 
 fn wallet_path(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("wallets/{name}.mnemonic"))
@@ -403,7 +406,7 @@ fn wallet_path(dir: &Path, name: &str) -> PathBuf {
 
 fn load_account(dir: &Path, name: &str) -> Result<(SecretKey, Address), String> {
     let text = fs::read_to_string(wallet_path(dir, name))
-        .map_err(|_| format!("carteira `{name}` não existe (cargo dev wallet new {name})"))?;
+        .map_err(|_| format!("wallet `{name}` does not exist (cargo dev wallet new {name})"))?;
     let wallet = Phrase::parse(text.trim())
         .and_then(|p| p.wallet(""))
         .map_err(|e| e.to_string())?;
@@ -414,7 +417,7 @@ fn load_account(dir: &Path, name: &str) -> Result<(SecretKey, Address), String> 
     ))
 }
 
-/// `NOME` de carteira ou `brdu1…`.
+/// A wallet `NAME` or `brdu1…`.
 fn resolve(dir: &Path, who: &str) -> Result<Address, String> {
     if who.starts_with("brdu1") {
         return Address::decode(who).map_err(|e| e.to_string());
@@ -427,27 +430,27 @@ fn cmd_wallet(a: &Args) -> Result<(), String> {
     let pos = a.positional();
     match pos.first().map(String::as_str) {
         Some("new") => {
-            let name = pos.get(1).ok_or("wallet new NOME")?;
+            let name = pos.get(1).ok_or("wallet new NAME")?;
             if name.is_empty()
                 || !name
                     .chars()
                     .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
             {
-                return Err("nome: letras, números, - e _".into());
+                return Err("name: letters, digits, - and _".into());
             }
             fs::create_dir_all(dir.join("wallets")).map_err(|e| e.to_string())?;
             let phrase = Phrase::generate().map_err(|e| e.to_string())?;
             net::write_secret(&wallet_path(&dir, name), &phrase.words().join(" "))?;
             let (_, addr) = load_account(&dir, name)?;
             println!(
-                "carteira `{name}` criada (frase de TESTE em {})\nendereço: {addr}",
+                "wallet `{name}` created (TEST phrase in {})\naddress: {addr}",
                 wallet_path(&dir, name).display()
             );
             Ok(())
         }
         Some("list") => {
             let mut names: Vec<String> = fs::read_dir(dir.join("wallets"))
-                .map_err(|_| "sem carteiras".to_string())?
+                .map_err(|_| "no wallets".to_string())?
                 .filter_map(|e| {
                     e.ok()?
                         .file_name()
@@ -463,7 +466,7 @@ fn cmd_wallet(a: &Args) -> Result<(), String> {
             }
             Ok(())
         }
-        _ => Err("wallet new NOME | wallet list".into()),
+        _ => Err("wallet new NAME | wallet list".into()),
     }
 }
 
@@ -472,7 +475,7 @@ fn first_api(l: &Layout, a: &Args) -> Result<String, String> {
     let i: usize = a.num("--node", 1);
     apis.get(i.saturating_sub(1))
         .cloned()
-        .ok_or_else(|| format!("nó {i} não existe"))
+        .ok_or_else(|| format!("node {i} does not exist"))
 }
 
 fn account(api: &str, addr: &Address) -> Result<(u64, u64), String> {
@@ -494,20 +497,20 @@ fn cmd_balance(a: &Args) -> Result<(), String> {
         .positional()
         .first()
         .cloned()
-        .ok_or("balance NOME|ENDEREÇO")?;
+        .ok_or("balance NAME|ADDRESS")?;
     let addr = resolve(&dir, &who)?;
     let (bal, nonce) = account(&first_api(&l, a)?, &addr)?;
-    println!("{addr}\nsaldo {}  (nonce {nonce})", show_amount(bal));
+    println!("{addr}\nbalance {}  (nonce {nonce})", show_amount(bal));
     Ok(())
 }
 
 fn parse_amount(s: &str) -> Result<u64, String> {
     Amount::parse(s)
         .map(Amount::units)
-        .map_err(|e| format!("valor `{s}`: {e}"))
+        .map_err(|e| format!("amount `{s}`: {e}"))
 }
 
-/// Taxa mínima: base + por byte × tamanho (a taxa tem largura fixa, então o tamanho não muda).
+/// Minimum fee: base + per-byte × size (the fee has a fixed width, so the size does not change).
 fn min_fee(api: &str, probe: &Tx) -> Result<u64, String> {
     let f = http::get(api, "/fees")?;
     Ok(f["transfer_base"].as_u64().unwrap_or(1000)
@@ -524,7 +527,7 @@ pub(crate) fn submit(api: &str, tx: &Tx) -> Result<String, String> {
     if code == 200 {
         Ok(v["id"].as_str().unwrap_or("").to_string())
     } else {
-        Err(v["error"].as_str().unwrap_or("recusada").to_string())
+        Err(v["error"].as_str().unwrap_or("rejected").to_string())
     }
 }
 
@@ -563,14 +566,14 @@ fn cmd_send(a: &Args) -> Result<(), String> {
         nonce += 1;
     }
     println!(
-        "{count} transferência(s) de {} enviada(s); taxa {} cada; última: {last}",
+        "{count} transfer(s) of {} sent; fee {} each; last: {last}",
         show_amount(amount),
         show_amount(fee)
     );
     Ok(())
 }
 
-// ---------------------------------------------------------------------------- emissão
+// ---------------------------------------------------------------------------- issuance
 
 fn relayer_nonce(l: &Layout, api: &str) -> Result<(SecretKey, u64), String> {
     let k = l.relayer()?;
@@ -617,7 +620,7 @@ fn issue(a: &Args, burn: bool, who_flag: &str) -> Result<(), String> {
         Tx::new_signed(&sender, &chain, tx_kind, nonce, 0, payload).map_err(|e| e.to_string())?;
     let id = submit(&api, &tx)?;
     println!(
-        "{} de {} para {target} enviado: {id}",
+        "{} of {} to {target} sent: {id}",
         if burn { "burn" } else { "mint" },
         show_amount(amount)
     );
@@ -635,8 +638,8 @@ fn cmd_burn(a: &Args) -> Result<(), String> {
 fn cmd_fund(a: &Args) -> Result<(), String> {
     let pos = a.positional();
     let (who, amount) = (
-        pos.first().ok_or("fund NOME VALOR")?,
-        pos.get(1).ok_or("fund NOME VALOR")?,
+        pos.first().ok_or("fund NAME AMOUNT")?,
+        pos.get(1).ok_or("fund NAME AMOUNT")?,
     );
     let mut stamp = [0u8; 4];
     getrandom::fill(&mut stamp).map_err(|e| e.to_string())?;
@@ -653,7 +656,7 @@ fn cmd_fund(a: &Args) -> Result<(), String> {
             .filter(|x| x.starts_with("--dir") || x.starts_with("--node"))
             .cloned(),
     );
-    // reaproveita --dir/--node com seus valores
+    // reuses --dir/--node with their values
     let mut full = args;
     for flag in ["--dir", "--node"] {
         if let Some(v) = a.one(flag) {
@@ -669,7 +672,7 @@ fn cmd_reserve(a: &Args) -> Result<(), String> {
     let l = Layout::load(&a.dir())?;
     let api = first_api(&l, a)?;
     let reserve = parse_amount(&a.need("--amount"))?;
-    let reference = a.one("--ref").unwrap_or_else(|| "extrato".into());
+    let reference = a.one("--ref").unwrap_or_else(|| "statement".into());
     let sup = http::get(&api, "/supply")?;
     let seq = sup["attestation_seq"].as_u64().unwrap_or(0) + 1;
     let chain = l.chain_id();
@@ -680,7 +683,7 @@ fn cmd_reserve(a: &Args) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let id = submit(&api, &tx)?;
     println!(
-        "atestado #{seq} de reserva {} enviado: {id}",
+        "attestation #{seq} of reserve {} sent: {id}",
         show_amount(reserve)
     );
     Ok(())
@@ -691,29 +694,29 @@ fn cmd_supply(a: &Args) -> Result<(), String> {
     let s = http::get(&first_api(&l, a)?, "/supply")?;
     let u = |k: &str| s[k].as_u64().unwrap_or(0);
     println!(
-        "emitido  {}\nqueimado {}\noferta   {}",
+        "minted   {}\nburned   {}\nsupply   {}",
         show_amount(u("minted")),
         show_amount(u("burned")),
         show_amount(u("supply"))
     );
     match s["reserve"].as_u64() {
         Some(r) => println!(
-            "reserva  {} (atestado #{})",
+            "reserve  {} (attestation #{})",
             show_amount(r),
             s["attestation_seq"]
         ),
-        None => println!("reserva  (nenhum atestado ainda)"),
+        None => println!("reserve  (no attestation yet)"),
     }
     match s["coverage"]["state"].as_str() {
         Some("covered") => println!(
-            "cobertura: coberta, sobra {}",
+            "coverage: covered, surplus {}",
             show_amount(s["coverage"]["surplus"].as_u64().unwrap_or(0))
         ),
         Some("under") => println!(
-            "cobertura: ABAIXO, faltam {} (só informação; a rede não congela nada)",
+            "coverage: UNDER, shortfall {} (information only; the network freezes nothing)",
             show_amount(s["coverage"]["shortfall"].as_u64().unwrap_or(0))
         ),
-        _ => println!("cobertura: sem atestado"),
+        _ => println!("coverage: no attestation"),
     }
     Ok(())
 }
@@ -732,7 +735,7 @@ fn cmd_blocks(a: &Args) -> Result<(), String> {
     for b in v["blocks"].as_array().unwrap_or(&Vec::new()) {
         let who = |x: &Value| x.as_str().unwrap_or("").get(..10).unwrap_or("").to_string();
         println!(
-            "#{:<5} {} txs {:<4} rodada {} proponente {}… assinado por {}/{}",
+            "#{:<5} {} txs {:<4} round {} proposer {}… signed by {}/{}",
             b["height"],
             b["hash"].as_str().unwrap_or("").get(..10).unwrap_or(""),
             b["tx_count"],
@@ -783,10 +786,10 @@ fn cmd_load(a: &Args) -> Result<(), String> {
         .map(|r| {
             r.trim()
                 .parse()
-                .unwrap_or_else(|_| die("--rates: números separados por vírgula"))
+                .unwrap_or_else(|_| die("--rates: comma-separated numbers"))
         })
         .collect();
-    // só carrega nós que estão no conjunto de validadores em vigor (observadores e removidos ficam de fora)
+    // only loads nodes that are in the active validator set (observers and removed nodes are left out)
     let active: Vec<usize> = l
         .apis()
         .iter()
@@ -795,7 +798,7 @@ fn cmd_load(a: &Args) -> Result<(), String> {
         .map(|(i, _)| i)
         .collect();
     if active.is_empty() {
-        return Err("nenhum nó validador respondeu (a rede está no ar?)".into());
+        return Err("no validator node answered (is the network up?)".into());
     }
     load::run(&load::Params {
         dir,
@@ -812,7 +815,7 @@ fn cmd_load(a: &Args) -> Result<(), String> {
     })
 }
 
-// ---------------------------------------------------------------------------- simuladores (só dev)
+// ---------------------------------------------------------------------------- simulators (dev only)
 
 fn ensure_wallet(dir: &Path, name: &str) -> Result<Address, String> {
     if !wallet_path(dir, name).exists() {
@@ -823,7 +826,7 @@ fn ensure_wallet(dir: &Path, name: &str) -> Result<Address, String> {
     load_account(dir, name).map(|(_, a)| a)
 }
 
-/// Carteiras do simulador, com saldo para as transferências.
+/// The simulator's wallets, funded for the transfers.
 fn sim_wallets(dir: &Path, l: &Layout, api: &str) -> Result<(), String> {
     let sim = ensure_wallet(dir, "sim")?;
     ensure_wallet(dir, "sim-sink")?;
@@ -848,7 +851,7 @@ fn sim_wallets(dir: &Path, l: &Layout, api: &str) -> Result<(), String> {
         let end = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while account(api, &sim)?.0 < 2_000_000 {
             if std::time::Instant::now() > end {
-                return Err("o saldo do simulador não chegou (a rede está no ar?)".into());
+                return Err("the simulator balance did not arrive (is the network up?)".into());
             }
             std::thread::sleep(std::time::Duration::from_millis(200));
         }
@@ -857,7 +860,7 @@ fn sim_wallets(dir: &Path, l: &Layout, api: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Uma transferência mínima do simulador.
+/// A minimal simulator transfer.
 fn sim_send(dir: &Path, l: &Layout, api: &str) -> Result<(), String> {
     let (key, from) = load_account(dir, "sim")?;
     let to = resolve(dir, "sim-sink")?;
@@ -901,11 +904,11 @@ fn cmd_blocks_sim(a: &Args) -> Result<(), String> {
         let end = std::time::Instant::now() + std::time::Duration::from_secs(20);
         while height_of(&api)? <= before {
             if std::time::Instant::now() > end {
-                return Err(format!("o bloco {i} não saiu em 20 s"));
+                return Err(format!("block {i} was not produced within 20 s"));
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
-        println!("bloco {} produzido ({i}/{count})", before + 1);
+        println!("block {} produced ({i}/{count})", before + 1);
         std::thread::sleep(std::time::Duration::from_millis(300));
     }
     Ok(())
@@ -915,14 +918,14 @@ fn sim_binary() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let bin = exe.with_file_name("brdu-sim");
     if !bin.exists() {
-        println!("compilando o simulador (cargo build -p brdu-sim)…");
+        println!("building the simulator (cargo build -p brdu-sim)…");
         let ok = Command::new("cargo")
             .args(["build", "-q", "-p", "brdu-sim"])
             .status()
             .map_err(|e| e.to_string())?
             .success();
         if !ok || !bin.exists() {
-            return Err("não consegui compilar o brdu-sim".into());
+            return Err("could not build brdu-sim".into());
         }
     }
     Ok(bin)
@@ -936,13 +939,11 @@ fn cmd_equivocate(a: &Args) -> Result<(), String> {
     let nodes = l.info["nodes"].as_array().cloned().unwrap_or_default();
     let apis = l.apis();
     if who == 0 || who > genesis_nodes {
-        return Err(format!(
-            "--as: um validador da gênese (1 a {genesis_nodes})"
-        ));
+        return Err(format!("--as: a genesis validator (1 to {genesis_nodes})"));
     }
     if http::get(&apis[who - 1], "/status").is_ok() {
         return Err(format!(
-            "o nó {who} ainda está no ar: pare-o antes (cargo dev stop {who}  ou  cargo dev compose kill {who})"
+            "node {who} is still up: stop it first (cargo dev stop {who}  or  cargo dev compose kill {who})"
         ));
     }
     let (live_api, height) = apis
@@ -950,7 +951,7 @@ fn cmd_equivocate(a: &Args) -> Result<(), String> {
         .enumerate()
         .filter(|(i, _)| i + 1 != who)
         .find_map(|(_, api)| height_of(api).ok().map(|h| (api.clone(), h)))
-        .ok_or("nenhum outro nó responde")?;
+        .ok_or("no other node answers")?;
     let _ = live_api;
     let mut cmd = Command::new(sim_binary()?);
     cmd.args([
@@ -967,7 +968,7 @@ fn cmd_equivocate(a: &Args) -> Result<(), String> {
         }
     }
     if !cmd.status().map_err(|e| e.to_string())?.success() {
-        return Err("o simulador falhou".into());
+        return Err("the simulator failed".into());
     }
     std::thread::sleep(std::time::Duration::from_millis(1200));
     let mut detected = 0;
@@ -977,17 +978,17 @@ fn cmd_equivocate(a: &Args) -> Result<(), String> {
         }
         let n =
             http::get(api, "/evidence").map_or(0, |v| v["evidence"].as_array().map_or(0, Vec::len));
-        println!("  v{}  evidências: {n}", i + 1);
+        println!("  v{}  evidence: {n}", i + 1);
         detected += usize::from(n > 0);
     }
     println!(
-        "equivocação detectada por {detected} de {} validadores honestos",
+        "equivocation detected by {detected} of {} honest validators",
         genesis_nodes - 1
     );
     Ok(())
 }
 
-/// Manda transferências mínimas até `done()` (os blocos é que fazem a rotação andar: sem transação a rede dorme).
+/// Sends minimal transfers until `done()` (blocks are what move the rotation along: without transactions the network sleeps).
 fn drive_blocks(
     dir: &Path,
     l: &Layout,
@@ -998,7 +999,7 @@ fn drive_blocks(
     let end = std::time::Instant::now() + std::time::Duration::from_secs(secs);
     while !done() {
         if std::time::Instant::now() > end {
-            return Err("a troca não ficou efetiva a tempo".into());
+            return Err("the swap did not take effect in time".into());
         }
         let _ = sim_send(dir, l, api);
         std::thread::sleep(std::time::Duration::from_millis(300));
@@ -1015,10 +1016,10 @@ fn rotate_step(
 ) -> Result<(), String> {
     use brdu_ledger::gov;
     let who = brdu_wallet_key(dir, idx)?;
-    sim_wallets(dir, l, api)?; // antes da troca: o nonce do retransmissor não pode ficar pendente
+    sim_wallets(dir, l, api)?; // before the swap: the relayer's nonce must not be left pending
     let mut v = http::get(api, "/validators")?;
     if v["pending"].is_object() {
-        println!("já há uma troca pendente; esperando ela ficar efetiva…");
+        println!("a swap is already pending; waiting for it to take effect…");
         let e0 = v["epoch"].as_u64().unwrap_or(0);
         drive_blocks(dir, l, api, 120, &|| {
             http::get(api, "/validators").is_ok_and(|x| x["epoch"].as_u64().unwrap_or(0) > e0)
@@ -1037,16 +1038,16 @@ fn rotate_step(
     let already = set.contains(&Address::from_public_key(&who.public()).encode());
     if (action == gov::Action::Add) == already {
         println!(
-            "nó {idx}: {} (nada a fazer)",
+            "node {idx}: {} (nothing to do)",
             if already {
-                "já é validador"
+                "already a validator"
             } else {
-                "já não é validador"
+                "already not a validator"
             }
         );
         return Ok(());
     }
-    // as chaves de teste dos validadores em vigor
+    // the test keys of the active validators
     let total = l.info["nodes"].as_array().map_or(0, Vec::len);
     let mut approvers: Vec<SecretKey> = Vec::new();
     for i in 1..=total {
@@ -1073,11 +1074,11 @@ fn rotate_step(
     .map_err(|e| e.to_string())?;
     let id = submit(api, &tx)?;
     println!(
-        "troca {} do nó {idx} enviada ({} aprovações de {}), efetiva na altura {effective}: {id}",
+        "{} swap of node {idx} sent ({} approvals of {}), effective at height {effective}: {id}",
         if action == gov::Action::Add {
-            "ENTRADA"
+            "JOIN"
         } else {
-            "SAÍDA"
+            "LEAVE"
         },
         ap.len(),
         set.len()
@@ -1087,14 +1088,14 @@ fn rotate_step(
     })?;
     let v = http::get(api, "/validators")?;
     println!(
-        "época {}: {} validadores em vigor",
+        "epoch {}: {} active validators",
         v["epoch"],
         v["validators"].as_array().map_or(0, Vec::len)
     );
     Ok(())
 }
 
-/// A chave de consenso do nó `idx` (a pública é o que entra na troca).
+/// The consensus key of node `idx` (the public one is what goes into the swap).
 fn brdu_wallet_key(dir: &Path, idx: usize) -> Result<SecretKey, String> {
     net::read_key(&dir.join(format!("keys/v{idx}.key")))
 }
@@ -1126,14 +1127,14 @@ fn cmd_docs_check(a: &Args) -> Result<(), String> {
         println!("{}: {}", p.file, p.what);
     }
     if problems.is_empty() {
-        println!("docs-check: tudo certo");
+        println!("docs-check: all good");
         Ok(())
     } else {
-        Err(format!("docs-check: {} problema(s)", problems.len()))
+        Err(format!("docs-check: {} problem(s)", problems.len()))
     }
 }
 
-/// O portão de qualidade: o mesmo que o CI deve rodar.
+/// The quality gate: the same one CI should run.
 fn cmd_check() -> Result<(), String> {
     let steps: [(&str, &[&str]); 3] = [
         ("cargo fmt", &["fmt", "--all", "--", "--check"]),
@@ -1158,9 +1159,72 @@ fn cmd_check() -> Result<(), String> {
             .map_err(|e| e.to_string())?
             .success()
         {
-            return Err(format!("{name} falhou"));
+            return Err(format!("{name} failed"));
         }
     }
     println!("==> docs-check");
     cmd_docs_check(&Args(Vec::new()))
+}
+
+// ---------------------------------------------------------------------------- explorer
+
+fn stop_explorer(dir: &Path) {
+    if let Ok(pid) = fs::read_to_string(dir.join("explorer.pid")) {
+        let pid = pid.trim();
+        if !pid.is_empty() && pid.chars().all(|c| c.is_ascii_digit()) && pid != "0" {
+            let _ = Command::new("kill").arg(pid).status();
+        }
+        let _ = fs::remove_file(dir.join("explorer.pid"));
+    }
+}
+
+fn explorer_binary() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let bin = exe.with_file_name("brdu-explorer");
+    if !bin.exists() {
+        println!("building the explorer (cargo build -p brdu-explorer)…");
+        let ok = Command::new("cargo")
+            .args(["build", "-q", "-p", "brdu-explorer"])
+            .status()
+            .map_err(|e| e.to_string())?
+            .success();
+        if !ok || !bin.exists() {
+            return Err("could not build brdu-explorer".into());
+        }
+    }
+    Ok(bin)
+}
+
+/// `explorer`: starts the web explorer (in the background) pointed at a node; `explorer stop` stops it.
+fn cmd_explorer(a: &Args) -> Result<(), String> {
+    let dir = a.dir();
+    if a.positional().first().map(String::as_str) == Some("stop") {
+        stop_explorer(&dir);
+        println!("explorer stopped");
+        return Ok(());
+    }
+    let l = Layout::load(&dir)?;
+    let api = first_api(&l, a)?;
+    let listen = a.one("--listen").unwrap_or_else(|| "127.0.0.1:8545".into());
+    stop_explorer(&dir);
+    fs::create_dir_all(dir.join("logs")).map_err(|e| e.to_string())?;
+    let log = fs::File::create(dir.join("logs/explorer.log")).map_err(|e| e.to_string())?;
+    let child = Command::new(explorer_binary()?)
+        .args([
+            "--genesis",
+            &dir.join("genesis.hex").to_string_lossy(),
+            "--node",
+            &api,
+            "--listen",
+            &listen,
+        ])
+        .stdin(Stdio::null())
+        .stdout(log.try_clone().map_err(|e| e.to_string())?)
+        .stderr(log)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    fs::write(dir.join("explorer.pid"), child.id().to_string()).map_err(|e| e.to_string())?;
+    println!("explorer at http://{listen}  (reading node {api}; every block is re-verified here)");
+    println!("to stop: cargo dev explorer stop   (or cargo dev down)");
+    Ok(())
 }

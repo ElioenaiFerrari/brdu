@@ -12,6 +12,7 @@ members = [
     "tools/brdu-dev",
     "tools/brdu-sim",
     "tools/brdu-menu",
+    "tools/brdu-explorer",
 ]
 
 [workspace.package]
@@ -21,7 +22,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [workspace.dependencies]
-# cripto (RustCrypto): sem recursos desnecessários, para compilar também em no_std
+# crypto (RustCrypto): no unnecessary features, so it also compiles in no_std
 sha3 = { version = "0.10", default-features = false }
 sha2 = { version = "0.10", default-features = false }
 hmac = { version = "0.12", default-features = false }
@@ -36,7 +37,7 @@ proptest = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# crates internas
+# internal crates
 brdu-crypto = { path = "crates/brdu-crypto" }
 brdu-wallet = { path = "crates/brdu-wallet" }
 brdu-ledger = { path = "crates/brdu-ledger" }
@@ -56,8 +57,8 @@ debug = false
 strip = true
 lto = "thin"
 
-# Disco: o target de debug do Teko chegou a 71 GiB. Só tabelas de linha (backtrace útil, sem DWARF completo) e
-# dependências otimizadas (a criptografia roda 10x mais rápido nos testes).
+# Disk: Teko's debug target once reached 71 GiB. Only line tables (useful backtrace, no full DWARF) and
+# optimized dependencies (the cryptography runs 10x faster in tests).
 [profile.dev]
 debug = "line-tables-only"
 

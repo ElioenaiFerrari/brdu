@@ -1,4 +1,4 @@
-//! Cliente HTTP mínimo (sem dependências): `Connection: close`, JSON.
+//! Minimal HTTP client (no dependencies): `Connection: close`, JSON.
 
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -6,13 +6,13 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-/// Faz uma requisição e devolve `(código, corpo JSON)`.
+/// Makes a request and returns `(status code, JSON body)`.
 pub fn request(addr: &str, method: &str, path: &str, body: &str) -> Result<(u16, Value), String> {
     let target = addr
         .to_socket_addrs()
         .map_err(|e| format!("{addr}: {e}"))?
         .next()
-        .ok_or("sem endereço")?;
+        .ok_or("no address")?;
     let mut s = TcpStream::connect_timeout(&target, Duration::from_secs(3))
         .map_err(|e| format!("{addr}: {e}"))?;
     s.set_read_timeout(Some(Duration::from_secs(15)))
@@ -25,12 +25,12 @@ pub fn request(addr: &str, method: &str, path: &str, body: &str) -> Result<(u16,
         .split_whitespace()
         .nth(1)
         .and_then(|c| c.parse().ok())
-        .ok_or("resposta inválida")?;
+        .ok_or("invalid response")?;
     let body = out.split("\r\n\r\n").nth(1).unwrap_or("");
     Ok((code, serde_json::from_str(body).unwrap_or(Value::Null)))
 }
 
-/// GET que exige 200.
+/// A GET that requires 200.
 pub fn get(addr: &str, path: &str) -> Result<Value, String> {
     match request(addr, "GET", path, "")? {
         (200, v) => Ok(v),
@@ -38,14 +38,14 @@ pub fn get(addr: &str, path: &str) -> Result<Value, String> {
     }
 }
 
-/// Conexão HTTP persistente (keep-alive): o teste de carga não pode esgotar portas efêmeras.
+/// Persistent HTTP connection (keep-alive): the load test must not exhaust ephemeral ports.
 pub struct Conn {
     addr: String,
     stream: Option<std::net::TcpStream>,
 }
 
 impl Conn {
-    /// Nova (conecta na primeira requisição).
+    /// New (connects on the first request).
     #[must_use]
     pub fn new(addr: &str) -> Self {
         Self {
@@ -60,7 +60,7 @@ impl Conn {
             .to_socket_addrs()
             .map_err(|e| e.to_string())?
             .next()
-            .ok_or("sem endereço")?;
+            .ok_or("no address")?;
         let s = TcpStream::connect_timeout(&target, Duration::from_secs(3))
             .map_err(|e| e.to_string())?;
         s.set_nodelay(true).map_err(|e| e.to_string())?;
@@ -70,7 +70,7 @@ impl Conn {
         Ok(())
     }
 
-    /// Uma requisição; reconecta uma vez se a conexão caiu.
+    /// One request; reconnects once if the connection dropped.
     pub fn request(
         &mut self,
         method: &str,
@@ -91,11 +91,11 @@ impl Conn {
                 }
             }
         }
-        Err("falhou".into())
+        Err("failed".into())
     }
 
     fn try_once(&mut self, method: &str, path: &str, body: &str) -> Result<(u16, String), String> {
-        let s = self.stream.as_mut().ok_or("sem conexão")?;
+        let s = self.stream.as_mut().ok_or("no connection")?;
         write!(
             s,
             "{method} {path} HTTP/1.1\r\nHost: {}\r\nContent-Length: {}\r\n\r\n{body}",
@@ -107,7 +107,7 @@ impl Conn {
         let mut byte = [0u8; 1];
         while !head.ends_with(b"\r\n\r\n") {
             if head.len() > 16 * 1024 || s.read(&mut byte).map_err(|e| e.to_string())? == 0 {
-                return Err("resposta truncada".into());
+                return Err("truncated response".into());
             }
             head.push(byte[0]);
         }
@@ -116,16 +116,16 @@ impl Conn {
             .split_whitespace()
             .nth(1)
             .and_then(|c| c.parse().ok())
-            .ok_or("resposta inválida")?;
+            .ok_or("invalid response")?;
         let lower = text.to_ascii_lowercase();
         let body = if lower.contains("transfer-encoding: chunked") {
-            // o tiny_http responde em pedaços quando o corpo passa de ~32 KB
+            // tiny_http replies in chunks when the body exceeds ~32 KB
             let mut out = Vec::new();
             loop {
                 let mut line = Vec::new();
                 while !line.ends_with(b"\r\n") {
                     if s.read(&mut byte).map_err(|e| e.to_string())? == 0 {
-                        return Err("chunk truncado".into());
+                        return Err("truncated chunk".into());
                     }
                     line.push(byte[0]);
                 }
@@ -137,7 +137,7 @@ impl Conn {
                         .unwrap_or("0"),
                     16,
                 )
-                .map_err(|_| "chunk inválido")?;
+                .map_err(|_| "invalid chunk")?;
                 let mut chunk = vec![0u8; size + 2];
                 s.read_exact(&mut chunk).map_err(|e| e.to_string())?;
                 if size == 0 {

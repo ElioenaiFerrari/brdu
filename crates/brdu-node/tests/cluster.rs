@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! Cluster de 4 validadores **em processo**, com TCP de verdade em loopback, Noise, disco e API HTTP.
+//! Cluster of 4 validators **in process**, with real TCP over loopback, Noise, disk and the HTTP API.
 
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -71,7 +71,7 @@ impl Net {
         c
     }
 
-    /// Sobe `n` nós: o nó j disca aos anteriores, e a malha fica completa.
+    /// Starts `n` nodes: node j dials the earlier ones, and the mesh becomes complete.
     fn start(&self, n: usize, api: bool) -> Vec<Node> {
         let mut nodes: Vec<Node> = Vec::new();
         for i in 0..n {
@@ -115,7 +115,7 @@ fn wait(what: &str, secs: u64, mut f: impl FnMut() -> bool) {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    panic!("tempo esgotado: {what}");
+    panic!("timed out: {what}");
 }
 
 fn all_at(nodes: &[Node], h: u64) -> bool {
@@ -149,29 +149,29 @@ fn balance(n: &Node, who: &SecretKey) -> u64 {
 }
 
 #[test]
-fn quatro_validadores_decidem_blocos_e_chegam_ao_mesmo_estado() {
+fn four_validators_decide_blocks_and_reach_the_same_state() {
     let net = Net::new("basic");
     let nodes = net.start(4, false);
-    wait("malha completa", 20, || {
+    wait("full mesh", 20, || {
         nodes.iter().all(|n| n.peer_count() == 3)
     });
 
     nodes[0]
         .submit(&net.mint(0, &net.alice, 50_000_000, "dep-1"))
         .unwrap();
-    wait("bloco 1 em todos", 20, || all_at(&nodes, 1));
+    wait("block 1 on all nodes", 20, || all_at(&nodes, 1));
     assert_eq!(balance(&nodes[2], &net.alice), 50_000_000);
 
-    // transferências enviadas a nós diferentes: a fofoca leva todas ao proponente da vez
+    // transfers sent to different nodes: gossip carries all of them to the current proposer
     for i in 0..6u64 {
         nodes[(i % 4) as usize]
             .submit(&net.transfer(i, &net.alice, &net.bob, 1_000_000))
             .unwrap();
     }
-    wait("bob recebeu 6 milhões em todos", 30, || {
+    wait("bob received 6 million on all nodes", 30, || {
         nodes.iter().all(|n| balance(n, &net.bob) == 6_000_000)
     });
-    wait("mesmo estado", 10, || same_state(&nodes));
+    wait("same state", 10, || same_state(&nodes));
     assert!(nodes.iter().all(|n| n.evidence_count() == 0));
     for n in nodes {
         n.stop();
@@ -180,22 +180,22 @@ fn quatro_validadores_decidem_blocos_e_chegam_ao_mesmo_estado() {
 }
 
 #[test]
-fn a_mesma_transacao_enviada_a_dois_nos_entra_uma_vez() {
+fn the_same_transaction_sent_to_two_nodes_is_included_once() {
     let net = Net::new("dedupe");
     let nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     let t = net.mint(0, &net.alice, 7_000_000, "dep-1");
     let id1 = nodes[0].submit(&t).unwrap();
     let id2 = nodes[1].submit(&t);
-    assert!(id2.is_ok() || id2.is_err()); // pode já ter chegado por fofoca
-    wait("bloco", 20, || all_at(&nodes, 1));
-    wait("mesmo estado", 10, || same_state(&nodes));
+    assert!(id2.is_ok() || id2.is_err()); // it may have already arrived by gossip
+    wait("block", 20, || all_at(&nodes, 1));
+    wait("same state", 10, || same_state(&nodes));
     assert_eq!(
         balance(&nodes[3], &net.alice),
         7_000_000,
-        "emitido uma vez só"
+        "minted only once"
     );
-    // reenviar depois de incluída: nonce vencido, recusada
+    // resubmitting after inclusion: stale nonce, rejected
     assert!(nodes[2].submit(&t).is_err());
     assert_eq!(id1, t.id());
     for n in nodes {
@@ -205,16 +205,16 @@ fn a_mesma_transacao_enviada_a_dois_nos_entra_uma_vez() {
 }
 
 #[test]
-fn um_validador_fora_nao_para_a_rede_e_ao_voltar_alcanca_pelo_disco_e_pela_sincronizacao() {
+fn a_validator_going_down_does_not_stop_the_network_and_on_return_catches_up_from_disk_and_sync() {
     let net = Net::new("restart");
     let mut nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     nodes[0]
         .submit(&net.mint(0, &net.alice, 50_000_000, "dep-1"))
         .unwrap();
-    wait("bloco 1", 20, || all_at(&nodes, 1));
+    wait("block 1", 20, || all_at(&nodes, 1));
 
-    // derruba o nó 3
+    // take node 3 down
     let down = nodes.pop().unwrap();
     down.stop();
     for i in 0..5u64 {
@@ -223,21 +223,23 @@ fn um_validador_fora_nao_para_a_rede_e_ao_voltar_alcanca_pelo_disco_e_pela_sincr
             .unwrap();
         std::thread::sleep(Duration::from_millis(150));
     }
-    wait("3 de 4 seguem produzindo", 40, || {
+    wait("3 of 4 keep producing", 40, || {
         nodes.iter().all(|n| balance(n, &net.bob) == 5_000_000)
     });
     let target = nodes[0].height();
 
-    // volta com a MESMA pasta de dados: lê o log, depois sincroniza o que perdeu
+    // comes back with the SAME data dir: reads the log, then syncs what it missed
     let peers: Vec<String> = nodes.iter().map(|x| x.listen_addr().to_string()).collect();
     let back = Node::start(net.config(3, peers, false)).unwrap();
     assert!(
         back.height() >= 1,
-        "recuperou do disco antes de falar com ninguém"
+        "recovered from disk before talking to anyone"
     );
     nodes.push(back);
-    wait("o voltou alcança", 40, || nodes[3].height() >= target);
-    wait("mesmo estado", 20, || same_state(&nodes));
+    wait("the returned node catches up", 40, || {
+        nodes[3].height() >= target
+    });
+    wait("same state", 20, || same_state(&nodes));
     assert_eq!(balance(&nodes[3], &net.bob), 5_000_000);
     for n in nodes {
         n.stop();
@@ -246,15 +248,15 @@ fn um_validador_fora_nao_para_a_rede_e_ao_voltar_alcanca_pelo_disco_e_pela_sincr
 }
 
 #[test]
-fn a_rede_toda_reinicia_e_continua_do_mesmo_ponto() {
+fn the_whole_network_restarts_and_continues_from_the_same_point() {
     let net = Net::new("allrestart");
     let nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     nodes[1]
         .submit(&net.mint(0, &net.alice, 9_000_000, "dep-1"))
         .unwrap();
-    wait("bloco", 20, || all_at(&nodes, 1));
-    wait("mesmo estado", 10, || same_state(&nodes));
+    wait("block", 20, || all_at(&nodes, 1));
+    wait("same state", 10, || same_state(&nodes));
     let (h, root) = (nodes[0].height(), nodes[0].state_root());
     for n in nodes {
         n.stop();
@@ -264,13 +266,13 @@ fn a_rede_toda_reinicia_e_continua_do_mesmo_ponto() {
         again
             .iter()
             .all(|n| n.height() == h && n.state_root() == root),
-        "o disco refaz o mesmo estado"
+        "the disk rebuilds the same state"
     );
-    wait("malha", 20, || again.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || again.iter().all(|n| n.peer_count() == 3));
     again[2]
         .submit(&net.transfer(0, &net.alice, &net.bob, 1_000_000))
         .unwrap();
-    wait("continua", 30, || {
+    wait("continues", 30, || {
         again.iter().all(|n| balance(n, &net.bob) == 1_000_000)
     });
     for n in again {
@@ -280,10 +282,10 @@ fn a_rede_toda_reinicia_e_continua_do_mesmo_ponto() {
 }
 
 #[test]
-fn api_http_status_conta_envio_de_transacao_e_blocos() {
+fn http_api_status_account_transaction_submission_and_blocks() {
     let net = Net::new("api");
     let nodes = net.start(4, true);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     let api = nodes[0].api_addr().unwrap();
 
     let (code, st) = http(api, "GET", "/status", "");
@@ -295,7 +297,7 @@ fn api_http_status_conta_envio_de_transacao_e_blocos() {
     let (code, r) = http(api, "POST", "/tx", &hex::encode(&t.encode().unwrap()));
     assert_eq!(code, 200, "{r}");
     assert_eq!(r["id"], t.id().to_hex());
-    // lixo e assinatura adulterada
+    // garbage and a tampered signature
     assert_eq!(http(api, "POST", "/tx", "zz").0, 400);
     let mut bad = net.mint(1, &net.alice, 1, "x");
     bad.signature.0[0] ^= 1;
@@ -304,7 +306,7 @@ fn api_http_status_conta_envio_de_transacao_e_blocos() {
         400
     );
 
-    wait("bloco", 20, || all_at(&nodes, 1));
+    wait("block", 20, || all_at(&nodes, 1));
     let alice = Address::from_public_key(&net.alice.public()).encode();
     let (_, acc) = http(api, "GET", &format!("/account/{alice}"), "");
     assert_eq!(acc["balance"], 3_000_000);
@@ -317,13 +319,13 @@ fn api_http_status_conta_envio_de_transacao_e_blocos() {
     assert_eq!(b["tx_count"], 1);
     assert!(
         b["signed_by"].as_array().unwrap().len() >= 3,
-        "certificado com mais de 2/3"
+        "certificate with more than 2/3"
     );
     let (_, found) = http(api, "GET", &format!("/tx/{}", t.id().to_hex()), "");
     assert_eq!(found["height"], 1);
     assert_eq!(http(api, "GET", "/block/99", "").0, 404);
-    assert_eq!(http(api, "GET", "/account/lixo", "").0, 400);
-    assert_eq!(http(api, "GET", "/nada", "").0, 404);
+    assert_eq!(http(api, "GET", "/account/garbage", "").0, 400);
+    assert_eq!(http(api, "GET", "/nothing", "").0, 404);
     assert_eq!(http(api, "DELETE", "/tx", "").0, 405);
     for n in nodes {
         n.stop();
@@ -332,28 +334,28 @@ fn api_http_status_conta_envio_de_transacao_e_blocos() {
 }
 
 #[test]
-fn proponente_da_vez_fora_do_ar_a_rodada_muda_e_a_rede_decide() {
+fn current_proposer_down_the_round_changes_and_the_network_decides() {
     let net = Net::new("proposer-down");
     let mut nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     nodes[0]
         .submit(&net.mint(0, &net.alice, 50_000_000, "dep-1"))
         .unwrap();
-    wait("bloco 1", 20, || all_at(&nodes, 1));
-    // o proponente do bloco 2 (rodada 0) é validators[2 % 4] = o nó 2: derruba
+    wait("block 1", 20, || all_at(&nodes, 1));
+    // the proposer of block 2 (round 0) is validators[2 % 4] = node 2: take it down
     let down = nodes.remove(2);
     down.stop();
     nodes[0]
         .submit(&net.transfer(0, &net.alice, &net.bob, 1_000_000))
         .unwrap();
-    wait("a rede decide mesmo assim", 40, || {
+    wait("the network decides anyway", 40, || {
         nodes.iter().all(|n| balance(n, &net.bob) == 1_000_000)
     });
-    wait("mesmo estado", 10, || same_state(&nodes));
+    wait("same state", 10, || same_state(&nodes));
     let blocks = nodes[0].shared().chain.lock().unwrap().blocks().to_vec();
     assert!(
         blocks.iter().any(|d| d.cert.round >= 1),
-        "algum bloco precisou de outra rodada"
+        "some block needed another round"
     );
     for n in nodes {
         n.stop();
@@ -362,18 +364,19 @@ fn proponente_da_vez_fora_do_ar_a_rodada_muda_e_a_rede_decide() {
 }
 
 #[test]
-fn rajada_de_trezentas_transacoes_de_varias_contas_entra_sem_perder_nem_duplicar() {
+fn burst_of_three_hundred_transactions_from_many_accounts_is_included_without_loss_or_duplication()
+{
     let net = Net::new("burst");
     let nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
-    // 20 contas com saldo, cada uma envia 15 transferências em sequência a nós diferentes
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    // 20 funded accounts, each sending 15 transfers in sequence to different nodes
     let senders: Vec<SecretKey> = (100..120).map(key).collect();
     for (i, s) in senders.iter().enumerate() {
         nodes[i % 4]
             .submit(&net.mint(i as u64, s, 100_000_000, &format!("dep-{i}")))
             .unwrap();
     }
-    wait("saldos", 40, || {
+    wait("balances", 40, || {
         nodes
             .iter()
             .all(|n| balance(n, &senders[19]) == 100_000_000)
@@ -388,23 +391,23 @@ fn rajada_de_trezentas_transacoes_de_varias_contas_entra_sem_perder_nem_duplicar
         }
     }
     assert_eq!(sent, 300);
-    wait("bob recebeu tudo em todos os nós", 60, || {
+    wait("bob received everything on all nodes", 60, || {
         nodes.iter().all(|n| balance(n, &net.bob) == 300_000)
     });
-    wait("mesmo estado", 20, || same_state(&nodes));
+    wait("same state", 20, || same_state(&nodes));
     let pool: usize = nodes
         .iter()
         .map(|n| n.shared().info.lock().unwrap().pool_len)
         .sum();
-    assert_eq!(pool, 0, "nada ficou pendente");
-    // a fofoca não ecoa: cada nó recebeu cada transação poucas vezes
+    assert_eq!(pool, 0, "nothing was left pending");
+    // gossip does not echo: each node received each transaction only a few times
     for n in &nodes {
         let dup = n
             .shared()
             .stats
             .txs_duplicate
             .load(std::sync::atomic::Ordering::Relaxed);
-        assert!(dup <= 2 * 320 * 3, "duplicatas demais: {dup}");
+        assert!(dup <= 2 * 320 * 3, "too many duplicates: {dup}");
     }
     for n in nodes {
         n.stop();
@@ -412,7 +415,7 @@ fn rajada_de_trezentas_transacoes_de_varias_contas_entra_sem_perder_nem_duplicar
     let _ = std::fs::remove_dir_all(&net.dir);
 }
 
-// ---------------------------------------------------------------- rotação de validadores
+// ---------------------------------------------------------------- validator rotation
 
 fn change_tx(
     net: &Net,
@@ -467,24 +470,24 @@ fn signed_by_anyone_new(n: &Node, who: &SecretKey, after_height: u64) -> bool {
 }
 
 #[test]
-fn quinto_no_entra_por_rotacao_sincroniza_como_observador_e_depois_vota() {
+fn fifth_node_joins_by_rotation_syncs_as_observer_and_then_votes() {
     let net = Net::new("rotate-in");
     let mut nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
-    // o 5º sobe com a chave v5, que NÃO está na gênese: é recusado até a troca ser incluída
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    // the 5th node starts with key v5, which is NOT in the genesis: it is refused until the change is included
     let peers: Vec<String> = nodes.iter().map(|x| x.listen_addr().to_string()).collect();
     let fifth = Node::start(net.config(4, peers, false)).unwrap();
     std::thread::sleep(Duration::from_millis(1500));
     assert_eq!(
         fifth.peer_count(),
         0,
-        "ainda não é validador nem tem troca pendente"
+        "not a validator yet and has no pending change"
     );
 
     nodes[0]
         .submit(&net.mint(0, &net.alice, 10_000_000, "dep-1"))
         .unwrap();
-    wait("bloco 1", 20, || all_at(&nodes, 1));
+    wait("block 1", 20, || all_at(&nodes, 1));
     let tx = change_tx(
         &net,
         &nodes[0],
@@ -494,16 +497,16 @@ fn quinto_no_entra_por_rotacao_sincroniza_como_observador_e_depois_vota() {
         3,
     );
     nodes[1].submit(&tx).unwrap();
-    wait("troca pendente em todos", 30, || {
+    wait("pending change on all nodes", 30, || {
         nodes
             .iter()
             .all(|n| n.shared().chain.lock().unwrap().pending_change().is_some())
     });
-    // com a troca pendente o 5º é admitido e sincroniza como observador
-    wait("o 5º conecta e alcança", 30, || {
+    // with the change pending the 5th node is admitted and syncs as an observer
+    wait("the 5th node connects and catches up", 30, || {
         fifth.peer_count() >= 3 && fifth.height() >= nodes[0].height()
     });
-    // geramos blocos até a época virar
+    // generate blocks until the epoch turns
     let mut n = 0u64;
     while epoch(&nodes[0]) == 0 {
         nodes[(n % 4) as usize]
@@ -511,10 +514,10 @@ fn quinto_no_entra_por_rotacao_sincroniza_como_observador_e_depois_vota() {
             .unwrap();
         n += 1;
         std::thread::sleep(Duration::from_millis(200));
-        assert!(n < 80, "a época não virou");
+        assert!(n < 80, "the epoch did not turn");
     }
     nodes.push(fifth);
-    wait("os 5 na mesma altura", 30, || same_state(&nodes));
+    wait("all 5 at the same height", 30, || same_state(&nodes));
     assert_eq!(
         nodes[0].shared().chain.lock().unwrap().validators().len(),
         5
@@ -526,11 +529,11 @@ fn quinto_no_entra_por_rotacao_sincroniza_como_observador_e_depois_vota() {
             .unwrap();
         std::thread::sleep(Duration::from_millis(150));
     }
-    wait("mais blocos", 40, || nodes[0].height() >= from + 4);
-    wait("o 5º assinou algum bloco", 40, || {
+    wait("more blocks", 40, || nodes[0].height() >= from + 4);
+    wait("the 5th node signed some block", 40, || {
         signed_by_anyone_new(&nodes[0], &net.vals[4], from)
     });
-    wait("mesmo estado", 20, || same_state(&nodes));
+    wait("same state", 20, || same_state(&nodes));
     for n in nodes {
         n.stop();
     }
@@ -538,14 +541,14 @@ fn quinto_no_entra_por_rotacao_sincroniza_como_observador_e_depois_vota() {
 }
 
 #[test]
-fn validador_removido_vira_observador_e_a_rede_segue_sem_ele() {
+fn removed_validator_becomes_observer_and_the_network_continues_without_it() {
     let net = Net::new("rotate-out");
     let nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     nodes[0]
         .submit(&net.mint(0, &net.alice, 10_000_000, "dep-1"))
         .unwrap();
-    wait("bloco 1", 20, || all_at(&nodes, 1));
+    wait("block 1", 20, || all_at(&nodes, 1));
     let tx = change_tx(
         &net,
         &nodes[0],
@@ -562,11 +565,13 @@ fn validador_removido_vira_observador_e_a_rede_segue_sem_ele() {
             .unwrap();
         n += 1;
         std::thread::sleep(Duration::from_millis(200));
-        assert!(n < 80, "a época não virou");
+        assert!(n < 80, "the epoch did not turn");
     }
-    wait("os 3 restantes desconectam do removido", 20, || {
-        nodes[..3].iter().all(|x| x.peer_count() == 2)
-    });
+    wait(
+        "the remaining 3 disconnect from the removed one",
+        20,
+        || nodes[..3].iter().all(|x| x.peer_count() == 2),
+    );
     let from = nodes[0].height();
     for i in 0..8u64 {
         nodes[(i % 3) as usize]
@@ -574,15 +579,15 @@ fn validador_removido_vira_observador_e_a_rede_segue_sem_ele() {
             .unwrap();
         std::thread::sleep(Duration::from_millis(150));
     }
-    wait("a rede de 3 segue", 40, || {
+    wait("the 3-node network continues", 40, || {
         nodes[..3].iter().all(|x| x.height() >= from + 3)
     });
     assert!(
         !signed_by_anyone_new(&nodes[0], &net.vals[3], from),
-        "o removido não assina mais"
+        "the removed node no longer signs"
     );
-    // o removido não consegue mais entrar: continua sem pares
-    wait("o removido ficou isolado", 20, || {
+    // the removed node can no longer join: it stays without peers
+    wait("the removed node became isolated", 20, || {
         nodes[3].peer_count() == 0
     });
     for n in nodes {
@@ -592,14 +597,14 @@ fn validador_removido_vira_observador_e_a_rede_segue_sem_ele() {
 }
 
 #[test]
-fn troca_sem_mais_de_2_3_nunca_fica_pendente() {
+fn change_without_more_than_2_3_never_becomes_pending() {
     let net = Net::new("rotate-weak");
     let nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     nodes[0]
         .submit(&net.mint(0, &net.alice, 10_000_000, "dep-1"))
         .unwrap();
-    wait("bloco 1", 20, || all_at(&nodes, 1));
+    wait("block 1", 20, || all_at(&nodes, 1));
     let tx = change_tx(
         &net,
         &nodes[0],
@@ -607,7 +612,7 @@ fn troca_sem_mais_de_2_3_nunca_fica_pendente() {
         &net.vals[3],
         5,
         2,
-    ); // 2 de 4
+    ); // 2 of 4
     nodes[0].submit(&tx).unwrap();
     for i in 0..4u64 {
         nodes[0]
@@ -615,7 +620,7 @@ fn troca_sem_mais_de_2_3_nunca_fica_pendente() {
             .unwrap();
         std::thread::sleep(Duration::from_millis(250));
     }
-    wait("os blocos seguem", 30, || all_at(&nodes, 3));
+    wait("blocks keep coming", 30, || all_at(&nodes, 3));
     assert!(
         nodes
             .iter()
@@ -629,14 +634,14 @@ fn troca_sem_mais_de_2_3_nunca_fica_pendente() {
 }
 
 #[test]
-fn reinicio_com_troca_pendente_refaz_o_mesmo_conjunto_pendente_e_efetiva_depois() {
+fn restart_with_a_pending_change_rebuilds_the_same_pending_set_and_takes_effect_later() {
     let net = Net::new("rotate-restart");
     let nodes = net.start(4, false);
-    wait("malha", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
     nodes[0]
         .submit(&net.mint(0, &net.alice, 10_000_000, "dep-1"))
         .unwrap();
-    wait("bloco 1", 20, || all_at(&nodes, 1));
+    wait("block 1", 20, || all_at(&nodes, 1));
     let tx = change_tx(
         &net,
         &nodes[0],
@@ -646,12 +651,12 @@ fn reinicio_com_troca_pendente_refaz_o_mesmo_conjunto_pendente_e_efetiva_depois(
         3,
     );
     nodes[0].submit(&tx).unwrap();
-    wait("pendente", 30, || {
+    wait("pending", 30, || {
         nodes
             .iter()
             .all(|n| n.shared().chain.lock().unwrap().pending_change().is_some())
     });
-    wait("mesmo estado", 10, || same_state(&nodes));
+    wait("same state", 10, || same_state(&nodes));
     let root = nodes[0].state_root();
     for n in nodes {
         n.stop();
@@ -659,7 +664,7 @@ fn reinicio_com_troca_pendente_refaz_o_mesmo_conjunto_pendente_e_efetiva_depois(
     let again = net.start(4, false);
     assert!(
         again.iter().all(|n| n.state_root() == root),
-        "o disco refaz o mesmo estado"
+        "the disk rebuilds the same state"
     );
     assert!(again.iter().all(|n| {
         let c = n.shared().chain.lock().unwrap();

@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! Rotação de validadores (ledger): troca por mais de 2/3, uma pendente, limites, efetivação no bloco certo.
+//! Validator rotation (ledger): change by more than 2/3, one pending, limits, taking effect at the right block.
 
 use brdu_crypto::{Address, PublicKey, SecretKey};
 use brdu_ledger::coin::Approval;
@@ -51,7 +51,7 @@ impl Net {
         v
     }
 
-    /// Transação de troca com `n_approvals` aprovações dos primeiros validadores (por chave, do conjunto atual).
+    /// Change transaction with `n_approvals` approvals from the first validators (by key, from the current set).
     fn change(
         &self,
         s: &State,
@@ -78,7 +78,7 @@ impl Net {
         self.vals.iter().take(n).collect()
     }
 
-    /// Aplica um bloco com `txs` (o proponente é o primeiro do conjunto).
+    /// Applies a block with `txs` (the proposer is the first of the set).
     fn block(&self, s: &mut State, txs: Vec<Tx>) -> Result<(), LedgerError> {
         let signers = self.signers(s);
         let b = self
@@ -93,26 +93,30 @@ fn newcomer() -> PublicKey {
 }
 
 #[test]
-fn troca_com_mais_de_2_3_fica_pendente_e_so_vale_no_bloco_certo() {
+fn change_with_more_than_2_3_stays_pending_and_only_takes_effect_at_the_right_block() {
     let (net, mut s) = Net::new(4, 3, 7);
     let tx = net.change(&s, Action::Add, &newcomer(), 4, &net.first(3));
-    net.block(&mut s, vec![tx]).unwrap(); // bloco 1
+    net.block(&mut s, vec![tx]).unwrap(); // block 1
     let p = gov::pending(&s).unwrap();
     assert_eq!(
         (p.action, p.key, p.effective_height),
         (Action::Add, newcomer(), 4)
     );
     assert_eq!((gov::validators(&s).len(), gov::epoch(&s)), (4, 0));
-    net.block(&mut s, vec![]).unwrap(); // bloco 2
-    net.block(&mut s, vec![]).unwrap(); // bloco 3: fim do bloco efetiva-1
+    net.block(&mut s, vec![]).unwrap(); // block 2
+    net.block(&mut s, vec![]).unwrap(); // block 3: end of block effective-1
     let set = gov::validators(&s);
     assert_eq!((set.len(), gov::epoch(&s)), (5, 1));
-    assert_eq!(set.last(), Some(&newcomer()), "entra no fim do rodízio");
+    assert_eq!(
+        set.last(),
+        Some(&newcomer()),
+        "joins at the end of the rotation"
+    );
     assert!(gov::pending(&s).is_none());
 }
 
 #[test]
-fn remover_preserva_a_ordem_dos_demais() {
+fn removing_preserves_the_order_of_the_others() {
     let (net, mut s) = Net::new(5, 3, 7);
     let out = net.vals[1].public();
     let tx = net.change(&s, Action::Remove, &out, 3, &net.first(4));
@@ -128,22 +132,22 @@ fn remover_preserva_a_ordem_dos_demais() {
 }
 
 #[test]
-fn aprovacoes_insuficientes_repetidas_estranhas_ou_de_outro_documento_sao_recusadas() {
+fn insufficient_repeated_foreign_or_other_document_approvals_are_rejected() {
     let (net, mut s) = Net::new(4, 3, 7);
     let before = s.clone();
-    // 2 de 4 não passa de 2/3
+    // 2 of 4 does not exceed 2/3
     let t = net.change(&s, Action::Add, &newcomer(), 4, &net.first(2));
     assert!(
         net.block(&mut s, vec![t])
             .unwrap_err()
             .to_string()
-            .contains("insuficientes")
+            .contains("insufficient")
     );
-    // o mesmo validador 3 vezes conta uma
+    // the same validator 3 times counts once
     let v0 = &net.vals[0];
     let t = net.change(&s, Action::Add, &newcomer(), 4, &[v0, v0, v0]);
     assert!(net.block(&mut s, vec![t]).is_err());
-    // quem não é validador é ignorado
+    // whoever is not a validator is ignored
     let strangers = [key(70), key(71), key(72), key(73)];
     let t = net.change(
         &s,
@@ -153,7 +157,7 @@ fn aprovacoes_insuficientes_repetidas_estranhas_ou_de_outro_documento_sao_recusa
         &strangers.iter().collect::<Vec<_>>(),
     );
     assert!(net.block(&mut s, vec![t]).is_err());
-    // aprovações para OUTRA chave, outra altura, outra ação ou outra rede não valem para esta carga
+    // approvals for ANOTHER key, another height, another action or another network do not count for this payload
     let ap_for = |action, who: &PublicKey, eff, chain: &str, epoch| -> Vec<Approval> {
         let doc = brdu_ledger::gov::change_doc(chain, action, who, eff, epoch);
         net.first(3)
@@ -165,7 +169,7 @@ fn aprovacoes_insuficientes_repetidas_estranhas_ou_de_outro_documento_sao_recusa
         ap_for(Action::Add, &key(51).public(), 4, CHAIN, 0),
         ap_for(Action::Add, &newcomer(), 5, CHAIN, 0),
         ap_for(Action::Remove, &newcomer(), 4, CHAIN, 0),
-        ap_for(Action::Add, &newcomer(), 4, "outra-rede", 0),
+        ap_for(Action::Add, &newcomer(), 4, "other-network", 0),
         ap_for(Action::Add, &newcomer(), 4, CHAIN, 1),
     ] {
         let nonce = s.nonce(&Address::from_public_key(&net.relayer.public()));
@@ -180,31 +184,31 @@ fn aprovacoes_insuficientes_repetidas_estranhas_ou_de_outro_documento_sao_recusa
         .unwrap();
         assert!(net.block(&mut s, vec![t]).is_err());
     }
-    assert_eq!(s, before, "nada disso mexeu no estado");
+    assert_eq!(s, before, "none of that touched the state");
 }
 
 #[test]
-fn altura_efetiva_passada_so_uma_pendente_duplicata_e_limites_de_tamanho() {
+fn past_effective_height_single_pending_duplicate_and_size_limits() {
     let (net, mut s) = Net::new(4, 4, 5);
-    // efetiva tem de ser pelo menos altura + 2 (aqui o bloco em construção é o 1: efetiva >= 3)
+    // effective must be at least height + 2 (here the block under construction is 1: effective >= 3)
     for eff in [0, 1, 2] {
         let t = net.change(&s, Action::Add, &newcomer(), eff, &net.first(3));
-        assert!(net.block(&mut s, vec![t]).is_err(), "efetiva {eff}");
+        assert!(net.block(&mut s, vec![t]).is_err(), "effective {eff}");
     }
-    // já é validador / não é validador
+    // already a validator / not a validator
     let t = net.change(&s, Action::Add, &net.vals[0].public(), 5, &net.first(3));
     assert!(net.block(&mut s, vec![t]).is_err());
     let t = net.change(&s, Action::Remove, &newcomer(), 5, &net.first(3));
     assert!(net.block(&mut s, vec![t]).is_err());
-    // mínimo 4: remover um de 4 sairia do limite
+    // minimum 4: removing one of 4 would leave the limit
     let t = net.change(&s, Action::Remove, &net.vals[0].public(), 5, &net.first(3));
     assert!(net.block(&mut s, vec![t]).is_err());
-    // uma troca pendente de cada vez
+    // one pending change at a time
     let t = net.change(&s, Action::Add, &newcomer(), 6, &net.first(3));
     net.block(&mut s, vec![t]).unwrap();
     let t = net.change(&s, Action::Add, &key(51).public(), 8, &net.first(3));
-    assert!(net.block(&mut s, vec![t]).is_err(), "segunda pendente");
-    // efetivada a primeira (5 validadores = máximo), uma nova entrada estoura o máximo
+    assert!(net.block(&mut s, vec![t]).is_err(), "second pending");
+    // first one taken effect (5 validators = maximum), a new entry exceeds the maximum
     while gov::epoch(&s) == 0 {
         net.block(&mut s, vec![]).unwrap();
     }
@@ -216,18 +220,18 @@ fn altura_efetiva_passada_so_uma_pendente_duplicata_e_limites_de_tamanho() {
         s.height() + 3,
         &net.first(4),
     );
-    assert!(net.block(&mut s, vec![t]).is_err(), "máximo 5");
+    assert!(net.block(&mut s, vec![t]).is_err(), "maximum 5");
 }
 
 #[test]
-fn aprovacao_da_epoca_velha_nao_vale_depois_da_troca() {
+fn approval_from_the_old_epoch_does_not_count_after_the_change() {
     let (net, mut s) = Net::new(4, 3, 7);
     let old_epoch_doc = gov::change_doc(CHAIN, Action::Remove, &net.vals[3].public(), 9, 0);
     let t = net.change(&s, Action::Add, &newcomer(), 3, &net.first(3));
     net.block(&mut s, vec![t]).unwrap();
     net.block(&mut s, vec![]).unwrap();
     assert_eq!(gov::epoch(&s), 1);
-    // aprovações assinadas na época 0 para remover o 4º: com a época 1 no estado, não valem
+    // approvals signed in epoch 0 to remove the 4th: with epoch 1 in the state, they do not count
     let ap: Vec<Approval> = net
         .first(3)
         .iter()
@@ -247,19 +251,19 @@ fn aprovacao_da_epoca_velha_nao_vale_depois_da_troca() {
 }
 
 #[test]
-fn com_5_validadores_precisa_de_4_aprovacoes() {
+fn with_5_validators_4_approvals_are_needed() {
     let (net, mut s) = Net::new(5, 3, 7);
     let t = net.change(&s, Action::Add, &newcomer(), 4, &net.first(3));
     assert!(
         net.block(&mut s, vec![t]).is_err(),
-        "3 de 5 não passa de 2/3"
+        "3 of 5 does not exceed 2/3"
     );
     let t = net.change(&s, Action::Add, &newcomer(), 4, &net.first(4));
     net.block(&mut s, vec![t]).unwrap();
 }
 
 #[test]
-fn replay_do_historico_chega_ao_mesmo_conjunto_e_a_mesma_raiz() {
+fn history_replay_reaches_the_same_set_and_the_same_root() {
     let (net, mut s) = Net::new(4, 3, 7);
     let mut blocks = Vec::new();
     let t = net.change(&s, Action::Add, &newcomer(), 4, &net.first(3));
@@ -282,7 +286,7 @@ fn replay_do_historico_chega_ao_mesmo_conjunto_e_a_mesma_raiz() {
 }
 
 #[test]
-fn payload_malformado_e_recusado() {
+fn malformed_payload_is_rejected() {
     let (net, mut s) = Net::new(4, 3, 7);
     let nonce = s.nonce(&Address::from_public_key(&net.relayer.public()));
     for bad in [vec![], vec![9; 20], vec![1; 41 + 200]] {
@@ -294,10 +298,10 @@ fn payload_malformado_e_recusado() {
 proptest! {
     #![proptest_config(ProptestConfig { cases: std::env::var("PROPTEST_CASES").ok().and_then(|v| v.parse().ok()).unwrap_or(32), ..ProptestConfig::default() })]
 
-    /// Qualquer sequência de trocas (válidas e inválidas): o conjunto fica em [min, max], sem repetição, e a
-    /// época só sobe de 1 em 1 a cada troca efetivada.
+    /// Any sequence of changes (valid and invalid): the set stays in [min, max], with no repeats, and the
+    /// epoch only goes up by 1 on each change that takes effect.
     #[test]
-    fn o_conjunto_nunca_sai_dos_limites(ops in proptest::collection::vec((any::<bool>(), 0u8..8, 2u64..5, 2usize..6), 1..30)) {
+    fn the_set_never_leaves_the_limits(ops in proptest::collection::vec((any::<bool>(), 0u8..8, 2u64..5, 2usize..6), 1..30)) {
         let (net, mut s) = Net::new(4, 3, 6);
         let pool: Vec<SecretKey> = (40..48).map(key).collect();
         let mut last_epoch = 0;

@@ -1,6 +1,6 @@
-//! Runtime do validador do BRDU. Uma thread de **núcleo** é dona do consenso, do mempool e da cadeia; threads de
-//! rede (uma por par), de API HTTP e de aceitação só trocam mensagens com ela por canais. O motor BFT
-//! (`brdu-bft`) não faz E/S: aqui ficam o relógio, o disco, a rede e o diário.
+//! BRDU validator runtime. A **core** thread owns consensus, the mempool and the chain; network threads
+//! (one per peer), the HTTP API and accept threads only exchange messages with it over channels. The BFT engine
+//! (`brdu-bft`) does no I/O: the clock, disk, network and journal live here.
 #![forbid(unsafe_code)]
 
 mod api;

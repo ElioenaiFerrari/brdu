@@ -1,59 +1,59 @@
-//! Erros das primitivas. Nenhuma mensagem de erro carrega segredo.
+//! Primitive errors. No error message carries a secret.
 
 use thiserror::Error;
 
-/// Falhas de criptografia (assinatura, chave).
+/// Cryptography failures (signature, key).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum CryptoError {
-    /// A assinatura não confere com a chave e a mensagem (ou é malformada/não canônica).
-    #[error("assinatura inválida")]
+    /// The signature does not match the key and the message (or is malformed/non-canonical).
+    #[error("invalid signature")]
     BadSignature,
-    /// Os bytes não são uma chave pública válida.
-    #[error("chave pública inválida")]
+    /// The bytes are not a valid public key.
+    #[error("invalid public key")]
     BadKey,
 }
 
-/// Falhas ao ler um endereço `brdu1…`.
+/// Failures when parsing a `brdu1…` address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum AddressError {
-    /// Não é bech32m válido (checksum errado, caractere fora do alfabeto, maiúsculas e minúsculas misturadas…).
-    #[error("endereço malformado ou com erro de digitação")]
+    /// Not valid bech32m (wrong checksum, character outside the alphabet, mixed upper and lower case…).
+    #[error("malformed address or typo")]
     Malformed,
-    /// É bech32m válido, mas de outra moeda (prefixo diferente).
-    #[error("prefixo de endereço diferente do esperado")]
+    /// Valid bech32m, but for another currency (different prefix).
+    #[error("address prefix differs from the expected one")]
     WrongPrefix,
-    /// O conteúdo não tem 32 bytes.
-    #[error("tamanho de endereço inválido")]
+    /// The content is not 32 bytes long.
+    #[error("invalid address size")]
     BadSize,
 }
 
-/// Falhas ao ler bytes codificados de forma determinística.
+/// Failures when reading deterministically encoded bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum DecodeError {
-    /// Acabaram os bytes antes do fim do campo.
-    #[error("dados truncados")]
+    /// The bytes ran out before the end of the field.
+    #[error("truncated data")]
     Truncated,
-    /// Sobraram bytes depois do último campo.
-    #[error("sobraram bytes depois do fim")]
+    /// Bytes were left over after the last field.
+    #[error("trailing bytes after the end")]
     Trailing,
-    /// O campo de texto não é UTF-8 válido.
-    #[error("texto não é UTF-8 válido")]
+    /// The text field is not valid UTF-8.
+    #[error("text is not valid UTF-8")]
     Utf8,
-    /// O tamanho declarado passa do limite aceito (proteção contra alocação gigante).
-    #[error("campo maior que o limite")]
+    /// The declared size exceeds the accepted limit (protection against huge allocations).
+    #[error("field larger than the limit")]
     TooLong,
 }
 
-/// Falhas ao ler ou montar um valor em BRDU.
+/// Failures when parsing or building a BRDU amount.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum AmountError {
-    /// Texto vazio ou com caractere que não faz parte de um número.
-    #[error("valor malformado")]
+    /// Empty text or a character that is not part of a number.
+    #[error("malformed amount")]
     Malformed,
-    /// Mais de 6 casas decimais.
-    #[error("no máximo 6 casas decimais")]
+    /// More than 6 decimal places.
+    #[error("at most 6 decimal places")]
     TooManyDecimals,
-    /// O valor não cabe em 64 bits.
-    #[error("valor grande demais")]
+    /// The value does not fit in 64 bits.
+    #[error("amount too large")]
     Overflow,
 }

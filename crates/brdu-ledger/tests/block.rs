@@ -15,7 +15,7 @@ fn funded(env: &Env) -> State {
 }
 
 #[test]
-fn bloco_vale_por_inteiro_e_a_raiz_confere() {
+fn block_is_valid_as_a_whole_and_the_root_checks() {
     let env = Env::new();
     let mut s = funded(&env);
     assert_eq!((s.height(), s.time()), (1, 1_000));
@@ -31,7 +31,7 @@ fn bloco_vale_por_inteiro_e_a_raiz_confere() {
 }
 
 #[test]
-fn a_taxa_e_repartida_entre_os_validadores_e_o_resto_vai_ao_proponente() {
+fn fee_is_split_among_validators_and_the_remainder_goes_to_the_proposer() {
     let env = Env::new();
     let mut s = funded(&env);
     let t = transfer(&env, &s, &env.alice, &addr(&env.bob), 1_000_000);
@@ -42,16 +42,16 @@ fn a_taxa_e_repartida_entre_os_validadores_e_o_resto_vai_ao_proponente() {
         let extra = if *signer == b.proposer { rest } else { 0 };
         assert_eq!(s.balance(signer), share + extra);
     }
-    // nenhuma unidade se perde: a soma dos saldos é exatamente o que foi emitido
+    // no unit is lost: the sum of balances is exactly what was issued
     assert_eq!(total_balances(&s), u128::from(s.supply()));
 }
 
 #[test]
-fn uma_transacao_invalida_derruba_o_bloco_e_o_estado_nao_muda_nada() {
+fn an_invalid_transaction_brings_down_the_block_and_the_state_does_not_change() {
     let env = Env::new();
     let mut s = funded(&env);
     let good = transfer(&env, &s, &env.alice, &addr(&env.bob), 5);
-    // a segunda repete o nonce da primeira: inválida
+    // the second repeats the nonce of the first: invalid
     let bad = transfer(&env, &s, &env.alice, &addr(&env.bob), 6);
     let before = s.clone();
     let root_before = s.root();
@@ -67,7 +67,7 @@ fn uma_transacao_invalida_derruba_o_bloco_e_o_estado_nao_muda_nada() {
         "{built:?}"
     );
     assert_eq!(s, before);
-    // e um bloco montado à mão com a raiz de um bloco bom, mas com a transação ruim, também não entra
+    // and a block built by hand with the root of a good block, but with the bad transaction, does not get in either
     let mut ok_block = env
         .exec
         .build_block(&mut s, env.proposer(), env.signers(), 1_020, vec![good])
@@ -82,7 +82,7 @@ fn uma_transacao_invalida_derruba_o_bloco_e_o_estado_nao_muda_nada() {
 }
 
 #[test]
-fn raiz_errada_ligacao_errada_hora_e_limites_sao_recusados_sem_alterar_o_estado() {
+fn wrong_root_wrong_linkage_time_and_limits_are_rejected_without_changing_the_state() {
     let env = Env::with_rules(|r| r.max_block_txs = 2);
     let mut s = funded(&env);
     let before = s.clone();
@@ -115,7 +115,7 @@ fn raiz_errada_ligacao_errada_hora_e_limites_sao_recusados_sem_alterar_o_estado(
     );
 
     let mut b = good.clone();
-    b.time = 999; // o estado está em 1.000
+    b.time = 999; // the state is at 1,000
     assert_eq!(
         env.exec.apply_block(&mut s, &b),
         Err(LedgerError::TimeWentBack)
@@ -125,15 +125,15 @@ fn raiz_errada_ligacao_errada_hora_e_limites_sao_recusados_sem_alterar_o_estado(
     b.txs = vec![good.txs[0].clone(); 3];
     assert!(
         env.exec.apply_block(&mut s, &b).is_err(),
-        "3 transações com limite 2 (e repetidas)"
+        "3 transactions with limit 2 (and repeated)"
     );
-    assert_eq!(s, before, "nada disso mexeu no estado");
-    // o bloco bom ainda entra
+    assert_eq!(s, before, "none of that touched the state");
+    // the good block still gets in
     env.exec.apply_block(&mut s, &good).unwrap();
 }
 
 #[test]
-fn transacao_repetida_no_bloco_e_recusada() {
+fn repeated_transaction_in_block_is_rejected() {
     let env = Env::new();
     let mut s = funded(&env);
     let t = transfer(&env, &s, &env.alice, &addr(&env.bob), 5);
@@ -148,7 +148,7 @@ fn transacao_repetida_no_bloco_e_recusada() {
 }
 
 #[test]
-fn signatarios_malformados_sao_recusados() {
+fn malformed_signers_are_rejected() {
     let env = Env::new();
     let mut s = funded(&env);
     let t = transfer(&env, &s, &env.alice, &addr(&env.bob), 5);
@@ -159,10 +159,10 @@ fn signatarios_malformados_sao_recusados() {
     dup.push(signers[0]);
     let outsider = addr(&key(99));
     for (name, proposer, set) in [
-        ("fora de ordem", signers[0], reversed),
-        ("repetidos", signers[0], dup),
-        ("vazio", signers[0], vec![]),
-        ("proponente fora do conjunto", outsider, signers.clone()),
+        ("out of order", signers[0], reversed),
+        ("repeated", signers[0], dup),
+        ("empty", signers[0], vec![]),
+        ("proposer outside the set", outsider, signers.clone()),
     ] {
         let r = env
             .exec
@@ -172,7 +172,7 @@ fn signatarios_malformados_sao_recusados() {
 }
 
 #[test]
-fn assinatura_adulterada_dentro_do_bloco_e_recusada() {
+fn tampered_signature_inside_the_block_is_rejected() {
     let env = Env::new();
     let mut s = funded(&env);
     let mut t = transfer(&env, &s, &env.alice, &addr(&env.bob), 5);
@@ -184,7 +184,8 @@ fn assinatura_adulterada_dentro_do_bloco_e_recusada() {
 }
 
 #[test]
-fn montar_um_bloco_nao_altera_o_estado_e_o_mesmo_bloco_aplicado_em_outro_no_da_a_mesma_raiz() {
+fn building_a_block_does_not_change_the_state_and_the_same_block_applied_on_another_node_gives_the_same_root()
+ {
     let env = Env::new();
     let mut s = funded(&env);
     let mut twin = s.clone();
@@ -200,7 +201,7 @@ fn montar_um_bloco_nao_altera_o_estado_e_o_mesmo_bloco_aplicado_em_outro_no_da_a
     env.exec.apply_block(&mut twin, &b).unwrap();
     assert_eq!(s.root(), twin.root());
     assert_eq!(s.root(), b.state_root);
-    // o mesmo bloco duas vezes: já não é o seguinte
+    // the same block twice: it is no longer the next one
     assert_eq!(
         env.exec.apply_block(&mut s, &b),
         Err(LedgerError::BadLinkage)
@@ -208,7 +209,7 @@ fn montar_um_bloco_nao_altera_o_estado_e_o_mesmo_bloco_aplicado_em_outro_no_da_a
 }
 
 #[test]
-fn bloco_vazio_so_avanca_a_altura_e_a_hora() {
+fn empty_block_only_advances_the_height_and_the_time() {
     let env = Env::new();
     let mut s = funded(&env);
     let b = block_of(&env, &mut s, 2_000, vec![]);
@@ -216,7 +217,7 @@ fn bloco_vazio_so_avanca_a_altura_e_a_hora() {
 }
 
 #[test]
-fn codec_do_bloco_ida_e_volta_e_limite_de_transacoes() {
+fn block_codec_round_trip_and_transaction_limit() {
     let env = Env::new();
     let mut s = funded(&env);
     let t = transfer(&env, &s, &env.alice, &addr(&env.bob), 5);
@@ -229,7 +230,7 @@ fn codec_do_bloco_ida_e_volta_e_limite_de_transacoes() {
     assert_eq!(
         Block::decode(&bytes, 0),
         Err(LedgerError::Malformed),
-        "mais transações que o limite"
+        "more transactions than the limit"
     );
     assert_eq!(
         Block::decode(&bytes[..bytes.len() - 1], 1_000),
@@ -244,13 +245,13 @@ fn codec_do_bloco_ida_e_volta_e_limite_de_transacoes() {
 
 proptest! {
     #[test]
-    fn bloco_com_lixo_nunca_causa_panico(data in proptest::collection::vec(any::<u8>(), 0..300)) {
+    fn block_with_garbage_never_panics(data in proptest::collection::vec(any::<u8>(), 0..300)) {
         let _ = Block::decode(&data, 1_000);
     }
 }
 
 #[test]
-fn cadeia_de_blocos_liga_um_no_outro() {
+fn chain_of_blocks_links_one_to_the_next() {
     let env = Env::new();
     let mut s = funded(&env);
     let mut prev = s.last_hash();
@@ -264,8 +265,8 @@ fn cadeia_de_blocos_liga_um_no_outro() {
 }
 
 #[test]
-fn estado_pendente_do_mempool_nao_vira_o_estado_do_bloco() {
-    // o executor aplica transações a um estado "pendente" (taxa sai da conta); o do bloco reparte a taxa
+fn pending_mempool_state_does_not_become_the_block_state() {
+    // the executor applies transactions to a "pending" state (the fee leaves the account); the block one splits the fee
     let env = Env::new();
     let committed = funded(&env);
     let mut pending = committed.clone();
@@ -273,13 +274,13 @@ fn estado_pendente_do_mempool_nao_vira_o_estado_do_bloco() {
     env.exec.apply_tx(&mut pending, &t).unwrap();
     assert!(
         total_balances(&pending) < total_balances(&committed),
-        "no pendente a taxa some"
+        "in pending the fee vanishes"
     );
     let mut real = committed;
     block_of(&env, &mut real, 1_500, vec![t]);
     assert_eq!(
         total_balances(&real),
         u128::from(real.supply()),
-        "no bloco a taxa é repartida"
+        "in the block the fee is split"
     );
 }

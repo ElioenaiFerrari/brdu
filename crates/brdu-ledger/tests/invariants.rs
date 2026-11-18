@@ -105,7 +105,7 @@ fn build(env: &Env, s: &State, who: &[brdu_crypto::SecretKey], op: &Op) -> Tx {
         Op::Transfer { from, to, amount } => transfer(env, s, &who[from], &addr(&who[to]), amount),
         Op::Attest { reserve, skip } => {
             let seq = s.attestation().map_or(1, |a| a.seq + 1) + u64::from(skip);
-            attest(env, s, seq, reserve, "banco")
+            attest(env, s, seq, reserve, "bank")
         }
     }
 }
@@ -113,11 +113,11 @@ fn build(env: &Env, s: &State, who: &[brdu_crypto::SecretKey], op: &Op) -> Tx {
 proptest! {
     #![proptest_config(ProptestConfig { cases: std::env::var("PROPTEST_CASES").ok().and_then(|v| v.parse().ok()).unwrap_or(48), ..ProptestConfig::default() })]
 
-    /// Para qualquer sequência de operações (válidas e inválidas), depois de cada bloco: a soma dos saldos é a
-    /// oferta, a raiz do estado é a do cabeçalho, as recusadas não mudam nada, e REPETIR todos os blocos do zero
-    /// dá exatamente o mesmo estado (determinismo).
+    /// For any sequence of operations (valid and invalid), after each block: the sum of balances is the
+    /// supply, the state root is the header's, rejected ones change nothing, and REPLAYING all the blocks from scratch
+    /// gives exactly the same state (determinism).
     #[test]
-    fn invariantes_do_ledger_em_sequencias_aleatorias(ops in proptest::collection::vec(op(), 1..40)) {
+    fn ledger_invariants_over_random_sequences(ops in proptest::collection::vec(op(), 1..40)) {
         let env = Env::new();
         let who = actors(&env);
         let mut state = State::new();
@@ -139,13 +139,13 @@ proptest! {
                     let before = state.clone();
                     let again = env.exec.apply_tx(&mut state, &t).unwrap_err();
                     prop_assert_eq!(&again, &e);
-                    prop_assert_eq!(&state, &before, "recusada mudou o estado: {:?}", e);
+                    prop_assert_eq!(&state, &before, "a rejected transaction changed the state: {:?}", e);
                 }
             }
-            // oferta: toda unidade emitida e não queimada está em alguma conta (a taxa é repartida, não destruída)
+            // supply: every unit issued and not burned is in some account (the fee is split, not destroyed)
             prop_assert_eq!(total_balances(&state), u128::from(state.supply()));
             prop_assert_eq!(state.supply(), state.minted() - state.burned());
-            // cobertura coerente com a oferta
+            // coverage consistent with the supply
             match (state.attestation(), state.coverage()) {
                 (None, c) => prop_assert_eq!(c, Coverage::None),
                 (Some(a), Coverage::Covered(m)) => prop_assert_eq!(a.reserve - state.supply(), m),
@@ -153,11 +153,11 @@ proptest! {
                 (Some(_), Coverage::None) => prop_assert!(false),
             }
         }
-        // nonce = quantas transações a conta enviou
+        // nonce = how many transactions the account sent
         for (a, n) in &sent {
             prop_assert_eq!(state.nonce(a), *n);
         }
-        // determinismo: o mesmo histórico dá o mesmo estado
+        // determinism: the same history gives the same state
         let mut replay = State::new();
         for b in &blocks {
             env.exec.apply_block(&mut replay, b).unwrap();
@@ -168,7 +168,7 @@ proptest! {
 }
 
 #[test]
-fn a_raiz_nao_depende_da_ordem_em_que_o_estado_foi_montado() {
+fn the_root_does_not_depend_on_the_order_in_which_the_state_was_built() {
     let addrs: Vec<Address> = (1..=6u8).map(|n| Address(Hash32([n; 32]))).collect();
     let mut a = State::new();
     let mut b = State::new();
@@ -185,7 +185,7 @@ fn a_raiz_nao_depende_da_ordem_em_que_o_estado_foi_montado() {
 }
 
 #[test]
-fn conta_zerada_nao_existe_e_a_raiz_volta_ao_vazio() {
+fn zeroed_account_does_not_exist_and_the_root_returns_to_empty() {
     let x = Address(Hash32([7; 32]));
     let empty = State::new().root();
     let mut s = State::new();
@@ -195,13 +195,13 @@ fn conta_zerada_nao_existe_e_a_raiz_volta_ao_vazio() {
     assert_eq!(
         s.accounts_len(),
         0,
-        "forma canônica: saldo e nonce zero removem a conta"
+        "canonical form: zero balance and nonce remove the account"
     );
     assert_eq!(s.root(), empty);
 }
 
 #[test]
-fn atomically_desfaz_tudo_inclusive_aninhado_e_speculate_sempre_desfaz() {
+fn atomically_undoes_everything_including_nested_and_speculate_always_undoes() {
     let x = Address(Hash32([1; 32]));
     let y = Address(Hash32([2; 32]));
     let mut s = State::new();
@@ -212,14 +212,18 @@ fn atomically_desfaz_tudo_inclusive_aninhado_e_speculate_sempre_desfaz() {
     let r: Result<(), LedgerError> = s.atomically(|st| {
         st.debit(&x, 30)?;
         st.credit(&y, 30)?;
-        // um aninhado que falha: só o interno desfaz
+        // a nested one that fails: only the inner one undoes
         let inner: Result<(), LedgerError> = st.atomically(|st2| {
             st2.credit(&y, 1)?;
             Err(LedgerError::Overflow)
         });
         assert_eq!(inner, Err(LedgerError::Overflow));
-        assert_eq!(st.balance(&y), 30, "o interno desfez o dele e nada mais");
-        // e agora o externo também falha: tudo volta
+        assert_eq!(
+            st.balance(&y),
+            30,
+            "the inner one undid its own and nothing more"
+        );
+        // and now the outer one fails too: everything comes back
         Err(LedgerError::ZeroAmount)
     });
     assert_eq!(r, Err(LedgerError::ZeroAmount));
@@ -231,11 +235,11 @@ fn atomically_desfaz_tudo_inclusive_aninhado_e_speculate_sempre_desfaz() {
         st.balance(&y)
     });
     assert_eq!(seen, 999);
-    assert_eq!(s, before, "speculate nunca deixa rastro");
+    assert_eq!(s, before, "speculate never leaves a trace");
 }
 
 #[test]
-fn estado_so_credita_ate_o_limite_de_64_bits() {
+fn state_only_credits_up_to_the_64_bit_limit() {
     let x = Address(Hash32([1; 32]));
     let mut s = State::new();
     s.credit(&x, u64::MAX).unwrap();
@@ -247,7 +251,7 @@ fn estado_so_credita_ate_o_limite_de_64_bits() {
 }
 
 #[test]
-fn aprovacao_serializa_em_96_bytes_e_volta_igual() {
+fn approval_serializes_to_96_bytes_and_round_trips() {
     let doc = Hash32([5; 32]);
     let a = Approval::new(&doc, &key(10));
     let bytes = a.to_bytes();

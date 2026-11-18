@@ -1,5 +1,5 @@
 [alias]
-# `cargo dev <comando>`: o CLI de desenvolvimento (devnet, carteira, envio, mint, laboratório Docker…)
+# `cargo dev <command>`: the development CLI (devnet, wallet, send, mint, Docker lab…)
 dev = "run -q -p brdu-dev --"
-# `cargo menu`: menu com setas sobre o `cargo dev` (só dev)
+# `cargo menu`: arrow-key menu on top of `cargo dev` (dev only)
 menu = "run -q -p brdu-menu --"

@@ -1,10 +1,10 @@
-//! Árvore de Merkle binária (estilo RFC 6962), com prefixo de domínio diferente para folhas e nós internos.
-//! Isso fecha o ataque de segunda pré-imagem (uma folha nunca passa por nó) e a ambiguidade de duplicar a última
-//! folha: a árvore de `n` folhas divide em `[0, k)` e `[k, n)`, com `k` a maior potência de 2 menor que `n`.
+//! Binary Merkle tree (RFC 6962 style), with a different domain prefix for leaves and internal nodes.
+//! This closes the second-preimage attack (a leaf never passes as a node) and the ambiguity of duplicating the last
+//! leaf: a tree of `n` leaves splits into `[0, k)` and `[k, n)`, with `k` the largest power of 2 less than `n`.
 
 use crate::hash::{Hash32, tagged, tags};
 
-/// Raiz de uma lista de folhas (já em hash). A lista vazia tem uma raiz própria e fixa.
+/// Root of a list of leaves (already hashed). The empty list has its own fixed root.
 #[must_use]
 pub fn root(leaves: &[Hash32]) -> Hash32 {
     match leaves {
@@ -27,7 +27,7 @@ fn subtree(leaves: &[Hash32]) -> Hash32 {
     }
 }
 
-/// A maior potência de 2 estritamente menor que `n` (para `n >= 2`).
+/// The largest power of 2 strictly less than `n` (for `n >= 2`).
 fn split_point(n: usize) -> usize {
     let mut k = 1usize;
     while k.saturating_mul(2) < n {

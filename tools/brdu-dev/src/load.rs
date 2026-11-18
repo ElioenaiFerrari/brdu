@@ -1,6 +1,6 @@
-//! Teste de carga **aberto** (open-loop) com medição por cgroup: envia à taxa pedida **mesmo que a rede atrase**
-//! (a latência conta a partir da hora agendada, sem "omissão coordenada"), mede a confirmação (envio → bloco),
-//! CPU e memória reais de cada contêiner e eventos de morte/OOM do Docker.
+//! **Open-loop** load test with cgroup measurement: sends at the requested rate **even if the network lags**
+//! (latency counts from the scheduled time, with no "coordinated omission"), measures confirmation (send → block),
+//! the real CPU and memory of each container, and Docker death/OOM events.
 
 use std::collections::HashMap;
 use std::process::Command;
@@ -19,7 +19,7 @@ fn sender_key(i: usize) -> SecretKey {
     SecretKey::from_bytes(*tagged("brdu/load/sender", &[&i.to_be_bytes()]).as_bytes())
 }
 
-/// Contadores do cgroup de um contêiner.
+/// Cgroup counters of a container.
 #[derive(Clone, Copy, Default, Debug)]
 struct Cg {
     usage_usec: u64,
@@ -76,10 +76,10 @@ fn percentile(sorted: &[f64], p: f64) -> f64 {
     sorted[i.min(sorted.len() - 1)]
 }
 
-/// Envios agendados de uma conta: (hora relativa, corpo hex, id).
+/// Scheduled sends of an account: (relative time, hex body, id).
 type Plan = Vec<(Duration, String, Hash32)>;
 
-/// O resultado de um degrau.
+/// The result of one step.
 #[derive(Debug, Clone, Default)]
 pub struct Step {
     pub accepted_per_s: f64,
@@ -107,7 +107,7 @@ pub struct Params {
     pub warmup_secs: u64,
     pub repeats: usize,
     pub containers: Vec<String>,
-    /// As APIs que recebem a carga: só nós que votam (um observador não propõe nem repassa).
+    /// The APIs that receive the load: only voting nodes (an observer neither proposes nor relays).
     pub apis: Vec<String>,
 }
 
@@ -130,9 +130,9 @@ fn wait_height_stable(apis: &[String]) {
     }
 }
 
-/// Financia as contas de envio fora da medição.
+/// Funds the sender accounts outside the measurement.
 fn prepare(l: &Layout, accounts: usize, apis: &[String]) -> Result<(), String> {
-    println!("preparando {accounts} contas de remetente (financiadas fora da medição)…");
+    println!("preparing {accounts} sender accounts (funded outside the measurement)…");
     let relayer = l.relayer()?;
     let chain = l.chain_id();
     let (_, mut nonce) = {
@@ -172,7 +172,7 @@ fn run_step(l: &Layout, p: &Params, rate: f64, secs: u64, apis: &[String]) -> Re
     let per_account = total.div_ceil(p.accounts).max(1);
     let interval = Duration::from_secs_f64(p.accounts as f64 / rate);
 
-    // nonces e taxa
+    // nonces and fee
     let mut plans: Vec<(usize, Plan)> = Vec::new();
     let mut fee_v = 0;
     for i in 0..p.accounts {
@@ -220,7 +220,7 @@ fn run_step(l: &Layout, p: &Params, rate: f64, secs: u64, apis: &[String]) -> Re
     let status0 = http::get(&apis[0], "/status")?;
     let height0 = status0["height"].as_u64().unwrap_or(0);
 
-    // poller de blocos: quando cada altura aparece pela primeira vez, anota a hora das suas transações
+    // block poller: when each height first appears, records the time of its transactions
     let stop = Arc::new(AtomicBool::new(false));
     let seen: Arc<Mutex<HashMap<Hash32, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     let blocks_seen = Arc::new(AtomicU64::new(0));
@@ -256,7 +256,7 @@ fn run_step(l: &Layout, p: &Params, rate: f64, secs: u64, apis: &[String]) -> Re
         })
     };
 
-    // envio aberto: uma thread por conta, na hora agendada
+    // open-loop sending: one thread per account, at the scheduled time
     let start = Instant::now() + Duration::from_millis(300);
     let sent_at: Arc<Mutex<HashMap<Hash32, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     let accepted = Arc::new(AtomicU64::new(0));
@@ -294,7 +294,7 @@ fn run_step(l: &Layout, p: &Params, rate: f64, secs: u64, apis: &[String]) -> Re
     let send_end = Instant::now();
     let send_secs = send_end.duration_since(start).as_secs_f64().max(0.001);
 
-    // espera esvaziar (até 60 s)
+    // waits for the drain (up to 60 s)
     let drain_start = Instant::now();
     let deadline = drain_start + Duration::from_secs(60);
     let want = accepted.load(Ordering::SeqCst) as usize;
@@ -374,7 +374,7 @@ fn median(v: &mut [f64]) -> f64 {
     percentile(v, 0.5)
 }
 
-/// Executa a escada.
+/// Runs the ladder.
 pub fn run(p: &Params) -> Result<(), String> {
     let l = Layout::load(&p.dir)?;
     let apis = p.apis.clone();
@@ -382,7 +382,7 @@ pub fn run(p: &Params) -> Result<(), String> {
     prepare(&l, p.accounts, &apis)?;
     if p.warmup_secs > 0 {
         let r = p.rates.first().copied().unwrap_or(50.0);
-        println!("aquecimento: {r} tx/s por {} s (descartado)", p.warmup_secs);
+        println!("warmup: {r} tx/s for {} s (discarded)", p.warmup_secs);
         run_step(&l, p, r, p.warmup_secs, &apis)?;
         wait_height_stable(&apis);
     }
@@ -391,14 +391,14 @@ pub fn run(p: &Params) -> Result<(), String> {
         let mut runs = Vec::new();
         for rep in 0..p.repeats {
             println!(
-                "\n=== degrau {rate} tx/s por {} s (repetição {}/{}) ===",
+                "\n=== step {rate} tx/s for {} s (repetition {}/{}) ===",
                 p.secs,
                 rep + 1,
                 p.repeats
             );
             let s = run_step(&l, p, rate, p.secs, &apis)?;
             println!(
-                "aceitas {:.1}/s (recusadas {}); confirmação p50 {:.0} ms · p95 {:.0} ms · p99 {:.0} ms ({} confirmadas, {} perdidas); esvaziou em {:.1} s; {:.0} tx/bloco",
+                "accepted {:.1}/s (rejected {}); confirmation p50 {:.0} ms · p95 {:.0} ms · p99 {:.0} ms ({} confirmed, {} lost); drained in {:.1} s; {:.0} tx/block",
                 s.accepted_per_s,
                 s.rejected,
                 s.p50,
@@ -410,7 +410,7 @@ pub fn run(p: &Params) -> Result<(), String> {
                 s.txs_per_block
             );
             println!(
-                "CPU máx {:.3} núcleos · throttle {:.1}% · memória pico {:.0}/{:.0} MiB · OOM {}",
+                "CPU max {:.3} cores · throttle {:.1}% · memory peak {:.0}/{:.0} MiB · OOM {}",
                 s.cpu_max, s.throttle_pct, s.mem_peak_mib, s.mem_limit_mib, s.oom
             );
             runs.push(s);
@@ -419,20 +419,20 @@ pub fn run(p: &Params) -> Result<(), String> {
         summary.push((rate, runs));
     }
     println!(
-        "\n=========== RESUMO (mediana de {} repetição(ões); [mín–máx] do p50) ===========",
+        "\n=========== SUMMARY (median of {} repetition(s); [min–max] of p50) ===========",
         p.repeats
     );
     println!(
         "{:>9} {:>9} {:>11} {:>11} {:>9} {:>9} {:>8} {:>9} {:>10}",
-        "oferecida",
-        "aceita/s",
+        "offered",
+        "accepted/s",
         "confirm p50",
         "confirm p95",
-        "esvaziou",
-        "tx/bloco",
-        "CPU máx",
+        "drained",
+        "tx/block",
+        "CPU max",
         "throttle",
-        "mem pico"
+        "mem peak"
     );
     for (rate, runs) in &summary {
         let col = |f: fn(&Step) -> f64| median(&mut runs.iter().map(f).collect::<Vec<_>>());
@@ -455,13 +455,13 @@ pub fn run(p: &Params) -> Result<(), String> {
             lo,
             hi,
             if runs.iter().any(|s| s.saturated) {
-                "   <- SATURADO"
+                "   <- SATURATED"
             } else {
                 ""
             }
         );
     }
-    // eventos de morte/OOM do Docker durante o teste
+    // Docker death/OOM events during the test
     let since = started
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
@@ -488,9 +488,9 @@ pub fn run(p: &Params) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let text = String::from_utf8_lossy(&ev.stdout);
     println!(
-        "\neventos do Docker (die/oom) durante o teste: {}",
+        "\nDocker events (die/oom) during the test: {}",
         if text.trim().is_empty() {
-            "nenhum".to_string()
+            "none".to_string()
         } else {
             text.trim().to_string()
         }

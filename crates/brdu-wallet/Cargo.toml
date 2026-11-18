@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Carteira do BRDU: frase BIP-39 (12 ou 24 palavras) com passphrase como 25ª palavra, derivação SLIP-10 Ed25519 e contas com endereço brdu1…."
+description = "BRDU wallet: BIP-39 phrase (12 or 24 words) with passphrase as the 25th word, SLIP-10 Ed25519 derivation and accounts with a brdu1… address."
 
 [dependencies]
 brdu-crypto.workspace = true

@@ -4,31 +4,31 @@ use std::process::Command;
 use brdu_menu::{CATALOG, command_line, defaults};
 
 #[test]
-fn todo_item_vira_um_comando_que_o_brdu_dev_conhece() {
-    // a ajuda do brdu-dev é a fonte da verdade dos comandos
+fn every_item_becomes_a_command_brdu_dev_knows() {
+    // brdu-dev's help is the source of truth for the commands
     let out = Command::new("cargo")
         .args(["run", "-q", "-p", "brdu-dev", "--", "help"])
         .output()
         .unwrap();
     let help = String::from_utf8_lossy(&out.stdout).to_string();
-    assert!(help.contains("cargo dev <comando>"), "{help}");
+    assert!(help.contains("cargo dev <command>"), "{help}");
     for item in CATALOG {
         let line = command_line(item, &defaults(item), "net");
         let first = &line[0];
         assert!(
             help.lines()
                 .any(|l| l.trim_start().starts_with(first.as_str())),
-            "o comando `{first}` do item `{}` não está na ajuda",
+            "command `{first}` of item `{}` is not in the help",
             item.label
         );
-        // subcomandos de dois níveis também aparecem na ajuda
+        // two-level subcommands also appear in the help
         if item.args.len() > 1 {
             let sub = item.args[1];
             assert!(
                 help.lines()
                     .filter(|l| l.contains(first.as_str()))
                     .any(|l| l.contains(sub)),
-                "`{}` não está na ajuda",
+                "`{}` is not in the help",
                 item.args.join(" ")
             );
         }
@@ -36,7 +36,7 @@ fn todo_item_vira_um_comando_que_o_brdu_dev_conhece() {
 }
 
 #[test]
-fn a_linha_de_comando_leva_os_parametros_e_a_pasta() {
+fn the_command_line_carries_the_parameters_and_the_folder() {
     let send = CATALOG.iter().find(|i| i.args == ["send"]).unwrap();
     let line = command_line(
         send,
@@ -54,13 +54,13 @@ fn a_linha_de_comando_leva_os_parametros_e_a_pasta() {
         command_line(fund, &["alice".into(), "10".into()], "net"),
         ["fund", "alice", "10", "--dir", "net"]
     );
-    // comandos que não usam --dir não o recebem
+    // commands that do not use --dir do not receive it
     let load = CATALOG.iter().find(|i| i.args == ["load"]).unwrap();
     assert!(!command_line(load, &defaults(load), "net").contains(&"--dir".to_string()));
 }
 
 #[test]
-fn o_catalogo_nao_tem_itens_repetidos() {
+fn the_catalog_has_no_duplicate_items() {
     let mut labels: Vec<&str> = CATALOG.iter().map(|i| i.label).collect();
     labels.sort_unstable();
     let n = labels.len();

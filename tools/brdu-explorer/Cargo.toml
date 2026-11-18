@@ -1,0 +1,28 @@
+[package]
+name = "brdu-explorer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "BRDU explorer: local web page and read-only JSON API over a chain that this process VERIFIES by itself."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "brdu-explorer"
+path = "src/main.rs"
+
+[dependencies]
+brdu-crypto.workspace = true
+brdu-chain.workspace = true
+brdu-ledger.workspace = true
+serde_json.workspace = true
+tiny_http = "0.12"
+
+[dev-dependencies]
+brdu-node.workspace = true
+brdu-bft.workspace = true
+
+[lints]
+workspace = true

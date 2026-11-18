@@ -1,12 +1,12 @@
-//! `brdu-node`: o validador. Chaves de **TESTE** em arquivo de texto (hex): só para redes de teste.
+//! `brdu-node`: the validator. **TEST** keys in a plain-text (hex) file: for test networks only.
 //!
 //! ```text
-//! brdu-node keygen ARQUIVO                      cria uma chave de consenso (0600) e mostra a pública
-//! brdu-node pubkey ARQUIVO                      mostra a chave pública (hex) e o endereço
-//! brdu-node genesis --chain ID --validator HEX... --issuer HEX... --threshold M --out ARQ
-//! brdu-node info --genesis ARQ                  mostra a gênese
-//! brdu-node health [--api A]                    sai 0 se a API responde (healthcheck do Docker)
-//! brdu-node run --genesis ARQ --key ARQ --data PASTA [--listen A] [--api A] [--peer A]... [opções]
+//! brdu-node keygen FILE                         creates a consensus key (0600) and prints the public key
+//! brdu-node pubkey FILE                         prints the public key (hex) and the address
+//! brdu-node genesis --chain ID --validator HEX... --issuer HEX... --threshold M --out FILE
+//! brdu-node info --genesis FILE                 prints the genesis
+//! brdu-node health [--api A]                    exits 0 if the API responds (Docker healthcheck)
+//! brdu-node run --genesis FILE --key FILE --data DIR [--listen A] [--api A] [--peer A]... [options]
 //! ```
 
 use std::fs;
@@ -28,20 +28,20 @@ fn read_key(path: &Path) -> SecretKey {
     let text =
         fs::read_to_string(path).unwrap_or_else(|e| die(&format!("{}: {e}", path.display())));
     let seed = hex::decode_array::<32>(text.trim())
-        .unwrap_or_else(|| die("a chave deve ter 32 bytes em hex"));
+        .unwrap_or_else(|| die("the key must be 32 bytes in hex"));
     SecretKey::from_bytes(seed)
 }
 
 fn read_genesis(path: &Path) -> Genesis {
     let text =
         fs::read_to_string(path).unwrap_or_else(|e| die(&format!("{}: {e}", path.display())));
-    let raw = hex::decode(text.trim()).unwrap_or_else(|| die("a gênese deve estar em hex"));
-    Genesis::decode(&raw).unwrap_or_else(|e| die(&format!("gênese inválida: {e}")))
+    let raw = hex::decode(text.trim()).unwrap_or_else(|| die("the genesis must be hex"));
+    Genesis::decode(&raw).unwrap_or_else(|e| die(&format!("invalid genesis: {e}")))
 }
 
 fn pubkey(s: &str) -> PublicKey {
     PublicKey(
-        hex::decode_array::<32>(s).unwrap_or_else(|| die(&format!("chave pública inválida: {s}"))),
+        hex::decode_array::<32>(s).unwrap_or_else(|| die(&format!("invalid public key: {s}"))),
     )
 }
 
@@ -66,13 +66,13 @@ impl Args {
     }
     fn need(&self, flag: &str) -> String {
         self.one(flag)
-            .unwrap_or_else(|| die(&format!("falta {flag}")))
+            .unwrap_or_else(|| die(&format!("missing {flag}")))
     }
     fn ms(&self, flag: &str) -> Option<Duration> {
         self.one(flag).map(|v| {
             Duration::from_millis(
                 v.parse()
-                    .unwrap_or_else(|_| die(&format!("{flag}: número de milissegundos"))),
+                    .unwrap_or_else(|_| die(&format!("{flag}: expected a number of milliseconds"))),
             )
         })
     }
@@ -81,14 +81,15 @@ impl Args {
 fn main() {
     let all: Vec<String> = std::env::args().skip(1).collect();
     let Some((cmd, rest)) = all.split_first() else {
-        die("use: keygen | pubkey | genesis | info | run")
+        die("usage: keygen | pubkey | genesis | info | health | run")
     };
     let a = Args(rest.to_vec());
     match cmd.as_str() {
         "keygen" => {
-            let path = PathBuf::from(rest.first().unwrap_or_else(|| die("keygen ARQUIVO")));
+            let path = PathBuf::from(rest.first().unwrap_or_else(|| die("keygen FILE")));
             let mut seed = [0u8; 32];
-            getrandom::fill(&mut seed).unwrap_or_else(|e| die(&format!("sem aleatoriedade: {e}")));
+            getrandom::fill(&mut seed)
+                .unwrap_or_else(|e| die(&format!("no randomness available: {e}")));
             let mut opts = fs::OpenOptions::new();
             opts.write(true).create_new(true);
             #[cfg(unix)]
@@ -103,7 +104,7 @@ fn main() {
             show(&SecretKey::from_bytes(seed));
         }
         "pubkey" => show(&read_key(Path::new(
-            rest.first().unwrap_or_else(|| die("pubkey ARQUIVO")),
+            rest.first().unwrap_or_else(|| die("pubkey FILE")),
         ))),
         "genesis" => {
             let validators: Vec<PublicKey> =
@@ -112,31 +113,27 @@ fn main() {
             let threshold: u32 = a
                 .need("--threshold")
                 .parse()
-                .unwrap_or_else(|_| die("--threshold: número"));
+                .unwrap_or_else(|_| die("--threshold: expected a number"));
             let g = Genesis::new(&a.need("--chain"), validators, issuers, threshold);
             if let Err(e) = g.rules() {
-                die(&format!("gênese inválida: {e}"));
+                die(&format!("invalid genesis: {e}"));
             }
             let out = a.need("--out");
             fs::write(&out, format!("{}\n", hex::encode(&g.encode())))
                 .unwrap_or_else(|e| die(&format!("{out}: {e}")));
-            println!("gênese {} gravada em {out}", g.hash().to_hex());
+            println!("genesis {} written to {out}", g.hash().to_hex());
         }
         "info" => {
             let g = read_genesis(Path::new(&a.need("--genesis")));
-            println!("rede: {}\nhash: {}", g.chain_id, g.hash().to_hex());
-            println!("validadores ({}):", g.validators.len());
+            println!("network: {}\nhash: {}", g.chain_id, g.hash().to_hex());
+            println!("validators ({}):", g.validators.len());
             for v in &g.validators {
                 println!("  {}", Address::from_public_key(v));
             }
-            println!(
-                "emissores: {} (M = {})",
-                g.issuers.len(),
-                g.issuer_threshold
-            );
+            println!("issuers: {} (M = {})", g.issuers.len(), g.issuer_threshold);
         }
         "health" => {
-            // usado pelo healthcheck do Docker: sai 0 se a API responde 200
+            // used by the Docker healthcheck: exits 0 if the API answers 200
             use std::io::{Read, Write};
             let api = a.one("--api").unwrap_or_else(|| "127.0.0.1:8080".into());
             let ok = std::net::TcpStream::connect(&api)
@@ -155,13 +152,13 @@ fn main() {
             std::process::exit(i32::from(!ok));
         }
         "run" => run(&a),
-        _ => die("comando desconhecido: keygen | pubkey | genesis | info | run"),
+        _ => die("unknown command: keygen | pubkey | genesis | info | health | run"),
     }
 }
 
 fn show(k: &SecretKey) {
     println!(
-        "pública: {}\nendereço: {}",
+        "public: {}\naddress: {}",
         k.public().to_hex(),
         Address::from_public_key(&k.public())
     );
@@ -174,11 +171,11 @@ fn run(a: &Args) {
     if let Some(l) = a.one("--listen") {
         cfg.listen = l
             .parse::<SocketAddr>()
-            .unwrap_or_else(|_| die("--listen: IP:porta"));
+            .unwrap_or_else(|_| die("--listen: expected IP:port"));
     }
     cfg.api = a.one("--api").map(|v| {
         v.parse::<SocketAddr>()
-            .unwrap_or_else(|_| die("--api: IP:porta"))
+            .unwrap_or_else(|_| die("--api: expected IP:port"))
     });
     cfg.peers = a.many("--peer");
     cfg.empty_blocks = a.has("--empty-blocks");
@@ -195,30 +192,31 @@ fn run(a: &Args) {
         cfg.timeouts.precommit = d;
     }
     if let Some(n) = a.one("--max-pool-txs") {
-        cfg.max_pool_txs = n.parse().unwrap_or_else(|_| die("--max-pool-txs: número"));
+        cfg.max_pool_txs = n
+            .parse()
+            .unwrap_or_else(|_| die("--max-pool-txs: expected a number"));
     }
     if let Some(n) = a.one("--max-pool-mib") {
         cfg.max_pool_bytes = n
             .parse::<usize>()
-            .unwrap_or_else(|_| die("--max-pool-mib: número"))
+            .unwrap_or_else(|_| die("--max-pool-mib: expected a number"))
             * 1024
             * 1024;
     }
     let log_every = a
         .one("--log-every-secs")
         .and_then(|v| v.parse::<u64>().ok());
-    let node = Node::start(cfg).unwrap_or_else(|e| die(&format!("não subiu: {e}")));
+    let node = Node::start(cfg).unwrap_or_else(|e| die(&format!("failed to start: {e}")));
     println!(
-        "brdu-node no ar: pares em {}, API {}",
+        "brdu-node up: peers on {}, API {}",
         node.listen_addr(),
-        node.api_addr()
-            .map_or("desligada".into(), |x| x.to_string())
+        node.api_addr().map_or("disabled".into(), |x| x.to_string())
     );
     loop {
         std::thread::sleep(Duration::from_secs(log_every.unwrap_or(3600)));
         if log_every.is_some() {
             println!(
-                "altura {} pares {} raiz {}",
+                "height {} peers {} root {}",
                 node.height(),
                 node.peer_count(),
                 node.state_root()

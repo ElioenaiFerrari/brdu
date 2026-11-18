@@ -1,7 +1,7 @@
-//! Motor BFT de **uma altura**. Mais de 2/3 de prevotes no mesmo bloco **travam** o validador nele (só destrava
-//! com prova de uma rodada mais nova); mais de 2/3 de precommits tornam o bloco **final**. Prazo sem progresso
-//! passa para a rodada seguinte, com outro proponente: dois blocos diferentes nunca ficam finais na mesma altura
-//! com até 1/3 de bizantinos.
+//! BFT engine for **a single height**. More than 2/3 of prevotes for the same block **lock** the validator on it (it only unlocks
+//! with proof from a newer round); more than 2/3 of precommits make the block **final**. A timeout without progress
+//! moves to the next round, with another proposer: two different blocks never become final at the same height
+//! with up to 1/3 Byzantine validators.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -9,63 +9,63 @@ use brdu_crypto::{Hash32, PublicKey, SecretKey};
 
 use crate::types::{Certificate, Message, Proposal, Vote, VoteType, quorum};
 
-/// Passo da rodada.
+/// Round step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Step {
-    /// Esperando a proposta.
+    /// Waiting for the proposal.
     Propose,
-    /// Prevote enviado.
+    /// Prevote sent.
     Prevote,
-    /// Precommit enviado.
+    /// Precommit sent.
     Precommit,
 }
 
-/// O que entra no motor.
+/// What goes into the engine.
 #[derive(Debug, Clone)]
 pub enum Event {
-    /// Proposta recebida (já decodificada; a assinatura é conferida aqui).
+    /// Proposal received (already decoded; the signature is checked here).
     Proposal(Proposal),
-    /// Voto recebido.
+    /// Vote received.
     Vote(Vote),
-    /// Resposta a `NeedBlock`: o bloco (bytes opacos).
+    /// Answer to `NeedBlock`: the block (opaque bytes).
     Block(Vec<u8>),
-    /// Prazo vencido.
+    /// Timeout expired.
     Timeout(Step, u64),
 }
 
-/// O que sai do motor.
+/// What comes out of the engine.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
-    /// Enviar aos demais validadores.
+    /// Send to the other validators.
     Broadcast(Message),
-    /// Quem roda dispara `Event::Timeout(passo, rodada)` depois do prazo.
+    /// Whoever runs the engine fires `Event::Timeout(step, round)` after the timeout.
     ScheduleTimeout(Step, u64),
-    /// Sou o proponente: entregue um bloco com `Event::Block`.
+    /// I am the proposer: deliver a block with `Event::Block`.
     NeedBlock(u64),
-    /// **Bloco final**, com o certificado de commit.
+    /// **Final block**, with the commit certificate.
     Decide(Vec<u8>, Certificate),
-    /// Um validador votou em dois blocos na mesma rodada (equivocação).
+    /// A validator voted for two blocks in the same round (equivocation).
     Evidence(Vote, Vote),
 }
 
-/// Função de hash de bloco (bytes → hash).
+/// Block hash function (bytes -> hash).
 pub type HashFn = Box<dyn Fn(&[u8]) -> Hash32 + Send>;
-/// Validação de bloco (a do ledger): recebe a **rodada** da proposta, porque o proponente certo depende dela.
+/// Block validation (the ledger's): receives the proposal's **round**, because the correct proposer depends on it.
 pub type ValidFn = Box<dyn Fn(u64, &[u8]) -> bool + Send>;
 
-/// Configuração do motor.
+/// Engine configuration.
 pub struct EngineConfig {
-    /// Rede.
+    /// Network.
     pub chain_id: String,
-    /// Altura.
+    /// Height.
     pub height: u64,
-    /// Validadores, em ordem (a mesma em todos os nós).
+    /// Validators, in order (the same on every node).
     pub validators: Vec<PublicKey>,
-    /// Chave deste validador.
+    /// This validator's key.
     pub key: SecretKey,
-    /// Bloco (bytes) → hash.
+    /// Block (bytes) -> hash.
     pub hash_fn: HashFn,
-    /// Bloco (bytes) → válido? (a validação do ledger).
+    /// Block (bytes) -> valid? (the ledger's validation).
     pub valid_fn: ValidFn,
 }
 
@@ -76,7 +76,7 @@ enum Flag {
     Lock(u64),
 }
 
-/// O motor de uma altura.
+/// The engine for one height.
 pub struct Engine {
     cfg: EngineConfig,
     me: PublicKey,
@@ -103,7 +103,7 @@ impl std::fmt::Debug for Engine {
 }
 
 impl Engine {
-    /// Cria o motor.
+    /// Creates the engine.
     #[must_use]
     pub fn new(cfg: EngineConfig) -> Self {
         let me = cfg.key.public();
@@ -123,14 +123,14 @@ impl Engine {
         }
     }
 
-    /// Começa a altura (rodada 0).
+    /// Starts the height (round 0).
     pub fn start(&mut self) -> Vec<Action> {
         self.start_round(0);
         self.settle();
         self.flush()
     }
 
-    /// Trata um evento.
+    /// Handles an event.
     pub fn handle(&mut self, event: Event) -> Vec<Action> {
         if self.decision.is_some() {
             return Vec::new();
@@ -145,26 +145,26 @@ impl Engine {
         self.flush()
     }
 
-    /// Decisão tomada, se houver.
+    /// The decision made, if any.
     #[must_use]
     pub fn decision(&self) -> Option<&(Vec<u8>, Certificate)> {
         self.decision.as_ref()
     }
 
-    /// Rodada atual.
+    /// Current round.
     #[must_use]
     pub const fn round(&self) -> u64 {
         self.round
     }
 
-    /// Passo atual.
+    /// Current step.
     #[must_use]
     pub const fn step(&self) -> Step {
         self.step
     }
 
-    /// Tudo o que o motor sabe da altura (propostas e votos de todos) das últimas `rounds` rodadas, para
-    /// **reenviar** a quem (re)conectou: são mensagens assinadas, reentregar é inofensivo.
+    /// Everything the engine knows about the height (everyone's proposals and votes) from the last `rounds` rounds, to
+    /// **resend** to whoever (re)connected: they are signed messages, redelivering is harmless.
     #[must_use]
     pub fn known_messages(&self, rounds: u64) -> Vec<Message> {
         let min = self.round.saturating_sub(rounds.saturating_sub(1));
@@ -182,8 +182,8 @@ impl Engine {
         out
     }
 
-    /// Retoma a altura depois de uma queda, a partir do **diário** do que **este validador assinou** (mensagens
-    /// de outros são ignoradas). O motor não assina nada que contradiga o diário.
+    /// Resumes the height after a crash, from the **journal** of what **this validator signed** (messages
+    /// from others are ignored). The engine signs nothing that contradicts the journal.
     pub fn restore(&mut self, journal: &[Message]) -> Vec<Action> {
         for m in journal {
             match m {
@@ -239,7 +239,7 @@ impl Engine {
         self.flush()
     }
 
-    // ------------------------------------------------------------------ interno
+    // ------------------------------------------------------------------ internal
 
     fn flush(&mut self) -> Vec<Action> {
         std::mem::take(&mut self.out)
@@ -267,7 +267,7 @@ impl Engine {
                 None => self.out.push(Action::NeedBlock(round)),
             }
         }
-        // o prazo também vale para o proponente: se o bloco nunca vier, a rodada segue
+        // the timeout also applies to the proposer: if the block never arrives, the round moves on
         self.out.push(Action::ScheduleTimeout(Step::Propose, round));
     }
 
@@ -425,7 +425,7 @@ impl Engine {
         true
     }
 
-    /// Mais de 1/3 dos validadores já numa rodada à frente: ir para lá (não esperar o prazo).
+    /// More than 1/3 of the validators already in a later round: go there (do not wait for the timeout).
     fn skip_round_rule(&mut self) -> bool {
         let mut by_round: BTreeMap<u64, BTreeSet<PublicKey>> = BTreeMap::new();
         for ((_, r), m) in &self.votes {

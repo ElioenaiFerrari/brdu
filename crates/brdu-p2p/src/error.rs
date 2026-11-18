@@ -1,24 +1,24 @@
 use thiserror::Error;
 
-/// Erros do transporte.
+/// Transport errors.
 #[derive(Debug, Error)]
 pub enum NetError {
-    /// E/S.
+    /// I/O.
     #[error("i/o: {0}")]
     Io(#[from] std::io::Error),
-    /// O aperto de mão falhou: mensagem ruim, prova ruim, outra rede ou gênese, chave não aceita.
+    /// The handshake failed: bad message, bad proof, another network or genesis, key not accepted.
     #[error("handshake refused: {0}")]
     Handshake(String),
-    /// Um quadro não decifrou (adulterado, repetido, fora de ordem).
+    /// A frame failed to decrypt (tampered, replayed, out of order).
     #[error("bad frame")]
     BadFrame,
-    /// Mensagem maior que o limite do tipo.
+    /// Message larger than the limit for its type.
     #[error("message too large")]
     TooLarge,
-    /// Prazo estourado.
+    /// Deadline exceeded.
     #[error("timed out")]
     Timeout,
-    /// Recusado (limites, política).
+    /// Refused (limits, policy).
     #[error("refused: {0}")]
     Refused(String),
 }

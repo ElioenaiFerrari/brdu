@@ -1,6 +1,6 @@
-//! Simuladores **só de dev**. A equivocação: com a chave de um validador de TESTE **parado**, abre conexões Noise
-//! (autenticadas como ele) com os outros validadores e manda **dois prevotes conflitantes** na mesma altura e
-//! rodada. Cada nó honesto deve detectar a equivocação e expor a evidência em `/evidence`.
+//! **Dev-only** simulators. Equivocation: with the key of a **stopped** TEST validator, open Noise connections
+//! (authenticated as it) to the other validators and send **two conflicting prevotes** at the same height and
+//! round. Every honest node must detect the equivocation and expose the evidence at `/evidence`.
 
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
@@ -19,8 +19,8 @@ impl PeerPolicy for AcceptValidators {
     }
 }
 
-/// Manda os dois votos conflitantes a cada alvo (`host:porta` P2P) na altura `height`. Devolve em quantos alvos
-/// entregou.
+/// Sends the two conflicting votes to every target (P2P `host:port`) at height `height`. Returns how many targets
+/// it delivered to.
 pub fn equivocate(
     genesis: &Genesis,
     key: &SecretKey,
@@ -58,8 +58,8 @@ pub fn equivocate(
             key,
         ),
     ];
-    // 1) abre TODAS as conexões; 2) manda os dois votos a todos de uma vez (a rede honesta pode decidir a altura em
-    // poucos milissegundos, e voto de altura velha é ignorado)
+    // 1) open ALL connections; 2) send both votes to everyone at once (the honest network can decide the height in
+    // a few milliseconds, and a vote for a stale height is ignored)
     let mut sessions = Vec::new();
     for t in targets {
         let Some(addr) = t.to_socket_addrs().ok().and_then(|mut a| a.next()) else {
@@ -81,7 +81,7 @@ pub fn equivocate(
         }
         delivered += usize::from(ok);
     }
-    // dá tempo de os alvos lerem antes de fechar
+    // give the targets time to read before closing
     std::thread::sleep(Duration::from_millis(500));
     Ok(delivered)
 }
