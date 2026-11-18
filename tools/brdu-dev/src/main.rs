@@ -1,6 +1,7 @@
 //! `cargo dev …`: the BRDU development CLI. **Dev only**: TEST keys and phrases in plain text.
 
 mod asset;
+mod clean;
 mod compose;
 mod contract;
 mod cred;
@@ -34,6 +35,8 @@ local network (processes)
   stop N                              stops node N (simulated failure; frees its key)
   start N                             restarts node N (reads the log and syncs)
   reset [--dir net]                   stops and deletes the network (only the given folder)
+  clean-all [--yes] [--tmp] [--image] [--cargo]   removes EVERYTHING test-related (net, compose lab and its Docker volumes, wallets, data, blocks);
+                                      without --yes it only lists what it would free. --tmp test leftovers, --image the Docker image, --cargo `cargo clean`
   status [--dir net]                  height, peers, mempool, root of each node
 
 Docker lab (single image, CPU and memory limits; use --dir compose or BRDU_DIR=compose on the other commands)
@@ -140,6 +143,7 @@ fn main() {
         "rotate" => cmd_rotate(&a),
         "blocks-sim" => cmd_blocks_sim(&a),
         "reset" => cmd_reset(&a.dir()),
+        "clean-all" => cmd_clean_all(&a),
         "status" => cmd_status(&a),
         "wallet" => cmd_wallet(&a),
         "balance" => cmd_balance(&a),
@@ -343,7 +347,10 @@ fn cmd_start(a: &Args) -> Result<(), String> {
 fn cmd_down(dir: &Path) -> Result<(), String> {
     let p = dir.join("pids");
     let Ok(text) = fs::read_to_string(&p) else {
-        println!("nothing running in {}", dir.display());
+        // no validators recorded, but an explorer or the wallet daemon may still be running from this folder
+        stop_explorer(dir);
+        stop_wallet_web(dir);
+        println!("no validators running in {}", dir.display());
         return Ok(());
     };
     let mut n = 0;
@@ -364,6 +371,20 @@ fn cmd_down(dir: &Path) -> Result<(), String> {
     stop_wallet_web(dir);
     println!("{n} validators stopped");
     Ok(())
+}
+
+fn cmd_clean_all(a: &Args) -> Result<(), String> {
+    let flag = |f: &str| a.0.iter().any(|x| x == f);
+    let opts = clean::Options {
+        yes: flag("--yes"),
+        tmp: flag("--tmp"),
+        image: flag("--image"),
+        cargo: flag("--cargo"),
+        docker: true,
+    };
+    clean::run(Path::new("."), &std::env::temp_dir(), &opts, &|dir| {
+        let _ = cmd_down(dir);
+    })
 }
 
 fn cmd_reset(dir: &Path) -> Result<(), String> {

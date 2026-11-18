@@ -273,7 +273,12 @@ fn run(term: &mut DefaultTerminal) -> std::io::Result<()> {
         sel: first,
         list: ListState::default(),
         screen: Screen::Menu,
-        dir: "net".into(),
+        dir: {
+            let args: Vec<String> = std::env::args().skip(1).collect();
+            brdu_menu::initial_dir(&args, std::env::var("BRDU_DIR").ok().as_deref(), &|p| {
+                std::path::Path::new(p).exists()
+            })
+        },
     };
     app.list.select(Some(first));
     let mut toggle = false;
@@ -308,10 +313,10 @@ fn run(term: &mut DefaultTerminal) -> std::io::Result<()> {
                 KeyCode::Up => step(&mut app, &mut toggle, -1),
                 KeyCode::Down => step(&mut app, &mut toggle, 1),
                 KeyCode::Char('d') => {
-                    app.dir = if app.dir == "net" {
-                        "compose".into()
-                    } else {
+                    app.dir = if app.dir == "compose" {
                         "net".into()
+                    } else {
+                        "compose".into()
                     }
                 }
                 KeyCode::Enter => {

@@ -398,3 +398,23 @@ pub fn command_line(item: &Item, values: &[String], dir: &str) -> Vec<String> {
 pub fn defaults(item: &Item) -> Vec<String> {
     item.params.iter().map(|p| p.default.to_string()).collect()
 }
+
+/// The folder the menu starts in: `--dir X` wins, then the `BRDU_DIR` variable, then auto-detection (`compose` when a
+/// Docker lab exists and a local network does not), then `net`. `has` answers whether a path exists.
+#[must_use]
+pub fn initial_dir(args: &[String], env_dir: Option<&str>, has: &dyn Fn(&str) -> bool) -> String {
+    if let Some(d) = args
+        .windows(2)
+        .find(|w| w[0] == "--dir")
+        .map(|w| w[1].clone())
+    {
+        return d;
+    }
+    if let Some(d) = env_dir.filter(|d| !d.trim().is_empty()) {
+        return d.trim().to_string();
+    }
+    if has("compose/docker-compose.yml") && !has("net/devnet.json") {
+        return "compose".into();
+    }
+    "net".into()
+}

@@ -29,6 +29,13 @@ const HELP: &str = "cargo dev cred <command>
 ";
 
 fn keys(dir: &Path, prefix: &str) -> Result<Vec<SecretKey>, String> {
+    let first = dir.join(format!("keys/{prefix}1.key"));
+    if !first.exists() {
+        return Err(format!(
+            "this network has no test `{prefix}` keys ({} is missing): it was created before credentials existed, and its genesis does not list those authorities, so they cannot be added afterwards.\nCreate a new network: `cargo dev down && cargo dev reset && cargo dev init && cargo dev up` (reset deletes only what init created)",
+            first.display()
+        ));
+    }
     (1..=3)
         .map(|i| net::read_key(&dir.join(format!("keys/{prefix}{i}.key"))))
         .collect()

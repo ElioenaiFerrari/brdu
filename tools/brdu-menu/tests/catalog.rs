@@ -67,3 +67,38 @@ fn the_catalog_has_no_duplicate_items() {
     labels.dedup();
     assert_eq!(labels.len(), n);
 }
+
+#[test]
+fn the_starting_folder_comes_from_the_flag_then_the_variable_then_detection() {
+    use brdu_menu::initial_dir;
+    let a = |v: &[&str]| v.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
+    let none = |_: &str| false;
+    let only_lab = |p: &str| p == "compose/docker-compose.yml";
+    let both = |p: &str| p == "compose/docker-compose.yml" || p == "net/devnet.json";
+    assert_eq!(
+        initial_dir(&a(&["--dir", "compose"]), Some("net"), &none),
+        "compose",
+        "the flag wins"
+    );
+    assert_eq!(
+        initial_dir(&a(&[]), Some("compose"), &none),
+        "compose",
+        "then BRDU_DIR"
+    );
+    assert_eq!(
+        initial_dir(&a(&[]), Some("  "), &none),
+        "net",
+        "an empty variable is ignored"
+    );
+    assert_eq!(
+        initial_dir(&a(&[]), None, &only_lab),
+        "compose",
+        "only a Docker lab exists"
+    );
+    assert_eq!(
+        initial_dir(&a(&[]), None, &both),
+        "net",
+        "both exist: keep the old default"
+    );
+    assert_eq!(initial_dir(&a(&[]), None, &none), "net");
+}

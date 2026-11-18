@@ -578,3 +578,34 @@ fn the_contract_commands_run_a_sale_and_a_loan_with_escrow() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn credential_and_asset_commands_explain_what_to_do_on_a_network_without_test_organ_keys() {
+    let dir = tmp("oldnet");
+    ok(&dir, &["init", "--port-base", "18200"]);
+    // simulates a network created before the organ keys existed
+    for i in 1..=3 {
+        let _ = std::fs::remove_file(dir.join(format!("keys/organ{i}.key")));
+        let _ = std::fs::remove_file(dir.join(format!("keys/authority{i}.key")));
+    }
+    let nodes = start_nodes(&dir, 18200);
+    let (success, out) = dev(&dir, &["cred", "type", "--id", "cnh", "--contest", "60"]);
+    assert!(
+        !success
+            && out.contains("created before credentials existed")
+            && out.contains("cargo dev reset"),
+        "{out}"
+    );
+    let (success, out) = dev(
+        &dir,
+        &["asset", "class", "--id", "imovel", "--window", "60"],
+    );
+    assert!(
+        !success && out.contains("created before assets existed"),
+        "{out}"
+    );
+    for n in nodes {
+        n.stop();
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
