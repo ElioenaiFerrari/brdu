@@ -30,6 +30,8 @@ cd apps/wallet/src-tauri && cargo tauri dev                # ou: o app desktop
 
 > **Onde fica o cofre:** é um **arquivo** (`net/wallet/vault.json` no daemon web; a pasta de dados do app no desktop), **não** cookies nem dados do navegador: limpar o navegador não apaga a carteira (diferente do BRDC, que guardava o cofre no navegador). `cargo dev reset` apaga `net/wallet`.
 
+> **Pelo Docker:** `cargo dev compose up` sobe a carteira web junto com a rede em `http://127.0.0.1:8547` (cofre no volume `data-wallet`; `cargo dev compose clean` o apaga junto com o laboratório).
+
 ## O que é verificado e por quem
 O serviço valida endereço, valor, saldo e taxa **antes** de assinar; a **rede** valida de novo (assinatura, nonce, taxa mínima, saldo). O cofre autentica o cabeçalho (inclusive o endereço).
 

@@ -28,6 +28,24 @@ Nenhuma transação aceita foi perdida; nenhum evento `die`/`oom` do Docker. Em 
 
 Ponto de saturação: **BRDC ~700 tx/s; BRDU entre 2.000 e 3.000 tx/s** (≈ 3 a 4 vezes mais).
 
+## Rodada com a mesma memória do BRDC (512 MiB por validador)
+
+Pedido do dono: repetir a escada do BRDU com **512 MiB** e 0,5 CPU por validador, como o BRDC (2026-11-18, mesma máquina, 3 repetições, carga aberta de 20 s por degrau, aquecimento de 10 s descartado).
+
+| Oferecida | Aceita/s | Confirmação p50 | p95 | Esvaziou | tx/bloco | CPU máx | Throttle | Memória pico |
+|---|---|---|---|---|---|---|---|---|
+| 50/s | 50,0 | 160 ms | 264 ms | 0,1 s | 11,5 | 0,101 | 0,0% | 9 MiB |
+| 100/s | 100,0 | 167 ms | 273 ms | 0,2 s | 23,3 | 0,131 | 0,0% | 12 MiB |
+| 200/s | 199,9 | 179 ms | 289 ms | 0,3 s | 47,6 | 0,156 | 0,5% | 18 MiB |
+| 400/s | 400,0 | 179 ms | 289 ms | 0,2 s | 96,4 | 0,164 | 0,0% | 27 MiB |
+| 800/s | 800,0 | 191 ms | 303 ms | 0,2 s | 195,1 | 0,183 | 0,5% | 46 MiB |
+| 1.200/s | 1.199,9 | 216 ms | 338 ms | 0,2 s | 311,7 | 0,254 | 4,8% | 79 MiB |
+| 2.000/s | 1.992,9 | 1.147 ms | 2.129 ms | 1,6 s | 930,2 | 0,374 | 47,5% | 134 MiB |
+
+Nenhuma transação aceita foi perdida e o Docker não registrou `die` nem `oom`. O limite de memória não foi o fator: o resultado é praticamente o da rodada de 256 MiB (a CPU em 0,5 é o que limita). A memória de pico é cumulativa entre degraus (ver aviso acima): os 134 MiB do último degrau incluem o histórico dos anteriores.
+
+Com a mesma memória e a mesma CPU, a comparação direta fica: BRDC saturou em ~700 tx/s (p50 de 12,5 s a 800/s, 292 MiB); o BRDU sustentou **1.200 tx/s com p50 de 216 ms** e só começou a enfileirar perto de 2.000 tx/s, com **134 MiB** no pior caso. Valem as mesmas ressalvas da seção anterior (gerador no mesmo computador; o BRDC foi medido uma vez).
+
 ## Como ler isto com honestidade
 - **Não é um benchmark controlado.** O gerador de carga roda no host e disputa CPU; poucas repetições; um só dia e máquina.
 - **As implementações não são idênticas:** o BRDC tinha intervalo médio de bloco ~1,1 s e o BRDU usa `min-block-ms 200` e confirma mais cedo; parte do ganho de latência vem do **desenho** (blocos mais frequentes, assinaturas em lote, validação com cache), não só da linguagem. A memória em repouso (2,5 MiB × 135 MiB) e o ponto de saturação, porém, apontam para um ganho real de Rust, como você previa.

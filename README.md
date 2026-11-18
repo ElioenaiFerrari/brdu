@@ -26,7 +26,7 @@
 | M9a | credenciais nativas (tipos 14 a 19): `brdu-credentials`, `cargo dev cred`, explorador e carteira | **pronto** |
 | M9b | bens nativos (tipos 5 a 13): `brdu-assets`, `cargo dev asset`, explorador e carteira | **pronto** |
 | M9c | contratos declarativos (tipos 20 e 21): `brdu-contracts`, `cargo dev contract`, explorador e carteira | **pronto** |
-| M10 | fechamento (revisão, conceitos, comparação final Rust × Elixir) | planejado ([fases](docs/PHASES.md)) |
+| M10 | fechamento: [guia de conceitos](docs/concepts/README.md), [comparativo Rust × Elixir](docs/LOAD-RESULTS.md), matriz de testes e ameaças | **pronto** (sem auditoria externa) |
 
 ## Mapa de crates
 | Crate | Papel | Marco |
@@ -54,9 +54,10 @@
 
 ## Início rápido
 ```
-cargo test --workspace      # 230 testes (Rust + JS): RFC 8032, vetores e transações do BRDC, consenso, propriedades
+cargo test --workspace      # 271 testes de Rust + os de interface em JS: RFC 8032, vetores e transações do BRDC, consenso, propriedades
 cargo dev init && cargo dev up   # 4 validadores locais (+ cargo dev explorer, cargo dev wallet-web) (depois: cargo dev wallet new alice, cargo dev fund alice 1000…)
 cargo clippy --workspace --all-targets -- -D warnings
+cargo dev compose up     # tudo no Docker de uma vez: 4 validadores + explorador (8545) + carteira web (8547)
 ```
 Requisitos: Rust 1.100 (`rust-toolchain.toml`). Para a carteira desktop (M8): `cargo install tauri-cli --version "^2"`.
 

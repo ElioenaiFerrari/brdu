@@ -15,14 +15,16 @@ Diagrama deste fluxo: **a gerar** (diagramas adiados a pedido do dono; foco na i
 
 ## Passo a passo
 ```text
-cargo dev compose init [--nodes 4] [--cpus 0.5] [--mem 256]   # gera compose/
-cargo dev compose up                    # constrói a imagem (1ª vez) e espera ficarem saudáveis
+cargo dev compose up                    # TUDO de uma vez: cria o lab se não existir, constrói a imagem (com cache) e sobe
+                                        # 4 validadores + explorador (8545) + carteira web (8547), esperando ficarem saudáveis
+cargo dev compose init [--nodes 4] [--cpus 0.5] [--mem 256]   # (opcional) gera compose/ com outros parâmetros antes do up
 export BRDU_DIR=compose                 # os outros comandos passam a falar com o laboratório
 cargo dev status | wallet new alice | fund alice 500 | send … | blocks
 cargo dev compose pause 3 | unpause 3 | kill 2 | start 2 | logs 1 | stats   # falhas e diagnóstico
 cargo dev load --rates 50,100,200,400,800 --secs 20 --warmup 10 --repeats 3
 cargo dev compose down | clean          # clean apaga só este laboratório (projeto brdu-lab e seus volumes)
 ```
+0. **Um compose só:** o `docker-compose.yml` gerado tem os validadores, o **explorador** (`http://127.0.0.1:8545`) e a **carteira web** (`http://127.0.0.1:8547`, o `brdu-web` com o cofre no volume `data-wallet`). A carteira escuta em todas as interfaces **dentro** do contêiner (`--allow-remote`), mas a porta só é publicada no loopback do computador; é a 8547 para não colidir com o `cargo dev wallet-web` local (8546). Chaves de **teste**. Para ter saldo: `cargo dev fund ENDEREÇO 1000 --dir compose`.
 1. `init` cria 4 chaves, gênese e o compose; cada serviço monta **só a própria chave**; os nós discam aos anteriores (malha completa) pelos nomes `vN:7000`; a API sai em `127.0.0.1:820N`.
 2. Limites por serviço: `cpus`, `mem_limit`, `memswap_limit` (igual, sem swap), `pids_limit`; `healthcheck` pelo subcomando `brdu-node health`.
 3. **Teste de carga** (lições do BRDC embutidas):

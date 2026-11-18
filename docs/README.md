@@ -16,6 +16,8 @@
 13. [Bens e negociação](flows/13-assets.md) (M9b)
 14. [Contratos entre partes](flows/14-contracts.md) (M9c)
 
+Guia de conceitos com Rust: [concepts](concepts/README.md).
+
 Os demais chegam com os marcos (o BRDC tem 24 fluxos que serão reescritos aqui).
 
 ## Referência

@@ -16,4 +16,4 @@ Cada marco só começa com o anterior verde (`cargo fmt`, `clippy -D warnings`, 
 | **M9a** | Credenciais (tipos 14 a 19): órgão M-de-N, janela de contestação, validade, veto, revogação | BRDC ADR-0019, `teko-credentials` | **pronto** |
 | **M9b** | Bens (tipos 5 a 13): classes com órgão, oferta/aceite/veto, gravames | BRDC ADR-0018, `teko-assets` | **pronto** |
 | **M9c** | Contratos declarativos (tipos 20 e 21): compra e venda, aluguel, empréstimo | BRDC ADR-0004 e 0017 | **pronto** |
-| M10 | Fechamento: ameaças, matriz de testes, revisão, **comparativo Rust × Elixir** com a mesma escada de carga | — | planejado |
+| **M10** | Fechamento: ameaças, matriz de testes, guia de conceitos, **comparativo Rust × Elixir** com a mesma escada de carga | `docs/concepts`, `docs/LOAD-RESULTS.md` | **pronto** (sem auditoria externa) |
