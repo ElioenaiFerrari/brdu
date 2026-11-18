@@ -1,0 +1,114 @@
+preparando 8 contas de remetente (financiadas fora da medição)…
+aquecimento: 50.0 tx/s por 10 s (descartado)
+
+=== degrau: 50.0 tx/s por 20 s ===
+oferecidas 1000 em 20.0 s; aceitas 1000 (50.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 6.2 ms · p95 11.9 ms · p99 17.7 ms · máx 21.7 ms
+confirmação (envio até o bloco): p50 746.0 ms · p95 1228.0 ms · p99 1327.0 ms · máx 1384.0 ms (1000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 0.5 s
+blocos: 18 (altura [35, 35, 35, 35]), 1000 tx, 55.6 tx/bloco, intervalo médio 1.12 s
+fofoca entre nós neste degrau: 3000 aceitas, 9000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.093          0.02          1.0%                155.0/256.0 MiB        0
+  v2          0.092          0.05          0.5%                139.0/256.0 MiB        0
+  v3          0.093          0.12          1.9%                139.0/256.0 MiB        0
+  v4          0.093          0.06          1.9%                139.0/256.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 100.0 tx/s por 20 s ===
+oferecidas 2000 em 20.0 s; aceitas 2000 (100.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 5.8 ms · p95 13.7 ms · p99 31.0 ms · máx 92.9 ms
+confirmação (envio até o bloco): p50 2912.0 ms · p95 11223.0 ms · p99 15870.0 ms · máx 17471.0 ms (2000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.3 s
+blocos: 18 (altura [53, 53, 53, 53]), 2000 tx, 111.1 tx/bloco, intervalo médio 1.18 s
+fofoca entre nós neste degrau: 6000 aceitas, 18000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.126          0.29          4.1%                167.0/256.0 MiB        0
+  v2          0.126          0.25          5.1%                148.0/256.0 MiB        0
+  v3          0.122          0.19          4.2%                148.0/256.0 MiB        0
+  v4          0.122          0.04          1.9%                148.0/256.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 200.0 tx/s por 20 s ===
+oferecidas 4000 em 20.0 s; aceitas 4000 (200.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 4.9 ms · p95 38.5 ms · p99 104.3 ms · máx 193.8 ms
+confirmação (envio até o bloco): p50 1522.0 ms · p95 3441.0 ms · p99 5118.0 ms · máx 6574.0 ms (4000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.4 s
+blocos: 15 (altura [68, 68, 68, 68]), 4000 tx, 266.7 tx/bloco, intervalo médio 1.43 s
+fofoca entre nós neste degrau: 12000 aceitas, 35988 duplicadas, recusadas %{":bad_nonce" => 12}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.21           1.3           13.8%               198.0/256.0 MiB        0
+  v2          0.207          0.89          10.6%               175.0/256.0 MiB        0
+  v3          0.211          1.15          13.3%               173.0/256.0 MiB        0
+  v4          0.211          1.28          13.8%               170.0/256.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 400.0 tx/s por 20 s ===
+oferecidas 8000 em 20.0 s; aceitas 8000 (400.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 2.4 ms · p95 8.1 ms · p99 214.0 ms · máx 355.4 ms
+confirmação (envio até o bloco): p50 1870.0 ms · p95 2.9e3 ms · p99 3136.0 ms · máx 3337.0 ms (8000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.4 s
+blocos: 11 (altura [79, 79, 79, 79]), 8000 tx, 727.3 tx/bloco, intervalo médio 2.0 s
+fofoca entre nós neste degrau: 24000 aceitas, 71994 duplicadas, recusadas %{":bad_nonce" => 6}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.283          3.24          28.8%               236.0/256.0 MiB        0
+  v2          0.289          3.27          29.8%               222.0/256.0 MiB        0
+  v3          0.292          3.35          28.1%               236.0/256.0 MiB        0
+  v4          0.292          3.07          28.6%               211.0/256.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 800.0 tx/s por 20 s ===
+oferecidas 16000 em 20.0 s; aceitas 13908 (695.4/s); recusadas %{":closed" => 735, ":eaddrnotavail" => 1305, ":econnrefused" => 52}
+envio (ida e volta ao nó): p50 1.4 ms · p95 4.7 ms · p99 58.0 ms · máx 687.2 ms
+confirmação (envio até o bloco): p50 8859.0 ms · p95 19433.0 ms · p99 21485.0 ms · máx 22119.0 ms (10698 confirmadas, 3210 NÃO confirmaram)
+pendentes ao fim do envio: 736; esvaziou em 60.0 s
+blocos: 11 (altura [90, 90, 90]), 10698 tx, 972.5 tx/bloco, intervalo médio 2.9 s
+fofoca entre nós neste degrau: -18677 aceitas, -55420 duplicadas, recusadas %{":bad_nonce" => 15748}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          -0.142         0.83          0.0%                244.0/256.0 MiB        0
+  v2          0.11           6.01          33.9%               256.0/256.0 MiB        0
+  v3          0.114          6.23          20.8%               247.0/256.0 MiB        0
+  v4          -0.164         0.0           0.0%                237.0/256.0 MiB        0
+
+!!! brdc-lab-v1-1 REINICIOU ou foi morto por falta de memória durante o degrau; últimas linhas do log:
+18:04:23.976 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+18:04:24.060 [info] validador 1 (brdc17kqklyslufxudvnfu7paz4krnlt806fnc77hg4lxwy2hfg5ndmkqshh0qr) pronto: pares :4600, clientes :4545, 3 par(es); hash da gênese 3598e8837a93858f49e33b2d69db7847bd01f027fcf22413080ec5848319767e
+18:06:43.379 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+18:06:51.744 [info] validador 1 (brdc17kqklyslufxudvnfu7paz4krnlt806fnc77hg4lxwy2hfg5ndmkqshh0qr) pronto: pares :4600, clientes :4545, 3 par(es); hash da gênese 3598e8837a93858f49e33b2d69db7847bd01f027fcf22413080ec5848319767e
+18:06:55.134 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+18:07:04.857 [info] validador 1 (brdc17kqklyslufxudvnfu7paz4krnlt806fnc77hg4lxwy2hfg5ndmkqshh0qr) pronto: pares :4600, clientes :4545, 3 par(es); hash da gênese 3598e8837a93858f49e33b2d69db7847bd01f027fcf22413080ec5848319767e
+
+
+!!! brdc-lab-v4-1 REINICIOU ou foi morto por falta de memória durante o degrau; últimas linhas do log:
+18:04:23.976 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+18:04:24.057 [info] validador 4 (brdc1z0zwv2kuz7xe3xq363eafz8507t27q6946dddqq0drgfj24xx0pqj6rckw) pronto: pares :4600, clientes :4545, 3 par(es); hash da gênese 3598e8837a93858f49e33b2d69db7847bd01f027fcf22413080ec5848319767e
+18:07:00.931 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+18:07:12.318 [info] validador 4 (brdc1z0zwv2kuz7xe3xq363eafz8507t27q6946dddqq0drgfj24xx0pqj6rckw) pronto: pares :4600, clientes :4545, 3 par(es); hash da gênese 3598e8837a93858f49e33b2d69db7847bd01f027fcf22413080ec5848319767e
+18:07:13.938 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+18:07:25.132 [info] validador 4 (brdc1z0zwv2kuz7xe3xq363eafz8507t27q6946dddqq0drgfj24xx0pqj6rckw) pronto: pares :4600, clientes :4545, 3 par(es); hash da gênese 3598e8837a93858f49e33b2d69db7847bd01f027fcf22413080ec5848319767e
+18:07:26.544 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+18:07:37.536 [info] validador 4 (brdc1z0zwv2kuz7xe3xq363eafz8507t27q6946dddqq0drgfj24xx0pqj6rckw) pronto: pares :4600, clientes :4545, 3 par(es); hash da gênese 3598e8837a93858f49e33b2d69db7847bd01f027fcf22413080ec5848319767e
+18:07:39.282 [info] Configuration :server was not enabled for BrdcWebWeb.Endpoint, http/https services won't start
+
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=========== RESUMO (cada linha é uma repetição) ===========
+oferecida  aceita/s  confirm p50   confirm p95   esvaziou   tx/bloco  intervalo  CPU máx    throttle
+50.0/s     50.0      746.0 ms      1228.0 ms     0.5 s      55.6      1.12 s     0.093      1.0%
+100.0/s    100.0     2912.0 ms     11223.0 ms    1.3 s      111.1     1.18 s     0.126      4.1%
+200.0/s    200.0     1522.0 ms     3441.0 ms     1.4 s      266.7     1.43 s     0.211      13.3%
+400.0/s    400.0     1870.0 ms     2.9e3 ms      1.4 s      727.3     2.0 s      0.292      28.1%
+800.0/s    695.4     8859.0 ms     19433.0 ms    60.0 s     972.5     2.9 s      0.114      20.8%   <- SATURADO
+
+eventos do Docker (die/oom) durante o teste: nenhum
+FIM exit=0

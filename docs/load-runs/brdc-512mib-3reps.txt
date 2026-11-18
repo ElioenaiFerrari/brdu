@@ -1,0 +1,270 @@
+preparando 8 contas de remetente (financiadas fora da medição)…
+aquecimento: 50.0 tx/s por 10 s (descartado)
+
+=== degrau: 50.0 tx/s por 20 s ===
+oferecidas 1000 em 20.0 s; aceitas 1000 (50.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 10.0 ms · p95 20.2 ms · p99 25.8 ms · máx 56.4 ms
+confirmação (envio até o bloco): p50 748.0 ms · p95 1229.0 ms · p99 1248.0 ms · máx 1252.0 ms (1000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 0.4 s
+blocos: 18 (altura [35, 35, 35, 35]), 1000 tx, 55.6 tx/bloco, intervalo médio 1.12 s
+fofoca entre nós neste degrau: 3000 aceitas, 9000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.108          0.02          1.0%                144.0/512.0 MiB        0
+  v2          0.108          0.05          1.0%                134.0/512.0 MiB        0
+  v3          0.107          0.02          1.0%                137.0/512.0 MiB        0
+  v4          0.109          0.02          1.4%                136.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 50.0 tx/s por 20 s ===
+oferecidas 1000 em 20.0 s; aceitas 1000 (50.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 7.7 ms · p95 16.7 ms · p99 27.2 ms · máx 54.4 ms
+confirmação (envio até o bloco): p50 752.0 ms · p95 1236.0 ms · p99 1386.0 ms · máx 1387.0 ms (1000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 0.5 s
+blocos: 18 (altura [53, 53, 53, 53]), 1000 tx, 55.6 tx/bloco, intervalo médio 1.12 s
+fofoca entre nós neste degrau: 3000 aceitas, 9000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.101          0.05          1.9%                147.0/512.0 MiB        0
+  v2          0.102          0.06          1.9%                139.0/512.0 MiB        0
+  v3          0.099          0.0           0.5%                142.0/512.0 MiB        0
+  v4          0.098          0.19          1.9%                139.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 50.0 tx/s por 20 s ===
+oferecidas 1000 em 20.0 s; aceitas 1000 (50.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 6.3 ms · p95 15.8 ms · p99 37.5 ms · máx 55.8 ms
+confirmação (envio até o bloco): p50 770.0 ms · p95 1384.0 ms · p99 1406.0 ms · máx 1429.0 ms (1000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.1 s
+blocos: 18 (altura [71, 71, 71, 71]), 1000 tx, 55.6 tx/bloco, intervalo médio 1.18 s
+fofoca entre nós neste degrau: 3000 aceitas, 9000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.103          0.16          3.3%                150.0/512.0 MiB        0
+  v2          0.1            0.29          2.8%                144.0/512.0 MiB        0
+  v3          0.103          0.1           3.3%                145.0/512.0 MiB        0
+  v4          0.102          0.19          3.3%                144.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 100.0 tx/s por 20 s ===
+oferecidas 2000 em 20.0 s; aceitas 2000 (100.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 5.3 ms · p95 22.2 ms · p99 50.5 ms · máx 108.4 ms
+confirmação (envio até o bloco): p50 2120.0 ms · p95 4788.0 ms · p99 5799.0 ms · máx 6279.0 ms (2000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.3 s
+blocos: 17 (altura [88, 88, 88, 88]), 2000 tx, 117.6 tx/bloco, intervalo médio 1.25 s
+fofoca entre nós neste degrau: 6000 aceitas, 18000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.14           0.37          6.0%                165.0/512.0 MiB        0
+  v2          0.137          0.4           6.0%                161.0/512.0 MiB        0
+  v3          0.136          0.59          8.3%                163.0/512.0 MiB        0
+  v4          0.137          0.41          7.9%                160.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 100.0 tx/s por 20 s ===
+oferecidas 2000 em 20.0 s; aceitas 2000 (100.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 5.9 ms · p95 39.4 ms · p99 77.8 ms · máx 128.7 ms
+confirmação (envio até o bloco): p50 1505.0 ms · p95 3824.0 ms · p99 5044.0 ms · máx 5505.0 ms (2000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.0 s
+blocos: 16 (altura [104, 104, 104, 104]), 2000 tx, 125.0 tx/bloco, intervalo médio 1.27 s
+fofoca entre nós neste degrau: 6000 aceitas, 18000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.151          0.57          7.0%                180.0/512.0 MiB        0
+  v2          0.153          0.56          8.5%                169.0/512.0 MiB        0
+  v3          0.152          0.63          9.9%                180.0/512.0 MiB        0
+  v4          0.153          0.52          7.0%                173.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 100.0 tx/s por 20 s ===
+oferecidas 2000 em 20.0 s; aceitas 2000 (100.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 4.4 ms · p95 74.8 ms · p99 144.6 ms · máx 266.7 ms
+confirmação (envio até o bloco): p50 1411.0 ms · p95 2615.0 ms · p99 3185.0 ms · máx 3985.0 ms (2000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.2 s
+blocos: 14 (altura [118, 118, 118, 118]), 2000 tx, 142.9 tx/bloco, intervalo médio 1.46 s
+fofoca entre nós neste degrau: 6000 aceitas, 17994 duplicadas, recusadas %{":bad_nonce" => 6}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.164          1.45          15.7%               192.0/512.0 MiB        0
+  v2          0.175          1.57          18.7%               181.0/512.0 MiB        0
+  v3          0.167          1.74          17.2%               189.0/512.0 MiB        0
+  v4          0.165          1.66          16.7%               194.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 200.0 tx/s por 20 s ===
+oferecidas 4000 em 20.0 s; aceitas 4000 (200.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 3.0 ms · p95 53.1 ms · p99 207.5 ms · máx 295.7 ms
+confirmação (envio até o bloco): p50 1627.0 ms · p95 2509.0 ms · p99 2720.0 ms · máx 3036.0 ms (4000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.2 s
+blocos: 12 (altura [130, 130, 130, 130]), 4000 tx, 333.3 tx/bloco, intervalo médio 1.82 s
+fofoca entre nós neste degrau: 12000 aceitas, 36000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.24           2.7           24.2%               224.0/512.0 MiB        0
+  v2          0.24           2.88          24.7%               213.0/512.0 MiB        0
+  v3          0.235          2.44          23.5%               212.0/512.0 MiB        0
+  v4          0.235          2.72          25.0%               218.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 200.0 tx/s por 20 s ===
+oferecidas 4000 em 20.0 s; aceitas 4000 (200.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 3.2 ms · p95 52.4 ms · p99 194.8 ms · máx 277.5 ms
+confirmação (envio até o bloco): p50 1610.0 ms · p95 2458.0 ms · p99 2623.0 ms · máx 2766.0 ms (4000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.1 s
+blocos: 12 (altura [142, 142, 142, 142]), 4000 tx, 333.3 tx/bloco, intervalo médio 1.73 s
+fofoca entre nós neste degrau: 12000 aceitas, 36000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.233          2.27          23.1%               239.0/512.0 MiB        0
+  v2          0.233          2.42          24.3%               233.0/512.0 MiB        0
+  v3          0.23           2.39          23.4%               225.0/512.0 MiB        0
+  v4          0.229          2.3           23.5%               227.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 200.0 tx/s por 20 s ===
+oferecidas 4000 em 20.0 s; aceitas 4000 (200.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 2.8 ms · p95 50.2 ms · p99 260.3 ms · máx 357.5 ms
+confirmação (envio até o bloco): p50 1858.0 ms · p95 2806.0 ms · p99 3.0e3 ms · máx 3160.0 ms (4000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 1.5 s
+blocos: 11 (altura [153, 153, 153, 153]), 4000 tx, 363.6 tx/bloco, intervalo médio 1.9 s
+fofoca entre nós neste degrau: 12000 aceitas, 35986 duplicadas, recusadas %{":bad_nonce" => 14}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.239          3.0           27.3%               268.0/512.0 MiB        0
+  v2          0.244          3.27          28.8%               238.0/512.0 MiB        0
+  v3          0.233          2.76          25.2%               252.0/512.0 MiB        0
+  v4          0.239          2.96          27.5%               255.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 400.0 tx/s por 20 s ===
+oferecidas 8000 em 20.0 s; aceitas 8000 (400.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 2.0 ms · p95 7.6 ms · p99 361.7 ms · máx 602.1 ms
+confirmação (envio até o bloco): p50 3404.0 ms · p95 5227.0 ms · p99 5582.0 ms · máx 5984.0 ms (8000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 3.6 s
+blocos: 9 (altura [162, 162, 162, 162]), 8000 tx, 888.9 tx/bloco, intervalo médio 2.63 s
+fofoca entre nós neste degrau: 24000 aceitas, 71988 duplicadas, recusadas %{":bad_nonce" => 12}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.305          5.15          38.7%               280.0/512.0 MiB        0
+  v2          0.309          5.29          39.3%               296.0/512.0 MiB        0
+  v3          0.307          5.17          39.2%               261.0/512.0 MiB        0
+  v4          0.305          4.91          39.7%               258.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 400.0 tx/s por 20 s ===
+oferecidas 8000 em 20.0 s; aceitas 8000 (400.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 1.8 ms · p95 7.4 ms · p99 435.9 ms · máx 887.6 ms
+confirmação (envio até o bloco): p50 6135.0 ms · p95 9608.0 ms · p99 9925.0 ms · máx 10650.0 ms (8000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 9.0 s
+blocos: 9 (altura [171, 171, 171, 171]), 8000 tx, 888.9 tx/bloco, intervalo médio 3.25 s
+fofoca entre nós neste degrau: 24000 aceitas, 72000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.302          7.23          44.7%               306.0/512.0 MiB        0
+  v2          0.307          7.42          46.0%               296.0/512.0 MiB        0
+  v3          0.297          6.72          44.8%               293.0/512.0 MiB        0
+  v4          0.315          7.66          49.7%               311.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 400.0 tx/s por 20 s ===
+oferecidas 8000 em 20.0 s; aceitas 8000 (400.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 1.7 ms · p95 6.3 ms · p99 471.3 ms · máx 1024.0 ms
+confirmação (envio até o bloco): p50 7314.0 ms · p95 12105.0 ms · p99 12819.0 ms · máx 13473.0 ms (8000 confirmadas, 0 NÃO confirmaram)
+pendentes ao fim do envio: 0; esvaziou em 11.6 s
+blocos: 9 (altura [180, 180, 180, 180]), 8000 tx, 888.9 tx/bloco, intervalo médio 3.5 s
+fofoca entre nós neste degrau: 24000 aceitas, 72000 duplicadas, recusadas %{}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.3            8.56          47.6%               335.0/512.0 MiB        0
+  v2          0.298          8.81          50.3%               326.0/512.0 MiB        0
+  v3          0.291          7.63          45.5%               341.0/512.0 MiB        0
+  v4          0.297          9.04          49.7%               322.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 800.0 tx/s por 20 s ===
+oferecidas 16000 em 20.0 s; aceitas 15986 (799.3/s); recusadas %{":eaddrnotavail" => 14}
+envio (ida e volta ao nó): p50 1.5 ms · p95 6.5 ms · p99 60.1 ms · máx 1707.3 ms
+confirmação (envio até o bloco): p50 31123.0 ms · p95 63787.0 ms · p99 66764.0 ms · máx 68671.0 ms (14244 confirmadas, 1742 NÃO confirmaram)
+pendentes ao fim do envio: 1742; esvaziou em 58.5 s
+blocos: 16 (altura [196, 196, 196, 196]), 14244 tx, 890.3 tx/bloco, intervalo médio 5.13 s
+fofoca entre nós neste degrau: 8720 aceitas, 27578 duplicadas, recusadas %{":bad_nonce" => 36912}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.283          22.22         53.5%               371.0/512.0 MiB        0
+  v2          0.27           21.41         56.9%               342.0/512.0 MiB        0
+  v3          0.272          19.53         49.0%               364.0/512.0 MiB        0
+  v4          0.292          22.81         56.3%               377.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 800.0 tx/s por 20 s ===
+oferecidas 16000 em 20.0 s; aceitas 16000 (800.0/s); recusadas %{}
+envio (ida e volta ao nó): p50 1.4 ms · p95 3.9 ms · p99 54.6 ms · máx 1881.6 ms
+confirmação (envio até o bloco): p50 36729.0 ms · p95 54323.0 ms · p99 56423.0 ms · máx 56690.0 ms (9074 confirmadas, 6926 NÃO confirmaram)
+pendentes ao fim do envio: 6926; esvaziou em 62.7 s
+blocos: 12 (altura [208, 208, 208, 208]), 11816 tx, 984.7 tx/bloco, intervalo médio 7.09 s
+fofoca entre nós neste degrau: 9235 aceitas, 24862 duplicadas, recusadas %{":bad_nonce" => 36720}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.26           19.78         52.5%               398.0/512.0 MiB        0
+  v2          0.277          22.69         55.7%               391.0/512.0 MiB        0
+  v3          0.273          22.67         54.2%               394.0/512.0 MiB        0
+  v4          0.286          23.83         58.0%               389.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=== degrau: 800.0 tx/s por 20 s ===
+oferecidas 16000 em 20.0 s; aceitas 9694 (484.7/s); recusadas %{":bad_nonce" => 6219, ":eaddrnotavail" => 81, ":timeout" => 6}
+envio (ida e volta ao nó): p50 1.6 ms · p95 21.9 ms · p99 73.8 ms · máx 1820.2 ms
+confirmação (envio até o bloco): p50 51006.0 ms · p95 58009.0 ms · p99 58226.0 ms · máx 60209.0 ms (5478 confirmadas, 4216 NÃO confirmaram)
+pendentes ao fim do envio: 8178; esvaziou em 58.7 s
+blocos: 8 (altura [216, 216, 216, 216]), 7886 tx, 985.8 tx/bloco, intervalo médio 10.57 s
+fofoca entre nós neste degrau: 11392 aceitas, 27304 duplicadas, recusadas %{":bad_nonce" => 18988}
+mesma altura e mesmo bloco nos validadores: true; evidências de equivocação: 0
+  validador   CPU (núcleos)  throttle (s)  períodos limitados  memória (pico/limite)  oom
+  v1          0.267          20.27         50.9%               428.0/512.0 MiB        0
+  v2          0.28           21.21         53.0%               412.0/512.0 MiB        0
+  v3          0.26           18.71         48.0%               414.0/512.0 MiB        0
+  v4          0.303          27.84         62.7%               424.0/512.0 MiB        0
+
+eventos do Docker (die/oom) durante o teste: nenhum
+
+=========== RESUMO (cada linha é uma repetição) ===========
+oferecida  aceita/s  confirm p50   confirm p95   esvaziou   tx/bloco  intervalo  CPU máx    throttle
+50.0/s     50.0      748.0 ms      1229.0 ms     0.4 s      55.6      1.12 s     0.109      1.4%
+50.0/s     50.0      752.0 ms      1236.0 ms     0.5 s      55.6      1.12 s     0.102      1.9%
+50.0/s     50.0      770.0 ms      1384.0 ms     1.1 s      55.6      1.18 s     0.103      3.3%
+100.0/s    100.0     2120.0 ms     4788.0 ms     1.3 s      117.6     1.25 s     0.14       6.0%
+100.0/s    100.0     1505.0 ms     3824.0 ms     1.0 s      125.0     1.27 s     0.153      8.5%
+100.0/s    100.0     1411.0 ms     2615.0 ms     1.2 s      142.9     1.46 s     0.175      18.7%
+200.0/s    200.0     1627.0 ms     2509.0 ms     1.2 s      333.3     1.82 s     0.24       24.2%
+200.0/s    200.0     1610.0 ms     2458.0 ms     1.1 s      333.3     1.73 s     0.233      23.1%
+200.0/s    200.0     1858.0 ms     2806.0 ms     1.5 s      363.6     1.9 s      0.244      28.8%
+400.0/s    400.0     3404.0 ms     5227.0 ms     3.6 s      888.9     2.63 s     0.309      39.3%
+400.0/s    400.0     6135.0 ms     9608.0 ms     9.0 s      888.9     3.25 s     0.315      49.7%
+400.0/s    400.0     7314.0 ms     12105.0 ms    11.6 s     888.9     3.5 s      0.3        47.6%
+800.0/s    799.3     31123.0 ms    63787.0 ms    58.5 s     890.3     5.13 s     0.292      56.3%   <- SATURADO
+800.0/s    800.0     36729.0 ms    54323.0 ms    62.7 s     984.7     7.09 s     0.286      58.0%   <- SATURADO
+800.0/s    484.7     51006.0 ms    58009.0 ms    58.7 s     985.8     10.57 s    0.303      62.7%   <- SATURADO
+
+--- por taxa: mediana [mínimo a máximo] das repetições ---
+50.0/s  (3 repetições)  confirmação p50 752.0 ms [748.0 a 770.0]  p95 1236.0 ms [1229.0 a 1384.0]  aceita/s 50.0  esvaziou 0.5 s  saturados: 0
+100.0/s  (3 repetições)  confirmação p50 1505.0 ms [1411.0 a 2120.0]  p95 3824.0 ms [2615.0 a 4788.0]  aceita/s 100.0  esvaziou 1.2 s  saturados: 0
+200.0/s  (3 repetições)  confirmação p50 1627.0 ms [1610.0 a 1858.0]  p95 2509.0 ms [2458.0 a 2806.0]  aceita/s 200.0  esvaziou 1.2 s  saturados: 0
+400.0/s  (3 repetições)  confirmação p50 6135.0 ms [3404.0 a 7314.0]  p95 9608.0 ms [5227.0 a 12105.0]  aceita/s 400.0  esvaziou 9.0 s  saturados: 0
+800.0/s  (3 repetições)  confirmação p50 36729.0 ms [31123.0 a 51006.0]  p95 58009.0 ms [54323.0 a 63787.0]  aceita/s 799.3  esvaziou 58.7 s  saturados: 3
+
+eventos do Docker (die/oom) durante o teste: nenhum
+FIM exit=0

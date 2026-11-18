@@ -32,6 +32,8 @@ cargo dev down                      # derruba
 3. Os comandos que assinam leem a conta na API (nonce), calculam a **taxa mínima** (`/fees` × tamanho), assinam e fazem `POST /tx`.
 4. `fund`/`mint`/`burn`/`reserve` juntam as aprovações de M emissores sobre o documento exato.
 
+> **Limpeza:** `cargo dev reset` apaga só a rede de uma pasta. `cargo dev clean-all` mostra (sem `--yes`) e apaga (com `--yes`) tudo que os testes deixam no disco: `net/`, `compose/`, `dev/`, `testnet/` (só o que o `init` cria; arquivos seus ficam), o lab do Docker `brdu-lab` com os **seus** volumes (achados pelo rótulo do projeto; volumes de outros projetos nunca são tocados), e, com flags, `--tmp` (pastas `brdu-cli-*` de testes), `--image` (imagem `brdu-lab:dev`) e `--cargo` (`cargo clean` do workspace e do app Tauri, onde estão os gigabytes).
+
 ## O que é verificado e por quem
 Quem verifica é a rede, não o CLI: assinatura, taxa, nonce, M emissores distintos, referência única (fluxos 02, 03 e 05). O CLI só mostra o que a API devolve.
 

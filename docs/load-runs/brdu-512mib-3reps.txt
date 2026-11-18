@@ -1,0 +1,99 @@
+preparing 8 sender accounts (funded outside the measurement)…
+warmup: 50 tx/s for 10 s (discarded)
+
+=== step 50 tx/s for 20 s (repetition 1/3) ===
+accepted 50.0/s (rejected 0); confirmation p50 159 ms · p95 263 ms · p99 280 ms (1000 confirmed, 0 lost); drained in 0.4 s; 11 tx/block
+CPU max 0.101 cores · throttle 0.0% · memory peak 9/512 MiB · OOM 0
+
+=== step 50 tx/s for 20 s (repetition 2/3) ===
+accepted 50.0/s (rejected 0); confirmation p50 160 ms · p95 264 ms · p99 279 ms (1000 confirmed, 0 lost); drained in 0.1 s; 11 tx/block
+CPU max 0.103 cores · throttle 0.0% · memory peak 9/512 MiB · OOM 0
+
+=== step 50 tx/s for 20 s (repetition 3/3) ===
+accepted 50.0/s (rejected 0); confirmation p50 160 ms · p95 265 ms · p99 282 ms (1000 confirmed, 0 lost); drained in 0.1 s; 11 tx/block
+CPU max 0.101 cores · throttle 0.0% · memory peak 9/512 MiB · OOM 0
+
+=== step 100 tx/s for 20 s (repetition 1/3) ===
+accepted 100.0/s (rejected 0); confirmation p50 167 ms · p95 273 ms · p99 287 ms (2000 confirmed, 0 lost); drained in 0.2 s; 23 tx/block
+CPU max 0.134 cores · throttle 0.0% · memory peak 11/512 MiB · OOM 0
+
+=== step 100 tx/s for 20 s (repetition 2/3) ===
+accepted 100.0/s (rejected 0); confirmation p50 166 ms · p95 273 ms · p99 287 ms (2000 confirmed, 0 lost); drained in 0.2 s; 23 tx/block
+CPU max 0.128 cores · throttle 0.0% · memory peak 12/512 MiB · OOM 0
+
+=== step 100 tx/s for 20 s (repetition 3/3) ===
+accepted 100.0/s (rejected 0); confirmation p50 168 ms · p95 275 ms · p99 290 ms (2000 confirmed, 0 lost); drained in 0.2 s; 23 tx/block
+CPU max 0.131 cores · throttle 0.5% · memory peak 13/512 MiB · OOM 0
+
+=== step 200 tx/s for 20 s (repetition 1/3) ===
+accepted 199.9/s (rejected 0); confirmation p50 176 ms · p95 286 ms · p99 301 ms (4000 confirmed, 0 lost); drained in 0.3 s; 48 tx/block
+CPU max 0.156 cores · throttle 0.5% · memory peak 15/512 MiB · OOM 0
+
+=== step 200 tx/s for 20 s (repetition 2/3) ===
+accepted 200.0/s (rejected 0); confirmation p50 179 ms · p95 289 ms · p99 304 ms (4000 confirmed, 0 lost); drained in 0.3 s; 48 tx/block
+CPU max 0.156 cores · throttle 0.0% · memory peak 18/512 MiB · OOM 0
+
+=== step 200 tx/s for 20 s (repetition 3/3) ===
+accepted 199.8/s (rejected 0); confirmation p50 179 ms · p95 289 ms · p99 305 ms (4000 confirmed, 0 lost); drained in 0.3 s; 48 tx/block
+CPU max 0.155 cores · throttle 0.5% · memory peak 19/512 MiB · OOM 0
+
+=== step 400 tx/s for 20 s (repetition 1/3) ===
+accepted 400.0/s (rejected 0); confirmation p50 179 ms · p95 291 ms · p99 307 ms (8000 confirmed, 0 lost); drained in 0.3 s; 96 tx/block
+CPU max 0.164 cores · throttle 0.0% · memory peak 25/512 MiB · OOM 0
+
+=== step 400 tx/s for 20 s (repetition 2/3) ===
+accepted 400.0/s (rejected 0); confirmation p50 179 ms · p95 289 ms · p99 306 ms (8000 confirmed, 0 lost); drained in 0.2 s; 96 tx/block
+CPU max 0.165 cores · throttle 0.5% · memory peak 27/512 MiB · OOM 0
+
+=== step 400 tx/s for 20 s (repetition 3/3) ===
+accepted 400.0/s (rejected 0); confirmation p50 178 ms · p95 289 ms · p99 304 ms (8000 confirmed, 0 lost); drained in 0.2 s; 96 tx/block
+CPU max 0.164 cores · throttle 0.0% · memory peak 31/512 MiB · OOM 0
+
+=== step 800 tx/s for 20 s (repetition 1/3) ===
+accepted 800.0/s (rejected 0); confirmation p50 192 ms · p95 305 ms · p99 340 ms (16000 confirmed, 0 lost); drained in 0.2 s; 195 tx/block
+CPU max 0.184 cores · throttle 0.5% · memory peak 39/512 MiB · OOM 0
+
+=== step 800 tx/s for 20 s (repetition 2/3) ===
+accepted 800.0/s (rejected 0); confirmation p50 191 ms · p95 303 ms · p99 335 ms (16000 confirmed, 0 lost); drained in 0.2 s; 195 tx/block
+CPU max 0.183 cores · throttle 0.5% · memory peak 46/512 MiB · OOM 0
+
+=== step 800 tx/s for 20 s (repetition 3/3) ===
+accepted 800.0/s (rejected 0); confirmation p50 191 ms · p95 303 ms · p99 334 ms (16000 confirmed, 0 lost); drained in 0.1 s; 195 tx/block
+CPU max 0.182 cores · throttle 1.0% · memory peak 52/512 MiB · OOM 0
+
+=== step 1200 tx/s for 20 s (repetition 1/3) ===
+accepted 1199.9/s (rejected 0); confirmation p50 211 ms · p95 330 ms · p99 365 ms (24000 confirmed, 0 lost); drained in 0.2 s; 312 tx/block
+CPU max 0.255 cores · throttle 5.7% · memory peak 70/512 MiB · OOM 0
+
+=== step 1200 tx/s for 20 s (repetition 2/3) ===
+accepted 1199.9/s (rejected 0); confirmation p50 217 ms · p95 339 ms · p99 387 ms (24000 confirmed, 0 lost); drained in 0.2 s; 312 tx/block
+CPU max 0.254 cores · throttle 3.8% · memory peak 79/512 MiB · OOM 0
+
+=== step 1200 tx/s for 20 s (repetition 3/3) ===
+accepted 1200.0/s (rejected 0); confirmation p50 216 ms · p95 338 ms · p99 368 ms (24000 confirmed, 0 lost); drained in 0.2 s; 312 tx/block
+CPU max 0.254 cores · throttle 4.8% · memory peak 83/512 MiB · OOM 0
+
+=== step 2000 tx/s for 20 s (repetition 1/3) ===
+accepted 1978.8/s (rejected 0); confirmation p50 1065 ms · p95 1914 ms · p99 2038 ms (40000 confirmed, 0 lost); drained in 1.3 s; 930 tx/block
+CPU max 0.374 cores · throttle 47.5% · memory peak 103/512 MiB · OOM 0
+
+=== step 2000 tx/s for 20 s (repetition 2/3) ===
+accepted 1995.1/s (rejected 0); confirmation p50 1237 ms · p95 2129 ms · p99 2277 ms (40000 confirmed, 0 lost); drained in 1.6 s; 930 tx/block
+CPU max 0.370 cores · throttle 45.0% · memory peak 134/512 MiB · OOM 0
+
+=== step 2000 tx/s for 20 s (repetition 3/3) ===
+accepted 1992.9/s (rejected 0); confirmation p50 1147 ms · p95 2159 ms · p99 2337 ms (40000 confirmed, 0 lost); drained in 1.8 s; 930 tx/block
+CPU max 0.376 cores · throttle 48.0% · memory peak 147/512 MiB · OOM 0
+
+=========== SUMMARY (median of 3 repetition(s); [min–max] of p50) ===========
+  offered accepted/s confirm p50 confirm p95   drained  tx/block  CPU max  throttle   mem peak
+     50/s      50.0      160 ms      264 ms     0.1 s      11.5    0.101      0.0%       9 MiB  [159–160]
+    100/s     100.0      167 ms      273 ms     0.2 s      23.3    0.131      0.0%      12 MiB  [166–168]
+    200/s     199.9      179 ms      289 ms     0.3 s      47.6    0.156      0.5%      18 MiB  [176–179]
+    400/s     400.0      179 ms      289 ms     0.2 s      96.4    0.164      0.0%      27 MiB  [178–179]
+    800/s     800.0      191 ms      303 ms     0.2 s     195.1    0.183      0.5%      46 MiB  [191–192]
+   1200/s    1199.9      216 ms      338 ms     0.2 s     311.7    0.254      4.8%      79 MiB  [211–217]
+   2000/s    1992.9     1147 ms     2129 ms     1.6 s     930.2    0.374     47.5%     134 MiB  [1065–1237]
+
+Docker events (die/oom) during the test: none
+FIM exit=0

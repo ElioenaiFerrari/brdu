@@ -58,6 +58,8 @@ cargo test --workspace      # 271 testes de Rust + os de interface em JS: RFC 80
 cargo dev init && cargo dev up   # 4 validadores locais (+ cargo dev explorer, cargo dev wallet-web) (depois: cargo dev wallet new alice, cargo dev fund alice 1000…)
 cargo clippy --workspace --all-targets -- -D warnings
 cargo dev compose up     # tudo no Docker de uma vez: 4 validadores + explorador (8545) + carteira web (8547)
+cargo dev clean-all      # lista o que ocupa disco (rede local, lab do Docker e seus volumes, carteiras, blocos); com --yes apaga
+                         # (+ --tmp restos de testes, --image a imagem Docker, --cargo `cargo clean`: as pastas de build passam de 7 GiB)
 ```
 Requisitos: Rust 1.100 (`rust-toolchain.toml`). Para a carteira desktop (M8): `cargo install tauri-cli --version "^2"`.
 

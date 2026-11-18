@@ -21,7 +21,7 @@ cargo dev start 4                   # religa o nó
 cargo dev blocks-sim --count 5      # 5 blocos pequenos
 cargo dev docs-check                # links, imagens, crates, ADRs, fluxos, títulos, segredos
 cargo dev check                     # fmt + clippy + testes + docs-check
-cargo menu                          # menu com setas sobre tudo isso
+cargo menu                          # menu com setas sobre tudo isso (pasta: --dir X, depois BRDU_DIR, depois `compose` se só ele existir; tecla `d` alterna net/compose)
 ```
 1. **Equivocação:** o simulador abre conexões Noise com a chave do validador parado a **todos** os outros de uma vez e manda os dois votos; o motor de cada nó guarda o primeiro, vê o segundo diferente e emite `Evidence`.
 2. **Blocos sob demanda:** transferências mínimas de uma carteira de teste (`sim`), esperando a altura subir.

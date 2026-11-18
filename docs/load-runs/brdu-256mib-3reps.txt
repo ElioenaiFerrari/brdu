@@ -1,0 +1,99 @@
+preparando 8 contas de remetente (financiadas fora da medição)…
+aquecimento: 50 tx/s por 10 s (descartado)
+
+=== degrau 50 tx/s por 20 s (repetição 1/3) ===
+aceitas 50.0/s (recusadas 0); confirmação p50 168 ms · p95 274 ms · p99 291 ms (1000 confirmadas, 0 perdidas); esvaziou em 0.3 s; 11 tx/bloco
+CPU máx 0.103 núcleos · throttle 0.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 50 tx/s por 20 s (repetição 2/3) ===
+aceitas 50.0/s (recusadas 0); confirmação p50 169 ms · p95 276 ms · p99 291 ms (1000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 12 tx/bloco
+CPU máx 0.105 núcleos · throttle 0.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 50 tx/s por 20 s (repetição 3/3) ===
+aceitas 50.0/s (recusadas 0); confirmação p50 169 ms · p95 275 ms · p99 291 ms (1000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 12 tx/bloco
+CPU máx 0.104 núcleos · throttle 0.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 100 tx/s por 20 s (repetição 1/3) ===
+aceitas 100.0/s (recusadas 0); confirmação p50 176 ms · p95 283 ms · p99 299 ms (2000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 24 tx/bloco
+CPU máx 0.139 núcleos · throttle 0.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 100 tx/s por 20 s (repetição 2/3) ===
+aceitas 100.0/s (recusadas 0); confirmação p50 175 ms · p95 282 ms · p99 299 ms (2000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 24 tx/bloco
+CPU máx 0.139 núcleos · throttle 0.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 100 tx/s por 20 s (repetição 3/3) ===
+aceitas 100.0/s (recusadas 0); confirmação p50 175 ms · p95 283 ms · p99 297 ms (2000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 24 tx/bloco
+CPU máx 0.136 núcleos · throttle 0.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 200 tx/s por 20 s (repetição 1/3) ===
+aceitas 200.0/s (recusadas 0); confirmação p50 190 ms · p95 304 ms · p99 320 ms (4000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 49 tx/bloco
+CPU máx 0.174 núcleos · throttle 0.5% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 200 tx/s por 20 s (repetição 2/3) ===
+aceitas 200.0/s (recusadas 0); confirmação p50 191 ms · p95 305 ms · p99 321 ms (4000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 49 tx/bloco
+CPU máx 0.176 núcleos · throttle 0.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 200 tx/s por 20 s (repetição 3/3) ===
+aceitas 199.9/s (recusadas 0); confirmação p50 191 ms · p95 305 ms · p99 320 ms (4000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 49 tx/bloco
+CPU máx 0.173 núcleos · throttle 1.4% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 400 tx/s por 20 s (repetição 1/3) ===
+aceitas 399.9/s (recusadas 0); confirmação p50 198 ms · p95 316 ms · p99 339 ms (8000 confirmadas, 0 perdidas); esvaziou em 0.1 s; 101 tx/bloco
+CPU máx 0.194 núcleos · throttle 3.4% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 400 tx/s por 20 s (repetição 2/3) ===
+aceitas 400.0/s (recusadas 0); confirmação p50 195 ms · p95 310 ms · p99 327 ms (8000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 100 tx/bloco
+CPU máx 0.194 núcleos · throttle 1.4% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 400 tx/s por 20 s (repetição 3/3) ===
+aceitas 400.0/s (recusadas 0); confirmação p50 197 ms · p95 312 ms · p99 327 ms (8000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 100 tx/bloco
+CPU máx 0.196 núcleos · throttle 1.0% · memória pico 145/256 MiB · OOM 0
+
+=== degrau 800 tx/s por 20 s (repetição 1/3) ===
+aceitas 799.9/s (recusadas 0); confirmação p50 204 ms · p95 324 ms · p99 396 ms (16000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 203 tx/bloco
+CPU máx 0.198 núcleos · throttle 1.9% · memória pico 148/256 MiB · OOM 0
+
+=== degrau 800 tx/s por 20 s (repetição 2/3) ===
+aceitas 800.0/s (recusadas 0); confirmação p50 202 ms · p95 317 ms · p99 350 ms (16000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 200 tx/bloco
+CPU máx 0.199 núcleos · throttle 0.0% · memória pico 155/256 MiB · OOM 0
+
+=== degrau 800 tx/s por 20 s (repetição 3/3) ===
+aceitas 800.0/s (recusadas 0); confirmação p50 206 ms · p95 324 ms · p99 360 ms (16000 confirmadas, 0 perdidas); esvaziou em 0.3 s; 200 tx/bloco
+CPU máx 0.201 núcleos · throttle 1.4% · memória pico 157/256 MiB · OOM 0
+
+=== degrau 1200 tx/s por 20 s (repetição 1/3) ===
+aceitas 1200.0/s (recusadas 0); confirmação p50 218 ms · p95 350 ms · p99 426 ms (24000 confirmadas, 0 perdidas); esvaziou em 0.1 s; 316 tx/bloco
+CPU máx 0.262 núcleos · throttle 7.2% · memória pico 167/256 MiB · OOM 0
+
+=== degrau 1200 tx/s por 20 s (repetição 2/3) ===
+aceitas 1175.6/s (recusadas 0); confirmação p50 267 ms · p95 810 ms · p99 1010 ms (24000 confirmadas, 0 perdidas); esvaziou em 0.4 s; 353 tx/bloco
+CPU máx 0.294 núcleos · throttle 19.2% · memória pico 172/256 MiB · OOM 0
+
+=== degrau 1200 tx/s por 20 s (repetição 3/3) ===
+aceitas 1200.0/s (recusadas 0); confirmação p50 262 ms · p95 1271 ms · p99 1692 ms (24000 confirmadas, 0 perdidas); esvaziou em 0.2 s; 364 tx/bloco
+CPU máx 0.291 núcleos · throttle 16.7% · memória pico 182/256 MiB · OOM 0
+
+=== degrau 2000 tx/s por 20 s (repetição 1/3) ===
+aceitas 1995.3/s (recusadas 0); confirmação p50 1373 ms · p95 2305 ms · p99 2449 ms (40000 confirmadas, 0 perdidas); esvaziou em 2.1 s; 930 tx/bloco
+CPU máx 0.353 núcleos · throttle 42.4% · memória pico 192/256 MiB · OOM 0
+
+=== degrau 2000 tx/s por 20 s (repetição 2/3) ===
+aceitas 1980.2/s (recusadas 0); confirmação p50 785 ms · p95 1143 ms · p99 1267 ms (40000 confirmadas, 0 perdidas); esvaziou em 0.5 s; 930 tx/bloco
+CPU máx 0.370 núcleos · throttle 45.0% · memória pico 231/256 MiB · OOM 0
+
+=== degrau 2000 tx/s por 20 s (repetição 3/3) ===
+aceitas 1996.0/s (recusadas 0); confirmação p50 940 ms · p95 1708 ms · p99 1852 ms (40000 confirmadas, 0 perdidas); esvaziou em 1.3 s; 930 tx/bloco
+CPU máx 0.364 núcleos · throttle 42.1% · memória pico 235/256 MiB · OOM 0
+
+=========== RESUMO (mediana de 3 repetição(ões); [mín–máx] do p50) ===========
+oferecida  aceita/s confirm p50 confirm p95  esvaziou  tx/bloco  CPU máx  throttle   mem pico
+     50/s      50.0      169 ms      275 ms     0.2 s      11.6    0.104      0.0%     145 MiB  [168–169]
+    100/s     100.0      175 ms      283 ms     0.2 s      23.5    0.139      0.0%     145 MiB  [175–176]
+    200/s     200.0      191 ms      305 ms     0.2 s      49.4    0.174      0.5%     145 MiB  [190–191]
+    400/s     400.0      197 ms      312 ms     0.2 s     100.0    0.194      1.4%     145 MiB  [195–198]
+    800/s     800.0      204 ms      324 ms     0.2 s     200.0    0.199      1.4%     155 MiB  [202–206]
+   1200/s    1200.0      262 ms      810 ms     0.2 s     352.9    0.291     16.7%     172 MiB  [218–267]
+   2000/s    1995.3      940 ms     1708 ms     1.3 s     930.2    0.364     42.4%     231 MiB  [785–1373]
+
+eventos do Docker (die/oom) durante o teste: nenhum
+FIM exit=0
