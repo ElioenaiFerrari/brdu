@@ -283,13 +283,14 @@ test("receive, history and settings screens render", async () => {
   await bootWith({
     status: { has_vault: true, unlocked: true, address: ADDR },
     overview: { address: ADDR, balance: 0, nonce: 0, chain_id: "t", height: 1, supply: { supply: 0, coverage: { state: "none" } } },
+    assets: { address: ADDR, assets: [{ id: "casa-1", class: "imovel", rev: 1, liens: {}, deal: { status: "accepted" } }] },
     credentials: { address: ADDR, credentials: [{ id: "cnh-1", type: "cnh", status: "active", valid: true }, { id: "cnh-2", type: "cnh", status: "pending", valid: false }] },
     history: { address: ADDR, txs: [{ kind: 1, height: 3, id: "ab".repeat(32), sender: "brdu1" + "p".repeat(58), summary: { to: ADDR, amount: 2_500_000 } }, { kind: 2, height: 2, id: "cd".repeat(32), sender: ADDR, summary: { account: ADDR, amount: 9_000_000 } }] },
     export_phrase: { words: WORDS },
     change_password: { changed: true },
   });
   const homeText = main().textContent;
-  assert.ok(homeText.includes("Credenciais") && homeText.includes("cnh-1") && homeText.includes("válida") && homeText.includes("pendente"), homeText);
+  assert.ok(homeText.includes("Credenciais") && homeText.includes("cnh-1") && homeText.includes("válida") && homeText.includes("pendente") && homeText.includes("Bens") && homeText.includes("casa-1") && homeText.includes("em negociação"), homeText);
   await click(main().byText("Receber"));
   assert.ok(main().textContent.includes("Receber") && main().textContent.includes("brdu1"));
   await click(main().byId("back"));

@@ -201,6 +201,41 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
             }
             Err(_) => (400, json!({"error": "invalid address"})),
         },
+        ["asset-classes"] => {
+            let list: Vec<Value> = brdu_assets::list_classes(chain.state())
+                .iter()
+                .map(|c| json!({"id": c.id, "threshold": c.threshold, "veto_window": c.veto_window,
+                    "organ": c.organ.iter().map(|k| Address::from_public_key(k).encode()).collect::<Vec<_>>()}))
+                .collect();
+            (200, json!({"classes": list}))
+        }
+        ["asset", id] => match brdu_assets::get_asset(chain.state(), id) {
+            Some(a) => (
+                200,
+                asset_json(&a, brdu_assets::get_deal(chain.state(), id).as_ref()),
+            ),
+            None => (404, json!({"error": "asset not found"})),
+        },
+        ["assets", addr] => match Address::decode(addr) {
+            Ok(a) => {
+                let list: Vec<Value> = brdu_assets::assets_of(chain.state(), &a)
+                    .iter()
+                    .map(|x| asset_json(x, brdu_assets::get_deal(chain.state(), &x.id).as_ref()))
+                    .collect();
+                (200, json!({"address": a.encode(), "assets": list}))
+            }
+            Err(_) => (400, json!({"error": "invalid address"})),
+        },
+        ["deals"] => {
+            let list: Vec<Value> = brdu_assets::list_deals(chain.state())
+                .iter()
+                .map(deal_json)
+                .collect();
+            (
+                200,
+                json!({"deals": list, "escrow": brdu_assets::escrow_total(chain.state())}),
+            )
+        }
         ["supply"] => {
             let s = chain.state();
             let cov = match s.coverage() {
@@ -219,7 +254,7 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
         }
         ["fees"] => (
             200,
-            json!({"transfer_base": rules.transfer_base, "per_byte": rules.per_byte, "max_block_txs": rules.max_block_txs, "max_block_bytes": rules.max_block_bytes, "registration_fee": rules.registration_fee, "credential_fee": rules.credential_fee}),
+            json!({"transfer_base": rules.transfer_base, "per_byte": rules.per_byte, "max_block_txs": rules.max_block_txs, "max_block_bytes": rules.max_block_bytes, "registration_fee": rules.registration_fee, "credential_fee": rules.credential_fee, "step_fee": rules.step_fee}),
         ),
         ["account", addr] => match Address::decode(addr) {
             Ok(a) => (
@@ -350,5 +385,19 @@ fn credential_json(c: &brdu_credentials::Credential, now: u64, valid: bool) -> V
         "id": c.id, "type": c.type_id, "subject": c.subject.encode(), "data_hex": hex::encode(&c.data),
         "reference": c.reference, "status": c.status.name(), "issued_at": c.issued_at, "active_at": c.active_at,
         "expires_at": c.expires_at, "valid": valid, "now": now,
+    })
+}
+
+fn deal_json(d: &brdu_assets::Deal) -> Value {
+    json!({
+        "asset": d.asset_id, "seller": d.seller.encode(), "buyer": d.buyer.encode(), "price": d.price,
+        "status": d.status.name(), "deadline": d.deadline,
+    })
+}
+
+fn asset_json(a: &brdu_assets::Asset, deal: Option<&brdu_assets::Deal>) -> Value {
+    json!({
+        "id": a.id, "class": a.class, "owner": a.owner.encode(), "meta_hex": hex::encode(&a.meta), "rev": a.rev,
+        "liens": a.liens, "deal": deal.map(deal_json),
     })
 }

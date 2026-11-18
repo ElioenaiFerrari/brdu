@@ -286,3 +286,133 @@ fn the_cred_commands_run_a_credential_through_its_whole_life() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_asset_commands_run_a_trade_with_escrow_veto_and_liens() {
+    let dir = tmp("asset");
+    let base = 17_800;
+    ok(
+        &dir,
+        &[
+            "init",
+            "--port-base",
+            &base.to_string(),
+            "--min-window",
+            "1",
+        ],
+    );
+    let nodes = start_nodes(&dir, base);
+    ok(&dir, &["wallet", "new", "alice"]);
+    ok(&dir, &["wallet", "new", "bob"]);
+    ok(&dir, &["fund", "alice", "10"]);
+    wait("alice funded", || {
+        ok(&dir, &["balance", "alice"]).contains("10,000000")
+    });
+    ok(&dir, &["fund", "bob", "100"]);
+    wait("funded", || {
+        ok(&dir, &["balance", "bob"]).contains("100,000000")
+    });
+
+    ok(&dir, &["asset", "class", "--id", "imovel", "--window", "2"]);
+    wait("class", || {
+        dev(&dir, &["asset", "classes"]).1.contains("imovel")
+    });
+    assert!(ok(&dir, &["asset", "classes"]).contains("organ 2 of 3"));
+    ok(
+        &dir,
+        &[
+            "asset", "register", "--class", "imovel", "--id", "casa-1", "--owner", "alice",
+            "--meta", "deed",
+        ],
+    );
+    wait("registered", || {
+        dev(&dir, &["asset", "list", "alice"]).1.contains("casa-1")
+    });
+
+    // trade 1: bob accepts, the organ vetoes, the money goes back and alice stays the owner
+    ok(
+        &dir,
+        &[
+            "asset", "offer", "--id", "casa-1", "--as", "alice", "--to", "bob", "--price", "40",
+        ],
+    );
+    wait("offered", || {
+        dev(&dir, &["asset", "show", "casa-1"])
+            .1
+            .contains("trade offered")
+    });
+    ok(&dir, &["asset", "accept", "--id", "casa-1", "--as", "bob"]);
+    wait("escrow", || {
+        dev(&dir, &["asset", "deals"])
+            .1
+            .contains("escrow total: 40000000")
+    });
+    ok(&dir, &["asset", "veto", "--id", "casa-1"]);
+    wait("vetoed", || {
+        dev(&dir, &["asset", "deals"]).1.contains("escrow total: 0")
+    });
+    assert!(dev(&dir, &["asset", "list", "alice"]).1.contains("casa-1"));
+    assert!(
+        ok(&dir, &["balance", "bob"]).contains("99,"),
+        "bob got the price back (minus fees)"
+    );
+
+    // trade 2: after the window anyone finalizes; ownership and money move
+    ok(
+        &dir,
+        &[
+            "asset", "offer", "--id", "casa-1", "--as", "alice", "--to", "bob", "--price", "40",
+        ],
+    );
+    wait("offered again", || {
+        dev(&dir, &["asset", "show", "casa-1"])
+            .1
+            .contains("trade offered")
+    });
+    ok(&dir, &["asset", "accept", "--id", "casa-1", "--as", "bob"]);
+    wait("accepted", || {
+        dev(&dir, &["asset", "deals"]).1.contains("accepted")
+    });
+    std::thread::sleep(Duration::from_millis(2_500));
+    ok(&dir, &["asset", "finalize", "--id", "casa-1"]);
+    wait("new owner", || {
+        dev(&dir, &["asset", "list", "bob"]).1.contains("casa-1")
+    });
+    assert!(!dev(&dir, &["asset", "list", "alice"]).1.contains("casa-1"));
+    assert!(ok(&dir, &["asset", "deals"]).contains("escrow total: 0"));
+
+    // liens
+    ok(
+        &dir,
+        &[
+            "asset",
+            "lien",
+            "--id",
+            "casa-1",
+            "--lien",
+            "hip-1",
+            "--ref",
+            "contract 42",
+        ],
+    );
+    wait("lien", || {
+        dev(&dir, &["asset", "show", "casa-1"])
+            .1
+            .contains("liens 1")
+    });
+    ok(
+        &dir,
+        &["asset", "unlien", "--id", "casa-1", "--lien", "hip-1"],
+    );
+    wait("lien removed", || {
+        dev(&dir, &["asset", "show", "casa-1"])
+            .1
+            .contains("liens 0")
+    });
+    assert!(ok(&dir, &["asset"]).contains("cargo dev asset <command>"));
+    assert!(!dev(&dir, &["asset", "nonsense"]).0);
+    for n in nodes {
+        n.stop();
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

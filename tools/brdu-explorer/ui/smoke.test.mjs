@@ -48,7 +48,7 @@ const replies = [
   [/^tx\/.*-k2$/, tx(2, "mint", { account: ADDR, amount: 5000000, reference: "dep-1" })],
   [/^tx\/.*-k22$/, tx(22, "validator change", { action: "add", validator: ADDR, effective_height: 9 })],
   [/^tx\//, tx(1, "transfer", { to: ADDR, amount: 1500000 })],
-  [/^account\//, { address: ADDR, balance: 1234560000, nonce: 3, is_validator: true, credentials: [{ id: "cnh-1", type: "cnh", status: "pending", valid: false, privacy: "public", data_hex: "6361743d42" }], tx_count: 1, txs: [tx(1, "transfer", { to: ADDR, amount: 1500000 })] }],
+  [/^account\//, { address: ADDR, balance: 1234560000, nonce: 3, is_validator: true, assets: [{ id: "casa-1", class: "imovel", rev: 1, liens: { "hip-1": "contrato" }, deal: { status: "accepted", buyer: ADDR, price: 5, deadline: 9 } }], credentials: [{ id: "cnh-1", type: "cnh", status: "pending", valid: false, privacy: "public", data_hex: "6361743d42" }], tx_count: 1, txs: [tx(1, "transfer", { to: ADDR, amount: 1500000 })] }],
   [/^validators/, { epoch: 1, validators: [ADDR], pending_change: { action: "remove", validator: ADDR, effective_height: 9 }, evidence: [{ voter: ADDR, height: 2, round: 0 }], evidence_note: "reported by the node; not verifiable here" }],
   [/^search/, { found: false, hint: "address has a typo (checksum mismatch)" }],
 ];
@@ -99,7 +99,7 @@ test("every page renders without errors, with the Portuguese labels and translat
   const t22 = await goto("#/tx/" + HASH + "-k22");
   assert.ok(t22.includes("troca de validador") && t22.includes("entrada"), t22);
   const acc = await goto("#/account/" + ADDR);
-  assert.ok(acc.includes("Saldo") && acc.includes("Credenciais") && acc.includes("cnh-1") && acc.includes("pendente"), acc);
+  assert.ok(acc.includes("Saldo") && acc.includes("Credenciais") && acc.includes("cnh-1") && acc.includes("pendente") && acc.includes("Bens") && acc.includes("casa-1") && acc.includes("hip-1") && acc.includes("janela de veto"), acc);
   const v = await goto("#/validators");
   assert.ok(v.includes("saída") && v.includes("informado pelo nó"), v);
   assert.ok((await goto("#/nowhere")).includes("não encontrada"));

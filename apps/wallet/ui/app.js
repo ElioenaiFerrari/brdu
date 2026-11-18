@@ -152,6 +152,7 @@ const screens = {
     const wrap = h("div", { class: "card-glow" }, h("p", { class: "muted" }, "Carregando saldo…"));
     const rest = h("div", { id: "home-rest" });
     const creds = h("div", { id: "home-creds" });
+    const assetsBox = h("div", { id: "home-assets" });
     const load = async () => {
       const o = await attempt(() => rpc("overview"));
       if (S.screen !== "home") return;
@@ -168,6 +169,12 @@ const screens = {
           h("div", { class: "card" }, h("h2", {}, "Credenciais"), h("ul", { class: "list" }, cr.credentials.map((c) => h("li", { class: "row" }, h("div", {}, h("div", {}, c.id), h("div", { class: "sub" }, `tipo ${c.type}`)), h("div", { class: "end" }, h("span", { class: c.valid ? "chip green" : c.status === "pending" ? "chip yellow" : "chip" }, c.valid ? "válida" : statusText(c.status))))))),
         );
       }
+      const as = await rpc("assets").catch(() => null);
+      if (S.screen === "home" && as?.assets?.length) {
+        assetsBox.replaceChildren(
+          h("div", { class: "card" }, h("h2", {}, "Bens"), h("ul", { class: "list" }, as.assets.map((x) => h("li", { class: "row" }, h("div", {}, h("div", {}, x.id), h("div", { class: "sub" }, `classe ${x.class}${Object.keys(x.liens || {}).length ? " · com gravame" : ""}`)), h("div", { class: "end" }, x.deal ? h("span", { class: "chip yellow" }, x.deal.status === "accepted" ? "em negociação" : "oferecido") : null))))),
+        );
+      }
       S.timer = setTimeout(load, 4000);
     };
     const actions = h("div", { class: "actions" }, ...[["send", "Enviar"], ["receive", "Receber"], ["history", "Histórico"], ["settings", "Ajustes"]].map(([to, label]) => h("button", { class: "ghost", type: "button", "data-go": to }, label)));
@@ -176,7 +183,7 @@ const screens = {
       if (to) go(to === "send" ? "send" : to, to === "send" ? { step: "edit", to: "", typed: "" } : {});
     });
     load();
-    return h("div", { class: "stack" }, wrap, actions, rest, creds);
+    return h("div", { class: "stack" }, wrap, actions, rest, creds, assetsBox);
   },
 
   receive: () => {

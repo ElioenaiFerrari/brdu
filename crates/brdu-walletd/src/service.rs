@@ -397,6 +397,13 @@ impl Wallet {
         Ok(json!({"address": address.encode(), "credentials": r["credentials"]}))
     }
 
+    /// The assets owned by this account, with the trade in progress (read from the node).
+    pub fn assets(&self) -> Result<Value, WalletError> {
+        let (_, address) = self.account()?;
+        let r = self.node_get(&format!("/assets/{address}"))?;
+        Ok(json!({"address": address.encode(), "assets": r["assets"]}))
+    }
+
     /// Transaction history for this account, from the explorer.
     pub fn history(&self, skip: u64, limit: u64) -> Result<Value, WalletError> {
         let (_, address) = self.account()?;
@@ -578,6 +585,7 @@ impl Wallet {
             "change_password" => self.change_password(str_param(p, "old")?, str_param(p, "new")?),
             "overview" => self.overview(),
             "credentials" => self.credentials(),
+            "assets" => self.assets(),
             "history" => self.history(
                 p.get("skip").and_then(Value::as_u64).unwrap_or(0),
                 p.get("limit").and_then(Value::as_u64).unwrap_or(25),

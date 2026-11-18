@@ -104,6 +104,20 @@ pub const CATALOG: &[Item] = &[
     ),
     it(
         "Local network (processes)",
+        "Assets: list classes (asset classes)",
+        &["asset", "classes"],
+        &[],
+        true,
+    ),
+    it(
+        "Local network (processes)",
+        "Assets: trades in progress and escrow (asset deals)",
+        &["asset", "deals"],
+        &[],
+        true,
+    ),
+    it(
+        "Local network (processes)",
         "Credentials: list types (cred types)",
         &["cred", "types"],
         &[],

@@ -232,6 +232,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "brdu-assets"
+version = "0.1.0"
+dependencies = [
+ "brdu-crypto",
+ "brdu-ledger",
+ "proptest",
+ "serde_json",
+]
+
+[[package]]
 name = "brdu-bft"
 version = "0.1.0"
 dependencies = [
@@ -244,6 +254,7 @@ dependencies = [
 name = "brdu-chain"
 version = "0.1.0"
 dependencies = [
+ "brdu-assets",
  "brdu-bft",
  "brdu-credentials",
  "brdu-crypto",
@@ -282,6 +293,7 @@ dependencies = [
 name = "brdu-dev"
 version = "0.1.0"
 dependencies = [
+ "brdu-assets",
  "brdu-chain",
  "brdu-credentials",
  "brdu-crypto",
@@ -296,6 +308,7 @@ dependencies = [
 name = "brdu-explorer"
 version = "0.1.0"
 dependencies = [
+ "brdu-assets",
  "brdu-bft",
  "brdu-chain",
  "brdu-credentials",
@@ -329,6 +342,7 @@ dependencies = [
 name = "brdu-node"
 version = "0.1.0"
 dependencies = [
+ "brdu-assets",
  "brdu-bft",
  "brdu-chain",
  "brdu-credentials",

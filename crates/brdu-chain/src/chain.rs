@@ -63,7 +63,8 @@ impl Chain {
             genesis_hash: genesis.hash(),
             exec: make(rules)
                 .with_module(Box::new(brdu_ledger::gov::GovModule))
-                .with_module(Box::new(brdu_credentials::CredentialsModule)),
+                .with_module(Box::new(brdu_credentials::CredentialsModule))
+                .with_module(Box::new(brdu_assets::AssetsModule)),
             state: seed_state(&genesis),
             blocks: Vec::new(),
             validated: None,

@@ -17,7 +17,15 @@ pub const fn kind_name(k: u8) -> &'static str {
         kind::BURN => "burn",
         kind::ATTESTATION => "reserve attestation",
         kind::VALIDATOR_CHANGE => "validator change",
-        5..=13 => "assets",
+        brdu_assets::kind::CLASS => "asset class",
+        brdu_assets::kind::REGISTER => "asset registration",
+        brdu_assets::kind::OFFER => "asset offer",
+        brdu_assets::kind::ACCEPT => "asset accept",
+        brdu_assets::kind::CANCEL => "asset cancel",
+        brdu_assets::kind::VETO => "asset veto",
+        brdu_assets::kind::FINALIZE => "asset finalization",
+        brdu_assets::kind::LIEN_ADD => "asset lien",
+        brdu_assets::kind::LIEN_REMOVE => "asset lien removal",
         brdu_credentials::kind::TYPE => "credential type",
         brdu_credentials::kind::ISSUE => "credential issue",
         brdu_credentials::kind::CONTEST => "credential contest",
@@ -41,6 +49,18 @@ pub fn counterparty(tx: &Tx) -> Option<Address> {
         brdu_credentials::kind::ISSUE => {
             let mut d = Decoder::new(&tx.payload);
             d.string(32).ok()?;
+            d.string(64).ok()?;
+            Some(Address(Hash32(d.fixed::<32>().ok()?)))
+        }
+        // a registration shows up on the new owner's page, an offer on the buyer's
+        brdu_assets::kind::REGISTER => {
+            let mut d = Decoder::new(&tx.payload);
+            d.string(32).ok()?;
+            d.string(64).ok()?;
+            Some(Address(Hash32(d.fixed::<32>().ok()?)))
+        }
+        brdu_assets::kind::OFFER => {
+            let mut d = Decoder::new(&tx.payload);
             d.string(64).ok()?;
             Some(Address(Hash32(d.fixed::<32>().ok()?)))
         }
@@ -68,6 +88,27 @@ fn summary(tx: &Tx) -> Value {
             }
             _ => Value::Null,
         },
+        brdu_assets::kind::CLASS => d.string(32).map_or(Value::Null, |id| json!({"class": id})),
+        brdu_assets::kind::REGISTER => match (d.string(32), d.string(64), d.fixed::<32>()) {
+            (Ok(c), Ok(id), Ok(owner)) => {
+                json!({"class": c, "asset": id, "owner": Address(Hash32(owner)).encode()})
+            }
+            _ => Value::Null,
+        },
+        brdu_assets::kind::OFFER => match (d.string(64), d.fixed::<32>(), d.u64()) {
+            (Ok(id), Ok(buyer), Ok(price)) => {
+                json!({"asset": id, "buyer": Address(Hash32(buyer)).encode(), "price": price})
+            }
+            _ => Value::Null,
+        },
+        brdu_assets::kind::ACCEPT
+        | brdu_assets::kind::CANCEL
+        | brdu_assets::kind::VETO
+        | brdu_assets::kind::FINALIZE
+        | brdu_assets::kind::LIEN_ADD
+        | brdu_assets::kind::LIEN_REMOVE => {
+            d.string(64).map_or(Value::Null, |id| json!({"asset": id}))
+        }
         brdu_credentials::kind::TYPE => d.string(32).map_or(Value::Null, |id| json!({"type": id})),
         brdu_credentials::kind::ISSUE => match (d.string(32), d.string(64), d.fixed::<32>()) {
             (Ok(t), Ok(id), Ok(subject)) => {
@@ -205,7 +246,24 @@ pub fn account(e: &Explorer, a: &Address, skip: usize, limit: usize) -> Value {
         "is_validator": e.chain.validators().iter().any(|k| Address::from_public_key(k) == *a),
         "tx_count": e.account_tx_count(a), "txs": txs,
         "credentials": credentials(e, a)["credentials"],
+        "assets": assets(e, a)["assets"],
     })
+}
+
+/// The assets an account owns, with the trade in progress (from the verified replica).
+#[must_use]
+pub fn assets(e: &Explorer, a: &Address) -> Value {
+    let state = e.chain.state();
+    let list: Vec<Value> = brdu_assets::assets_of(state, a)
+        .iter()
+        .map(|x| {
+            let deal = brdu_assets::get_deal(state, &x.id).map(|d| {
+                json!({"buyer": d.buyer.encode(), "price": d.price, "status": d.status.name(), "deadline": d.deadline})
+            });
+            json!({"id": x.id, "class": x.class, "rev": x.rev, "meta_hex": brdu_crypto::hex::encode(&x.meta), "liens": x.liens, "deal": deal})
+        })
+        .collect();
+    json!({"address": a.encode(), "assets": list})
 }
 
 /// The credentials of a holder (from the verified replica).

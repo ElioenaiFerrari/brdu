@@ -17,6 +17,7 @@ path = "src/main.rs"
 brdu-crypto.workspace = true
 brdu-chain.workspace = true
 brdu-ledger.workspace = true
+brdu-assets.workspace = true
 brdu-credentials.workspace = true
 serde_json.workspace = true
 tiny_http = "0.12"

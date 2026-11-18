@@ -1,5 +1,6 @@
 //! `cargo dev …`: the BRDU development CLI. **Dev only**: TEST keys and phrases in plain text.
 
+mod asset;
 mod compose;
 mod cred;
 mod docs_check;
@@ -25,6 +26,7 @@ local network (processes)
   up [--dir net]                      starts the validators (logs in net/logs)
   down [--dir net]                    stops the validators
   explorer [stop] [--listen 127.0.0.1:8545] [--node 1]   opens the web explorer (re-verifies every block)
+  asset <command>                     assets (classes, class, register, offer, accept, veto, finalize, deals, liens); see `cargo dev asset`
   cred <command>                      credentials (types, issue, contest, veto, activate, revoke, list); see `cargo dev cred`
   wallet-web [stop] [--listen 127.0.0.1:8546]   opens the wallet in the browser (TEST keys; vault in <dir>/wallet)
   stop N                              stops node N (simulated failure; frees its key)
@@ -128,6 +130,7 @@ fn main() {
         "stop" => cmd_stop(&a),
         "explorer" => cmd_explorer(&a),
         "cred" => cred::run(&a),
+        "asset" => asset::run(&a),
         "wallet-web" => cmd_wallet_web(&a),
         "start" => cmd_start(&a),
         "equivocate" => cmd_equivocate(&a),
@@ -523,7 +526,7 @@ fn cmd_balance(a: &Args) -> Result<(), String> {
     Ok(())
 }
 
-fn parse_amount(s: &str) -> Result<u64, String> {
+pub(crate) fn parse_amount(s: &str) -> Result<u64, String> {
     Amount::parse(s)
         .map(Amount::units)
         .map_err(|e| format!("amount `{s}`: {e}"))

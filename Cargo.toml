@@ -10,6 +10,7 @@ members = [
     "crates/brdu-p2p",
     "crates/brdu-chain",
     "crates/brdu-node",
+    "crates/brdu-assets",
     "crates/brdu-credentials",
     "crates/brdu-vault",
     "crates/brdu-walletd",
@@ -51,6 +52,7 @@ brdu-bft = { path = "crates/brdu-bft" }
 brdu-p2p = { path = "crates/brdu-p2p" }
 brdu-chain = { path = "crates/brdu-chain" }
 brdu-node = { path = "crates/brdu-node" }
+brdu-assets = { path = "crates/brdu-assets" }
 brdu-credentials = { path = "crates/brdu-credentials" }
 brdu-vault = { path = "crates/brdu-vault" }
 brdu-walletd = { path = "crates/brdu-walletd" }

@@ -1,0 +1,18 @@
+[package]
+name = "brdu-assets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Native assets: classes with an M-of-N organ, registration, direct trade with escrow and veto window, liens (transaction kinds 5 to 13)."
+
+[dependencies]
+brdu-crypto.workspace = true
+brdu-ledger.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true
