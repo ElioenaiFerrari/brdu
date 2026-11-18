@@ -46,4 +46,9 @@ Começa com o que o M1 cobre e cresce a cada marco. Cada linha diz o que é miti
 | T35 | Reemitir um id contestado, vetado ou revogado | o `cred_id` fica queimado para sempre | — |
 | T36 | Vazar dados pessoais na rede | credencial **privada**: só um compromisso de 32 bytes; o titular revela fora da rede | o endereço do titular e o fato de ter a credencial são públicos |
 
+| T37 | Bem falso registrado sem o órgão | M aprovações distintas do órgão da classe sobre o documento exato | órgão comprometido registra o que quiser |
+| T38 | Aprovação de veto ou gravame reaproveitada | o documento inclui a revisão do bem (e comprador, preço e prazo no veto) | — |
+| T39 | Vendedor leva o dinheiro e não entrega (ou o contrário) | escrow: o preço sai do comprador no aceite e só vai ao vendedor junto com a propriedade | o dinheiro fica preso durante a janela |
+| T40 | Finalizar com gravame para fugir de dívida | finalização falha enquanto houver gravame | órgão que não remove o gravame |
+
 Os itens do BRDC (T10 a T29: equivocação, mempool, laboratório, órgãos, contratos, explorador mentiroso…) entram com os marcos que os criam, reescritos para o Rust.

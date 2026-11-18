@@ -127,6 +127,22 @@
 | Explorador: credenciais na conta do titular, emissão nas movimentações dele, nome legível do tipo da transação | `tools/brdu-explorer/tests/explorer.rs` |
 | Carteira: lista as credenciais emitidas para ela; bloqueada, recusa; cartão no início | `crates/brdu-walletd/tests/wallet.rs`, `apps/wallet/ui/smoke.test.mjs` |
 
+## M9b · bens (pronto)
+| Invariante | Teste |
+|---|---|
+| Classe só com M autoridades e janela dentro dos limites; id repetido recusado | `crates/brdu-assets/tests/assets.rs` |
+| Registro exige M do órgão **sobre o documento exato** (metadado diferente não vale) e id livre | `assets.rs` |
+| Negociação: só o comprador aceita; o preço vai ao escrow; finalizar só a partir do prazo (limite exato); dinheiro e dono trocam juntos | `assets.rs` |
+| Veto só antes do prazo e com M do órgão; devolve o escrow e mantém o dono | `assets.rs` |
+| Oferta só do dono, sem auto-negócio e sem negociação em curso; cancelar só antes do aceite | `assets.rs` |
+| Aceite sem saldo falha inteiro, sem escrow | `assets.rs` |
+| Gravame bloqueia oferta e finalização (dinheiro continua no escrow); aprovação é de uso único (revisão) | `assets.rs` |
+| Aprovação de veto presa a comprador, preço, prazo e revisão | `assets.rs` |
+| **Conservação:** escrow = preço da negociação aceita e nada é criado, em qualquer sequência | `assets.rs` (propriedade) |
+| **Oráculo do BRDC:** documentos e payloads (registro, veto, gravames, oferta) byte a byte; prefixo do BRDU difere | `crates/brdu-assets/tests/oracle.rs` |
+| `cargo dev asset` percorre veto, finalização e gravames contra nós reais | `tools/brdu-dev/tests/cli.rs` |
+| Carteira e explorador mostram os bens | `crates/brdu-walletd/tests/wallet.rs`, testes de interface |
+
 ## Planejado por marco
 M6 limites do Docker e carga; M9 contratos.
 

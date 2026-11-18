@@ -14,6 +14,6 @@ Cada marco só começa com o anterior verde (`cargo fmt`, `clippy -D warnings`, 
 | **M7** | Explorador: índice no nó, página, `blocks`/`tx`, certificado conferido | `teko-explorer`, `explorer-server` | planejado |
 | **M8** | Carteira: cofre, app Tauri, `brdu-web` para navegador e Docker | `apps/suite` do Teko | planejado |
 | **M9a** | Credenciais (tipos 14 a 19): órgão M-de-N, janela de contestação, validade, veto, revogação | BRDC ADR-0019, `teko-credentials` | **pronto** |
-| M9b | Bens (tipos 5 a 13): classes com órgão, oferta/aceite/veto, gravames | BRDC ADR-0018, `teko-assets` | planejado |
+| **M9b** | Bens (tipos 5 a 13): classes com órgão, oferta/aceite/veto, gravames | BRDC ADR-0018, `teko-assets` | **pronto** |
 | M9c | Contratos declarativos (tipos 20 e 21) | BRDC ADR-0004 e 0017 | planejado |
 | M10 | Fechamento: ameaças, matriz de testes, revisão, **comparativo Rust × Elixir** com a mesma escada de carga | — | planejado |

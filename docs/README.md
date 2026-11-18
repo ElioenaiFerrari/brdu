@@ -13,6 +13,7 @@
 10. [O explorador](flows/10-explorer.md) (M7)
 11. [A carteira](flows/11-wallet.md) (M8)
 12. [Credenciais](flows/12-credentials.md) (M9a)
+13. [Bens e negociação](flows/13-assets.md) (M9b)
 
 Os demais chegam com os marcos (o BRDC tem 24 fluxos que serão reescritos aqui).
 
