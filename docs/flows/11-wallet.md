@@ -26,13 +26,16 @@ cd apps/wallet/src-tauri && cargo tauri dev                # ou: o app desktop
 5. **Enviar:** endereço (o checksum denuncia erro de digitação) e valor pelo teclado numérico → **Revisar** (valor, taxa, total, saldo depois; aviso se for para si mesmo) → **Confirmar e enviar**. A prévia é de uso único.
 6. **Receber:** o endereço, para copiar. **Histórico:** movimentações do explorador. **Ajustes:** reexibir a frase (pede a senha de novo), trocar a senha, bloquear.
 7. A carteira **bloqueia sozinha** após 5 minutos parada e volta à tela de senha.
+8. **Esqueci a senha / quero outra carteira:** na tela de senha, "Esqueci a senha ou quero outra carteira" → digite `APAGAR` → a carteira é **removida deste aparelho** (o arquivo do cofre é guardado de lado, `vault.json.removed-<hora>`, nunca apagado) → a tela volta ao início: **criar** uma nova ou **importar** a frase de 24 palavras. **Só a frase recupera o dinheiro.**
+
+> **Onde fica o cofre:** é um **arquivo** (`net/wallet/vault.json` no daemon web; a pasta de dados do app no desktop), **não** cookies nem dados do navegador: limpar o navegador não apaga a carteira (diferente do BRDC, que guardava o cofre no navegador). `cargo dev reset` apaga `net/wallet`.
 
 ## O que é verificado e por quem
 O serviço valida endereço, valor, saldo e taxa **antes** de assinar; a **rede** valida de novo (assinatura, nonce, taxa mínima, saldo). O cofre autentica o cabeçalho (inclusive o endereço).
 
 ## O que pode dar errado
 - **Frase perdida = carteira perdida** (não há recuperação; sem congelamento nem estorno).
-- **Senha esquecida:** só a frase recupera (importar de novo). **Passphrase esquecida:** o endereço muda e a carteira não abre.
+- **Senha esquecida:** só a frase recupera: remova a carteira do aparelho (acima) e importe a frase. **Passphrase esquecida:** o endereço muda e a carteira não abre.
 - **Rede fora do ar:** a tela avisa e tenta de novo; nada é enviado.
 - **Daemon web:** as chaves ficam no processo do daemon (ADR-0018): só para chaves de teste.
 

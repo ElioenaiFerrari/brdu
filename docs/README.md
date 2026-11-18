@@ -12,6 +12,7 @@
 9. [Simuladores, `docs-check` e menu de desenvolvimento](flows/09-simulators-docs-check-and-menu.md) (M5b)
 10. [O explorador](flows/10-explorer.md) (M7)
 11. [A carteira](flows/11-wallet.md) (M8)
+12. [Credenciais](flows/12-credentials.md) (M9a)
 
 Os demais chegam com os marcos (o BRDC tem 24 fluxos que serão reescritos aqui).
 

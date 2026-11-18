@@ -111,6 +111,22 @@
 | Interface: valores sem ponto flutuante (64 bits), `1.5` recusado, teclado só produz valores válidos (fuzz), erros em pt-BR | `apps/wallet/ui/ui.test.mjs` |
 | Interface: fluxos completos com o `app.js` real (criar, enviar com prévia, importar com confirmação, desbloquear com campo limpo, histórico, ajustes, serviço fora do ar) | `apps/wallet/ui/smoke.test.mjs` |
 
+## M9a · credenciais (pronto)
+| Invariante | Teste |
+|---|---|
+| Tipo só com M autoridades (2 de 3) e **para o documento exato**; chaves do órgão não valem; sem autoridades nenhum tipo existe; tipos malformados (id, órgão, limite, janela, referência) e taxa mínima | `crates/brdu-credentials/tests/credentials.rs` |
+| Emissão exige M do órgão; nasce **pendente** com `prazo = hora do bloco + janela`; tipo, id, dados (512 bytes, 32 se privada) e referência conferidos; **aprovação presa a cada campo** (id, titular, dado, rede) | `credentials.rs` |
+| Titular contesta só dentro da janela; órgão veta só dentro dela, com a hora da emissão no documento; ativar só depois (limite exato); finais não mudam | `credentials.rs` |
+| **A janela usa a hora do bloco**, não a do bloco anterior; a hora não volta | `credentials.rs`, `crates/brdu-ledger/tests` |
+| Validade lida no limite exato; revogação só de pendente ou ativa, presa ao motivo; id **queimado** para sempre | `credentials.rs` |
+| Divórcio referencia casamento **ativo, do mesmo titular e do tipo certo**; ao ativar revoga o casamento; divórcio contestado não toca nele | `credentials.rs` |
+| Propriedade: qualquer sequência só faz transições legais, e nenhuma credencial some | `credentials.rs` (também com 300 casos) |
+| **Oráculo do BRDC:** documentos de emissão, veto e revogação e os payloads batem **byte a byte** com os vetores; com o prefixo do BRDU os documentos diferem (separação de domínio) | `crates/brdu-credentials/tests/oracle.rs` |
+| Vida inteira em **4 validadores reais**: tipo, emissão pendente, ativação após a janela, revogação, mesmo estado em todos | `crates/brdu-node/tests/cluster.rs` |
+| `cargo dev cred` percorre a vida da credencial contra nós reais | `tools/brdu-dev/tests/cli.rs` |
+| Explorador: credenciais na conta do titular, emissão nas movimentações dele, nome legível do tipo da transação | `tools/brdu-explorer/tests/explorer.rs` |
+| Carteira: lista as credenciais emitidas para ela; bloqueada, recusa; cartão no início | `crates/brdu-walletd/tests/wallet.rs`, `apps/wallet/ui/smoke.test.mjs` |
+
 ## Planejado por marco
 M6 limites do Docker e carga; M9 contratos.
 

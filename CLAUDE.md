@@ -7,7 +7,7 @@
 ## Estado atual
 - **M1 (cripto e carteira) e M2 (ledger e moeda) prontos:** `brdu-crypto`, `brdu-wallet`, `brdu-ledger`, com os vetores e as transações do BRDC como oráculo.
 - M3 (`brdu-bft`) e M4 (`brdu-p2p`, `brdu-chain`, `brdu-node`) prontos.
-- M5 (`cargo dev …`), M6 (Docker: `cargo dev compose …`, `cargo dev load`) e M5b (rotação de validadores, simuladores, `docs-check`, `cargo menu`) prontos. M7 (explorador web em `tools/brdu-explorer`) e M8 (carteira: `brdu-vault`, `brdu-walletd`, `apps/wallet`, `tools/brdu-web`) prontos. Próximos: M9 contratos → M10 fechamento. **Frontend: tema igual ao do BRDC dark (Brasil, efeitos de letras criptografadas).** Plano em `docs/PHASES.md`.
+- M5 (`cargo dev …`), M6 (Docker: `cargo dev compose …`, `cargo dev load`) e M5b (rotação de validadores, simuladores, `docs-check`, `cargo menu`) prontos. M7 (explorador web em `tools/brdu-explorer`) e M8 (carteira: `brdu-vault`, `brdu-walletd`, `apps/wallet`, `tools/brdu-web`) prontos. M9a (credenciais: `crates/brdu-credentials`, `cargo dev cred`) pronto. Próximos: M9b bens → M9c contratos → M10 fechamento. **Frontend: tema igual ao do BRDC dark (Brasil, efeitos de letras criptografadas).** Plano em `docs/PHASES.md`.
 
 ## Princípios inegociáveis (herdados do BRDC)
 1. **A chave nunca sai de quem a gerou.** Chaves e assinaturas ficam no backend Rust da carteira, nunca no webview; o servidor/nó nunca vê frase nem chave.

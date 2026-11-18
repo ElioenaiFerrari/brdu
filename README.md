@@ -23,7 +23,8 @@
 | M6 | Docker: imagem única, `cargo dev compose`, `cargo dev load` ([resultados](docs/LOAD-RESULTS.md): ~2.000 tx/s a 0,5 CPU, 2,5 MiB em repouso) | **pronto** |
 | M7 | explorador web (tema do BRDC) que **reverifica cada bloco**: `cargo dev explorer` ou o serviço do Docker em `http://127.0.0.1:8545` | **pronto** |
 | M8 | carteira: cofre criptografado (Argon2id + ChaCha20-Poly1305), serviço, interface no tema do BRDC, app desktop Tauri v2 e daemon web (`cargo dev wallet-web`) | **pronto** |
-| M9 a M10 | contratos nativos, fechamento | planejado ([fases](docs/PHASES.md)) |
+| M9a | credenciais nativas (tipos 14 a 19): `brdu-credentials`, `cargo dev cred`, explorador e carteira | **pronto** |
+| M9b a M10 | bens, contratos declarativos, fechamento | planejado ([fases](docs/PHASES.md)) |
 
 ## Mapa de crates
 | Crate | Papel | Marco |
@@ -40,6 +41,7 @@
 | `tools/brdu-dev` | CLI de desenvolvimento: devnet local, carteira de teste, envio, mint, burn, reserva, consultas (`cargo dev`). | M5 |
 | `tools/brdu-sim` | simulador só de dev: equivocação de um validador de teste (a rede expõe a evidência). | M5b |
 | `tools/brdu-explorer` | explorador: réplica verificada + página web (tema BRDC) + API JSON somente leitura. | M7 |
+| `brdu-credentials` | credenciais: tipos com órgão M-de-N, janela de contestação, validade, veto, revogação (tipos 14 a 19). | M9a |
 | `brdu-vault` | cofre da frase de recuperação: Argon2id + ChaCha20-Poly1305, cabeçalho autenticado, passphrase nunca guardada. | M8 |
 | `brdu-walletd` | serviço da carteira (criar, importar, desbloquear, saldo, prévia e envio, histórico); a chave nunca sai do processo. | M8 |
 | `tools/brdu-web` | daemon web local da carteira (interface + `/rpc`), só loopback, Host e Origin conferidos; chaves de TESTE. | M8 |

@@ -10,6 +10,7 @@
 - **Importar exige confirmar o endereço:** `preview_import` mostra o endereço sem guardar nada; `import` só vale com o endereço confirmado (`address_mismatch` se diferir).
 - **Envio em dois passos:** `prepare_send` valida endereço (checksum), valor (formato brasileiro, sem ponto flutuante), saldo para **valor + taxa** e devolve a prévia (taxa, total, saldo depois); `confirm_send` assina e envia. A prévia é **de uso único**, expira em 5 minutos e some ao bloquear.
 - **Defesas:** bloqueio automático por inatividade (5 min); **limite de tentativas de senha** (5 erros e começa um bloqueio que dobra, até 60 s; vale também para exportar a frase e trocar a senha); exportar a frase exige a senha **de novo**.
+- **Remover a carteira do aparelho** (`forget`): sem senha (ela pode ter sido esquecida), mas com confirmação explícita; o cofre é **movido de lado**, nunca apagado. Só a frase de recuperação recupera o saldo depois.
 - **Daemon web:** escuta só em loopback (recusa outro endereço sem `--allow-remote`); confere `Host` e `Origin` (rebinding de DNS e requisições de outros sites); `/rpc` só aceita `application/json`, com limite de corpo; CSP estrita; sem CORS; respostas sem cache.
 
 ## Limites honestos

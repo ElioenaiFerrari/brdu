@@ -40,4 +40,10 @@ Começa com o que o M1 cobre e cresce a cada marco. Cada linha diz o que é miti
 | T30 | Enviar mais do que tem, ou sem cobrir a taxa | `prepare_send` confere valor + taxa; a rede confere de novo | — |
 | T31 | Frase espiada na tela | mostrada uma vez (e de novo só com a senha), campos limpos após o uso | quem vê a tela vê a frase |
 
+| T32 | Credencial falsa emitida sem o órgão | M aprovações **distintas** do órgão do tipo sobre o documento exato (rede, tipo, id, titular, dados, referência) | órgão comprometido (M chaves) emite o que quiser |
+| T33 | Aprovação do órgão reaproveitada para outra credencial, outro titular, outra rede ou outro dado | o documento inclui todos esses campos; o veto inclui a hora da emissão; a revogação inclui o motivo | — |
+| T34 | Tipo criado sem aval (um órgão falso) | só as autoridades raiz da gênese (M-de-N) criam tipos | autoridades em conluio |
+| T35 | Reemitir um id contestado, vetado ou revogado | o `cred_id` fica queimado para sempre | — |
+| T36 | Vazar dados pessoais na rede | credencial **privada**: só um compromisso de 32 bytes; o titular revela fora da rede | o endereço do titular e o fato de ter a credencial são públicos |
+
 Os itens do BRDC (T10 a T29: equivocação, mempool, laboratório, órgãos, contratos, explorador mentiroso…) entram com os marcos que os criam, reescritos para o Rust.
