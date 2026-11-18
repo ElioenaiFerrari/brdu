@@ -24,6 +24,7 @@ local network (processes)
   up [--dir net]                      starts the validators (logs in net/logs)
   down [--dir net]                    stops the validators
   explorer [stop] [--listen 127.0.0.1:8545] [--node 1]   opens the web explorer (re-verifies every block)
+  wallet-web [stop] [--listen 127.0.0.1:8546]   opens the wallet in the browser (TEST keys; vault in <dir>/wallet)
   stop N                              stops node N (simulated failure; frees its key)
   start N                             restarts node N (reads the log and syncs)
   reset [--dir net]                   stops and deletes the network (only the given folder)
@@ -124,6 +125,7 @@ fn main() {
         "down" => cmd_down(&a.dir()),
         "stop" => cmd_stop(&a),
         "explorer" => cmd_explorer(&a),
+        "wallet-web" => cmd_wallet_web(&a),
         "start" => cmd_start(&a),
         "equivocate" => cmd_equivocate(&a),
         "rotate" => cmd_rotate(&a),
@@ -343,6 +345,7 @@ fn cmd_down(dir: &Path) -> Result<(), String> {
     }
     let _ = fs::remove_file(&p);
     stop_explorer(dir);
+    stop_wallet_web(dir);
     println!("{n} validators stopped");
     Ok(())
 }
@@ -353,7 +356,13 @@ fn cmd_reset(dir: &Path) -> Result<(), String> {
     for sub in ["keys", "wallets", "data", "logs"] {
         let _ = fs::remove_dir_all(dir.join(sub));
     }
-    for f in ["devnet.json", "genesis.hex", "pids", "explorer.pid"] {
+    for f in [
+        "devnet.json",
+        "genesis.hex",
+        "pids",
+        "explorer.pid",
+        "wallet-web.pid",
+    ] {
         let _ = fs::remove_file(dir.join(f));
     }
     let _ = fs::remove_dir(dir);
@@ -1226,5 +1235,83 @@ fn cmd_explorer(a: &Args) -> Result<(), String> {
     fs::write(dir.join("explorer.pid"), child.id().to_string()).map_err(|e| e.to_string())?;
     println!("explorer at http://{listen}  (reading node {api}; every block is re-verified here)");
     println!("to stop: cargo dev explorer stop   (or cargo dev down)");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------- wallet in the browser
+
+fn stop_wallet_web(dir: &Path) {
+    if let Ok(pid) = fs::read_to_string(dir.join("wallet-web.pid")) {
+        let pid = pid.trim();
+        if !pid.is_empty() && pid.chars().all(|c| c.is_ascii_digit()) && pid != "0" {
+            let _ = Command::new("kill").arg(pid).status();
+        }
+        let _ = fs::remove_file(dir.join("wallet-web.pid"));
+    }
+}
+
+fn web_binary() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let bin = exe.with_file_name("brdu-web");
+    if !bin.exists() {
+        println!("building the wallet daemon (cargo build -p brdu-web)...");
+        let ok = Command::new("cargo")
+            .args(["build", "-q", "-p", "brdu-web"])
+            .status()
+            .map_err(|e| e.to_string())?
+            .success();
+        if !ok || !bin.exists() {
+            return Err("could not build brdu-web".into());
+        }
+    }
+    Ok(bin)
+}
+
+/// `wallet-web`: starts the local wallet daemon (background) pointed at a node and, if running, the explorer;
+/// `wallet-web stop` stops it. TEST keys only: they live in the daemon process.
+fn cmd_wallet_web(a: &Args) -> Result<(), String> {
+    let dir = a.dir();
+    if a.positional().first().map(String::as_str) == Some("stop") {
+        stop_wallet_web(&dir);
+        println!("wallet daemon stopped");
+        return Ok(());
+    }
+    let l = Layout::load(&dir)?;
+    let api = first_api(&l, a)?;
+    let listen = a.one("--listen").unwrap_or_else(|| "127.0.0.1:8546".into());
+    stop_wallet_web(&dir);
+    fs::create_dir_all(dir.join("wallet")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(dir.join("logs")).map_err(|e| e.to_string())?;
+    let log = fs::File::create(dir.join("logs/wallet-web.log")).map_err(|e| e.to_string())?;
+    let mut cmd = Command::new(web_binary()?);
+    cmd.args([
+        "--vault",
+        &dir.join("wallet/vault.json").to_string_lossy(),
+        "--node",
+        &api,
+        "--listen",
+        &listen,
+    ]);
+    let explorer = a
+        .one("--explorer")
+        .unwrap_or_else(|| "127.0.0.1:8545".into());
+    if http::get(&explorer, "/api/overview").is_ok() {
+        cmd.args(["--explorer", &explorer]);
+    } else {
+        println!(
+            "(no explorer at {explorer}: the history screen will be unavailable; start it with `cargo dev explorer`)"
+        );
+    }
+    let child = cmd
+        .stdin(Stdio::null())
+        .stdout(log.try_clone().map_err(|e| e.to_string())?)
+        .stderr(log)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    fs::write(dir.join("wallet-web.pid"), child.id().to_string()).map_err(|e| e.to_string())?;
+    println!(
+        "wallet at http://{listen}  (node {api}; TEST keys only: they live in the daemon process)"
+    );
+    println!("to stop: cargo dev wallet-web stop   (or cargo dev down)");
     Ok(())
 }

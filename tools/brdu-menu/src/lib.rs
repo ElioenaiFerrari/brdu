@@ -90,6 +90,20 @@ pub const CATALOG: &[Item] = &[
     ),
     it(
         "Local network (processes)",
+        "Open the web explorer (explorer)",
+        &["explorer"],
+        &[p("listen", Some("--listen"), "127.0.0.1:8545")],
+        true,
+    ),
+    it(
+        "Local network (processes)",
+        "Open the wallet in the browser (wallet-web)",
+        &["wallet-web"],
+        &[p("listen", Some("--listen"), "127.0.0.1:8546")],
+        true,
+    ),
+    it(
+        "Local network (processes)",
         "Stop all (down)",
         &["down"],
         &[],

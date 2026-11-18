@@ -41,3 +41,14 @@ test("letter effect: same character class, fixed spaces and punctuation, and the
   assert.ok(durationFor("x") >= 350 && durationFor("x".repeat(500)) <= 900);
   assert.ok(ease(0) === 0 && ease(1) === 1 && ease(0.5) > 0.5);
 });
+
+test("translations of API codes fall back to the raw value", async () => {
+  const { kindName, action, message } = await import("./i18n.js");
+  assert.equal(kindName("transfer"), "transferência");
+  assert.equal(kindName("something new"), "something new");
+  assert.equal(action("add"), "entrada");
+  assert.equal(action("remove"), "saída");
+  assert.equal(message("block not found"), "Bloco não encontrado.");
+  assert.equal(message("a message nobody translated"), "a message nobody translated");
+  assert.equal(message(undefined), "");
+});

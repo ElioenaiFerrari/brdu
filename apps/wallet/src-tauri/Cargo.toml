@@ -1,0 +1,23 @@
+[package]
+name = "brdu-wallet-app"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "BRDU desktop wallet (Tauri v2). Keys stay in the Rust process; the webview only sees public data."
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde_json = "1"
+brdu-walletd = { path = "../../../crates/brdu-walletd" }
+
+# this app has its own lockfile and target dir: Tauri pulls hundreds of crates the rest of the workspace does not need
+[workspace]
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

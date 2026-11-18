@@ -77,6 +77,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "argon2"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072"
+dependencies = [
+ "base64ct",
+ "blake2",
+ "cpufeatures 0.2.17",
+ "password-hash",
+]
+
+[[package]]
 name = "arrayvec"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -350,6 +362,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "brdu-vault"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "brdu-crypto",
+ "chacha20poly1305",
+ "getrandom 0.3.4",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
 name = "brdu-wallet"
 version = "0.1.0"
 dependencies = [
@@ -363,6 +390,33 @@ dependencies = [
  "sha2",
  "thiserror 2.0.21",
  "zeroize",
+]
+
+[[package]]
+name = "brdu-walletd"
+version = "0.1.0"
+dependencies = [
+ "brdu-chain",
+ "brdu-crypto",
+ "brdu-explorer",
+ "brdu-ledger",
+ "brdu-node",
+ "brdu-vault",
+ "brdu-wallet",
+ "getrandom 0.3.4",
+ "serde_json",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
+name = "brdu-web"
+version = "0.1.0"
+dependencies = [
+ "brdu-vault",
+ "brdu-walletd",
+ "serde_json",
+ "tiny_http",
 ]
 
 [[package]]
@@ -1335,6 +1389,17 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
+]
+
+[[package]]
+name = "password-hash"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
+dependencies = [
+ "base64ct",
+ "rand_core 0.6.4",
+ "subtle",
 ]
 
 [[package]]

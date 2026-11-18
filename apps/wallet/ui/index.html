@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Carteira BRDU</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/wallet.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#0d1210" stroke="#00a651" stroke-width="2"/><path d="M9 20 16 7l7 13z" fill="#ffdf00"/><circle cx="16" cy="19" r="4" fill="#2f6bff"/></svg>
+      <span class="brand-name" data-decrypt>BRDU</span><span class="brand-sub">carteira</span>
+    </div>
+    <button id="lock" class="ghost small" type="button" hidden>Bloquear</button>
+  </header>
+  <main id="main" tabindex="-1"></main>
+  <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

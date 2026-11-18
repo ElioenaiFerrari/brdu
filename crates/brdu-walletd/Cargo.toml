@@ -1,0 +1,25 @@
+[package]
+name = "brdu-walletd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Wallet service shared by the desktop app and the web daemon: vault, unlock, balance, send, history. Keys never leave this process."
+
+[dependencies]
+brdu-crypto.workspace = true
+brdu-wallet.workspace = true
+brdu-vault.workspace = true
+brdu-ledger.workspace = true
+serde_json.workspace = true
+getrandom.workspace = true
+thiserror = { workspace = true, features = ["std"] }
+zeroize.workspace = true
+
+[dev-dependencies]
+brdu-node.workspace = true
+brdu-chain.workspace = true
+brdu-explorer = { path = "../../tools/brdu-explorer" }
+
+[lints]
+workspace = true

@@ -2,6 +2,7 @@
 // with safe DOM (textContent): no node data ever becomes HTML.
 import { installEffects } from "./effects.js";
 import { splitAmount, shortHash, shortAddr, ago, when } from "./format.js";
+import { kindName, action, message } from "./i18n.js";
 
 const $ = (s) => document.querySelector(s);
 const main = $("#main");

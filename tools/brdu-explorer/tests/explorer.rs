@@ -299,12 +299,33 @@ fn explorer_syncs_reverifies_indexes_and_serves() {
             && !html.contains("style="),
         "nothing inline"
     );
+    // every module the UI imports must actually be served (a missing one leaves a blank page)
+    let ui_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("ui");
+    for entry in std::fs::read_dir(&ui_dir).unwrap().flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.ends_with(".js") {
+            continue;
+        }
+        let text = std::fs::read_to_string(entry.path()).unwrap();
+        for imported in text
+            .lines()
+            .filter_map(|l| l.split("from \"./").nth(1))
+            .filter_map(|r| r.split('"').next())
+        {
+            assert_eq!(
+                get(addr, &format!("/{imported}")).0,
+                200,
+                "{name} imports ./{imported}, which the server does not serve"
+            );
+        }
+    }
     for asset in [
         "/app.css",
         "/app.js",
         "/scramble.js",
         "/format.js",
         "/effects.js",
+        "/i18n.js",
         "/favicon.svg",
     ] {
         assert_eq!(get(addr, asset).0, 200, "{asset}");
@@ -437,9 +458,15 @@ fn pure_ui_passes_node_tests() {
         eprintln!("node not found: UI tests skipped");
         return;
     }
-    let file = concat!(env!("CARGO_MANIFEST_DIR"), "/ui/ui.test.mjs");
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/ui");
+    // the smoke test runs the real app.js on every page; app.js polls forever, hence --test-force-exit
     let out = Command::new("node")
-        .args(["--test", file])
+        .args([
+            "--test",
+            "--test-force-exit",
+            &format!("{dir}/ui.test.mjs"),
+            &format!("{dir}/smoke.test.mjs"),
+        ])
         .output()
         .unwrap();
     assert!(

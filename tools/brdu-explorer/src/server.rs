@@ -25,6 +25,7 @@ const JS: &str = include_str!("../ui/app.js");
 const SCRAMBLE: &str = include_str!("../ui/scramble.js");
 const FORMAT: &str = include_str!("../ui/format.js");
 const EFFECTS: &str = include_str!("../ui/effects.js");
+const I18N: &str = include_str!("../ui/i18n.js");
 const FAVICON: &str = include_str!("../ui/favicon.svg");
 
 /// Starts the server (4 threads). Returns the actual address and the threads.
@@ -99,6 +100,7 @@ fn handle(req: Request, shared: &Shared) {
         "/scramble.js" => send(req, 200, js, SCRAMBLE.into(), "no-cache"),
         "/format.js" => send(req, 200, js, FORMAT.into(), "no-cache"),
         "/effects.js" => send(req, 200, js, EFFECTS.into(), "no-cache"),
+        "/i18n.js" => send(req, 200, js, I18N.into(), "no-cache"),
         "/favicon.svg" => send(req, 200, "image/svg+xml", FAVICON.into(), "no-cache"),
         p if p.starts_with("/api/") => {
             let (code, body) = shared.read().map_or((503, json!({"error": "busy"})), |e| {
