@@ -1,0 +1,20 @@
+[package]
+name = "brdu-nodebin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "O binário do validador do BRDU: keygen, genesis, run."
+
+[[bin]]
+name = "brdu-node"
+path = "src/main.rs"
+
+[dependencies]
+brdu-crypto.workspace = true
+brdu-chain.workspace = true
+brdu-node.workspace = true
+getrandom.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,19 @@
+[package]
+name = "brdu-p2p"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Transporte entre validadores do BRDU: Noise XX ligado à chave de consenso, sessão cifrada, limites e registros de endereço assinados."
+
+[dependencies]
+brdu-crypto.workspace = true
+thiserror = { workspace = true, features = ["std"] }
+snow = "0.10"
+zeroize.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

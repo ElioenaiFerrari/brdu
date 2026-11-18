@@ -1,0 +1,293 @@
+//! API HTTP (JSON). Só leitura, exceto `POST /tx`, que leva uma transação **já assinada**: o nó nunca tem chave
+//! de usuário.
+
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::sync::mpsc::{Sender, channel};
+use std::thread::JoinHandle;
+use std::time::Duration;
+
+use brdu_crypto::{Address, Hash32, hex};
+use brdu_ledger::{Coverage, Tx};
+use serde_json::{Value, json};
+use tiny_http::{Header, Method, Request, Response, Server};
+
+use crate::core::Input;
+use crate::node::Shared;
+
+const WORKERS: usize = 4;
+const MAX_BODY: usize = 128 * 1024;
+
+/// Verifica e envia uma transação ao núcleo. A assinatura é conferida **na thread de quem chama** (em paralelo).
+pub fn submit_raw(shared: &Shared, core: &Sender<Input>, raw: &[u8]) -> Result<Hash32, String> {
+    let tx = Tx::decode(raw).map_err(|e| e.to_string())?;
+    tx.verify().map_err(|e| e.to_string())?;
+    let (reply, rx) = channel();
+    core.send(Input::Tx {
+        tx,
+        from: None,
+        reply: Some(reply),
+    })
+    .map_err(|_| "node stopped".to_string())?;
+    let _ = shared;
+    rx.recv_timeout(Duration::from_secs(10))
+        .map_err(|_| "timeout".to_string())?
+}
+
+/// Sobe as threads da API.
+pub fn spawn(
+    addr: SocketAddr,
+    shared: Arc<Shared>,
+    core: Sender<Input>,
+) -> std::io::Result<(Vec<JoinHandle<()>>, SocketAddr)> {
+    let server = Arc::new(Server::http(addr).map_err(|e| std::io::Error::other(e.to_string()))?);
+    let bound = server
+        .server_addr()
+        .to_ip()
+        .ok_or_else(|| std::io::Error::other("no ip"))?;
+    let handles = (0..WORKERS)
+        .map(|_| {
+            let (server, shared, core) = (server.clone(), shared.clone(), core.clone());
+            std::thread::spawn(move || {
+                while !shared.stop.load(Ordering::SeqCst) {
+                    match server.recv_timeout(Duration::from_millis(200)) {
+                        Ok(Some(req)) => handle(req, &shared, &core),
+                        Ok(None) => {}
+                        Err(_) => break,
+                    }
+                }
+            })
+        })
+        .collect();
+    Ok((handles, bound))
+}
+
+fn respond(req: Request, code: u16, body: &Value) {
+    let mut r = Response::from_string(body.to_string()).with_status_code(code);
+    if let Ok(h) = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]) {
+        r = r.with_header(h);
+    }
+    if let Ok(h) = Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]) {
+        r = r.with_header(h);
+    }
+    let _ = req.respond(r);
+}
+
+fn handle(mut req: Request, shared: &Shared, core: &Sender<Input>) {
+    let url = req.url().to_string();
+    let (path, query) = url.split_once('?').unwrap_or((url.as_str(), ""));
+    let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
+    let method = req.method().clone();
+    if method == Method::Post && parts == ["tx"] {
+        let mut body = Vec::new();
+        let _ = std::io::Read::read_to_end(
+            &mut std::io::Read::take(req.as_reader(), MAX_BODY as u64 + 1),
+            &mut body,
+        );
+        if body.len() > MAX_BODY {
+            return respond(req, 413, &json!({"error": "body too large"}));
+        }
+        let text = String::from_utf8_lossy(&body);
+        let Some(raw) = hex::decode(text.trim()) else {
+            return respond(
+                req,
+                400,
+                &json!({"error": "body must be the hex of an encoded transaction"}),
+            );
+        };
+        return match submit_raw(shared, core, &raw) {
+            Ok(id) => respond(req, 200, &json!({"id": id.to_hex()})),
+            Err(e) => respond(req, 400, &json!({"error": e})),
+        };
+    }
+    if method != Method::Get {
+        return respond(req, 405, &json!({"error": "method not allowed"}));
+    }
+    let (code, body) = route(&parts, query, shared);
+    respond(req, code, &body);
+}
+
+fn q(query: &str, key: &str) -> Option<u64> {
+    query.split('&').find_map(|kv| {
+        kv.strip_prefix(&format!("{key}="))
+            .and_then(|v| v.parse().ok())
+    })
+}
+
+fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
+    let Ok(chain) = shared.chain.lock() else {
+        return (503, json!({"error": "busy"}));
+    };
+    let rules = chain.executor().rules();
+    match parts {
+        ["status"] | [""] => {
+            let info = shared.info.lock();
+            let (peers, pool, pool_bytes, running, evidence, net_errors) =
+                info.map_or((0, 0, 0, false, 0, Vec::new()), |i| {
+                    (
+                        i.peers.len(),
+                        i.pool_len,
+                        i.pool_bytes,
+                        i.engine_running,
+                        i.evidence.len(),
+                        i.net_errors.clone(),
+                    )
+                });
+            (
+                200,
+                json!({
+                    "chain_id": chain.genesis().chain_id,
+                    "genesis_hash": chain.genesis_hash().to_hex(),
+                    "height": chain.height(),
+                    "epoch": chain.epoch(),
+                    "tip": chain.state().last_hash().map(|h| h.to_hex()),
+                    "state_root": chain.state().root().to_hex(),
+                    "validators": chain.validators().iter().map(|k| Address::from_public_key(k).encode()).collect::<Vec<_>>(),
+                    "me": Address::from_public_key(&shared.me).encode(),
+                    "peers": peers, "mempool": pool, "mempool_bytes": pool_bytes,
+                    "consensus_running": running, "evidence": evidence, "net_errors": net_errors,
+                    "issuer_threshold": rules.issuer_threshold(),
+                }),
+            )
+        }
+        ["validators"] => {
+            let set = chain.validators();
+            let pending = chain.pending_change().map(|p| {
+                json!({
+                    "action": if p.action == brdu_ledger::gov::Action::Add { "add" } else { "remove" },
+                    "validator": Address::from_public_key(&p.key).encode(),
+                    "effective_height": p.effective_height,
+                })
+            });
+            (
+                200,
+                json!({
+                    "epoch": chain.epoch(),
+                    "validators": set.iter().map(|k| Address::from_public_key(k).encode()).collect::<Vec<_>>(),
+                    "pending": pending,
+                    "me_in_set": set.contains(&shared.me),
+                }),
+            )
+        }
+        ["supply"] => {
+            let s = chain.state();
+            let cov = match s.coverage() {
+                Coverage::None => json!({"state": "none"}),
+                Coverage::Covered(x) => json!({"state": "covered", "surplus": x}),
+                Coverage::Under(x) => json!({"state": "under", "shortfall": x}),
+            };
+            (
+                200,
+                json!({
+                    "minted": s.minted(), "burned": s.burned(), "supply": s.supply(),
+                    "reserve": s.attestation().map(|a| a.reserve), "attestation_seq": s.attestation().map(|a| a.seq),
+                    "coverage": cov, "unit": "ypy (1 BRDU = 1.000.000)",
+                }),
+            )
+        }
+        ["fees"] => (
+            200,
+            json!({"transfer_base": rules.transfer_base, "per_byte": rules.per_byte, "max_block_txs": rules.max_block_txs, "max_block_bytes": rules.max_block_bytes}),
+        ),
+        ["account", addr] => match Address::decode(addr) {
+            Ok(a) => (
+                200,
+                json!({"address": a.encode(), "balance": chain.state().balance(&a), "nonce": chain.state().nonce(&a)}),
+            ),
+            Err(_) => (400, json!({"error": "invalid address"})),
+        },
+        ["block", h] => match h
+            .parse::<u64>()
+            .ok()
+            .filter(|h| *h >= 1)
+            .and_then(|h| chain.blocks().get(usize::try_from(h - 1).ok()?))
+        {
+            Some(d) => (200, block_json(d, true)),
+            None => (404, json!({"error": "no such block"})),
+        },
+        ["blocks"] => {
+            let from = q(query, "from").unwrap_or(1).max(1);
+            let limit = q(query, "limit").unwrap_or(20).min(100);
+            let list: Vec<Value> = chain
+                .blocks_after(from - 1)
+                .iter()
+                .take(usize::try_from(limit).unwrap_or(20))
+                .map(|d| block_json(d, false))
+                .collect();
+            (200, json!({"height": chain.height(), "blocks": list}))
+        }
+        ["tx", id] => {
+            let Some(raw) = hex::decode_array::<32>(id) else {
+                return (400, json!({"error": "invalid id"}));
+            };
+            let id = Hash32(raw);
+            let height = shared
+                .info
+                .lock()
+                .ok()
+                .and_then(|i| i.tx_index.get(&id).copied());
+            match height.and_then(|h| chain.blocks().get(usize::try_from(h - 1).ok()?)) {
+                Some(d) => match d.block.txs.iter().find(|t| t.id() == id) {
+                    Some(t) => (
+                        200,
+                        json!({"id": id.to_hex(), "height": d.block.height, "tx": tx_json(t)}),
+                    ),
+                    None => (404, json!({"error": "not found"})),
+                },
+                None => (404, json!({"error": "not found"})),
+            }
+        }
+        ["evidence"] => {
+            let ev = shared
+                .info
+                .lock()
+                .map(|i| i.evidence.clone())
+                .unwrap_or_default();
+            let list: Vec<Value> = ev
+                .iter()
+                .map(|(a, b)| {
+                    json!({"voter": Address::from_public_key(&a.voter).encode(), "height": a.height, "round": a.round,
+                           "a": a.block_hash.map(|h| h.to_hex()), "b": b.block_hash.map(|h| h.to_hex())})
+                })
+                .collect();
+            (200, json!({"evidence": list}))
+        }
+        ["metrics"] => {
+            let st = &shared.stats;
+            let g = |a: &std::sync::atomic::AtomicU64| a.load(Ordering::Relaxed);
+            (
+                200,
+                json!({
+                    "txs_accepted": g(&st.txs_accepted), "txs_rejected": g(&st.txs_rejected), "txs_duplicate": g(&st.txs_duplicate),
+                    "txs_relayed": g(&st.txs_relayed), "blocks": g(&st.blocks), "extra_rounds": g(&st.extra_rounds), "msgs_in": g(&st.msgs_in),
+                }),
+            )
+        }
+        _ => (404, json!({"error": "not found"})),
+    }
+}
+
+fn tx_json(t: &Tx) -> Value {
+    json!({
+        "id": t.id().to_hex(), "kind": t.kind, "sender": t.sender_address().encode(),
+        "nonce": t.nonce, "fee": t.fee, "size": t.size(),
+    })
+}
+
+fn block_json(d: &brdu_chain::DecidedBlock, full: bool) -> Value {
+    let b = &d.block;
+    let mut v = json!({
+        "height": b.height, "time": b.time, "hash": b.hash().to_hex(),
+        "prev_hash": b.prev_hash.map(|h| h.to_hex()), "proposer": b.proposer.encode(),
+        "state_root": b.state_root.to_hex(), "tx_count": b.txs.len(), "round": d.cert.round,
+        "signed_by": d.cert.signers().iter().map(|k| Address::from_public_key(k).encode()).collect::<Vec<_>>(),
+    });
+    if full && let Some(o) = v.as_object_mut() {
+        o.insert(
+            "txs".into(),
+            Value::Array(b.txs.iter().map(tx_json).collect()),
+        );
+    }
+    v
+}

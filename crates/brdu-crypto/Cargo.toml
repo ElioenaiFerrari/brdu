@@ -1,0 +1,28 @@
+[package]
+name = "brdu-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Primitivas do BRDU: hash SHA3-256 com prefixo de domínio, Ed25519, endereços bech32m, codificação determinística, valores com 6 casas e Merkle. no_std + alloc."
+
+[features]
+default = []
+# verificação de assinaturas em lote (usa o gerador de números aleatórios do sistema, então precisa de std)
+batch = ["ed25519-dalek/batch"]
+
+[dependencies]
+sha3.workspace = true
+ed25519-dalek.workspace = true
+bech32.workspace = true
+zeroize.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

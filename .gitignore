@@ -1,0 +1,25 @@
+# build
+/target/
+**/*.rs.bk
+
+# redes de teste locais e laboratório Docker (chaves de TESTE, dados, .env gerados por `cargo dev …`)
+/net/
+/dev/
+/compose/
+/testnet/
+*.seed
+*.key
+.env
+
+# Tauri
+/apps/*/src-tauri/target/
+/apps/*/src-tauri/gen/
+
+# diagramas gerados
+__pycache__/
+*.pyc
+
+# editores e sistema
+.DS_Store
+.idea/
+.vscode/

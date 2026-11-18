@@ -1,0 +1,66 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/brdu-crypto",
+    "crates/brdu-wallet",
+    "crates/brdu-ledger",
+    "crates/brdu-bft",
+    "crates/brdu-p2p",
+    "crates/brdu-chain",
+    "crates/brdu-node",
+    "tools/brdu-nodebin",
+    "tools/brdu-dev",
+    "tools/brdu-sim",
+    "tools/brdu-menu",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+# cripto (RustCrypto): sem recursos desnecessários, para compilar também em no_std
+sha3 = { version = "0.10", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+hmac = { version = "0.12", default-features = false }
+ed25519-dalek = { version = "2", default-features = false, features = ["alloc", "zeroize", "fast", "rand_core"] }
+bech32 = { version = "0.11", default-features = false, features = ["alloc"] }
+bip39 = { version = "2", default-features = false, features = ["zeroize"] }
+zeroize = { version = "1", default-features = false, features = ["alloc", "derive"] }
+subtle = { version = "2", default-features = false }
+thiserror = { version = "2", default-features = false }
+getrandom = { version = "0.3", default-features = false }
+proptest = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# crates internas
+brdu-crypto = { path = "crates/brdu-crypto" }
+brdu-wallet = { path = "crates/brdu-wallet" }
+brdu-ledger = { path = "crates/brdu-ledger" }
+brdu-bft = { path = "crates/brdu-bft" }
+brdu-p2p = { path = "crates/brdu-p2p" }
+brdu-chain = { path = "crates/brdu-chain" }
+brdu-node = { path = "crates/brdu-node" }
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+
+[profile.release]
+codegen-units = 1
+debug = false
+strip = true
+lto = "thin"
+
+# Disco: o target de debug do Teko chegou a 71 GiB. Só tabelas de linha (backtrace útil, sem DWARF completo) e
+# dependências otimizadas (a criptografia roda 10x mais rápido nos testes).
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = false

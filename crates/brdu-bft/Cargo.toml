@@ -1,0 +1,17 @@
+[package]
+name = "brdu-bft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Consenso BFT do BRDU (estilo Tendermint, poder igual): motor sem E/S, votos, propostas e certificado de commit."
+
+[dependencies]
+brdu-crypto.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

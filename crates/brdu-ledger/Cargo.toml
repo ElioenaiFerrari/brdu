@@ -1,0 +1,20 @@
+[package]
+name = "brdu-ledger"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Livro-razão do BRDU: transações assinadas, estado determinístico com raiz de Merkle, blocos atômicos, taxas e a moeda (transferência, mint/burn M-de-N, atestado de reserva)."
+
+[dependencies]
+brdu-crypto.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+brdu-wallet.workspace = true
+
+[lints]
+workspace = true
