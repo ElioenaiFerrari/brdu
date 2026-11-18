@@ -95,8 +95,24 @@
 | **Nó que mente é recusado e denunciado:** bloco adulterado, fora de ordem e outra gênese não entram (`rejected_blocks`); o honesto entra inteiro | `explorer.rs` |
 | Interface pura: valor em unidades mínimas sem ponto flutuante (64 bits), hashes e endereços encurtados, tempo relativo, efeito de letras (classe do caractere, espaços fixos, termina no texto real) | `tools/brdu-explorer/ui/ui.test.mjs` (via `node --test`, chamado pelo teste Rust) |
 
+## M8 · carteira (pronto)
+| Invariante | Teste |
+|---|---|
+| Cofre: ida e volta; senha errada recusada; **adulterar qualquer campo** (endereço, KDF, sal, nonce, cifrado) quebra a autenticação; parâmetros hostis recusados antes do hash; texto cifrado não contém a frase | `crates/brdu-vault/tests/vault.rs` |
+| A frase aparece **uma vez**; o cofre é 0600 e não a contém; `create` nunca sobrescreve | `crates/brdu-walletd/tests/wallet.rs` |
+| A **passphrase nunca é guardada**; passphrase errada detectada pelo endereço | `wallet.rs` |
+| Importar só com o **endereço confirmado** (`address_mismatch`); frase inválida e checksum ruim recusados; a prévia não guarda nada | `wallet.rs` |
+| Exportar a frase e trocar a senha exigem a senha de novo; a senha velha deixa de valer; bloqueada, nada funciona | `wallet.rs` |
+| Bloqueio por **inatividade**; **limite de tentativas** com espera que dobra (a senha certa não o fura); vale também para exportar e trocar | `wallet.rs` |
+| Contra uma rede real: saldo, prévia (taxa, total, saldo depois), valor e endereço inválidos, saldo que não cobre a taxa, envio de **uso único**, prévia some ao bloquear, histórico pelo explorador | `wallet.rs` |
+| A interface JSON roteia, valida parâmetros e **nunca devolve senha ou passphrase** | `wallet.rs`, `tools/brdu-web/tests/web.rs` |
+| Daemon: CSP estrita, sem CORS, **todo módulo importado é servido**, caminhos fora da lista dão 404 | `web.rs` |
+| Daemon: **Host falso (rebinding), Origin de outro site, `text/plain`/form, método errado, JSON ruim e corpo grande são recusados** | `web.rs` |
+| Interface: valores sem ponto flutuante (64 bits), `1.5` recusado, teclado só produz valores válidos (fuzz), erros em pt-BR | `apps/wallet/ui/ui.test.mjs` |
+| Interface: fluxos completos com o `app.js` real (criar, enviar com prévia, importar com confirmação, desbloquear com campo limpo, histórico, ajustes, serviço fora do ar) | `apps/wallet/ui/smoke.test.mjs` |
+
 ## Planejado por marco
-M6 limites do Docker e carga; M8 carteira; M9 contratos.
+M6 limites do Docker e carga; M9 contratos.
 
 ## Limites honestos
 Implementações sobre bibliotecas RustCrypto (`ed25519-dalek`, `sha3`, `bip39`, `bech32`), **sem auditoria**. Os vetores do BRDC provam a compatibilidade com o BRDC, não a correção absoluta.

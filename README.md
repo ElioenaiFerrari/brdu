@@ -22,7 +22,8 @@
 | M5b | rotação de validadores (tipo 22, ADR-0015), simuladores (`equivocate`, `rotate`, `blocks-sim`, `stop/start`), `cargo dev docs-check` e `check`, menu `cargo menu` | **pronto** |
 | M6 | Docker: imagem única, `cargo dev compose`, `cargo dev load` ([resultados](docs/LOAD-RESULTS.md): ~2.000 tx/s a 0,5 CPU, 2,5 MiB em repouso) | **pronto** |
 | M7 | explorador web (tema do BRDC) que **reverifica cada bloco**: `cargo dev explorer` ou o serviço do Docker em `http://127.0.0.1:8545` | **pronto** |
-| M8 a M10 | carteira Tauri, contratos, fechamento | planejado ([fases](docs/PHASES.md)) |
+| M8 | carteira: cofre criptografado (Argon2id + ChaCha20-Poly1305), serviço, interface no tema do BRDC, app desktop Tauri v2 e daemon web (`cargo dev wallet-web`) | **pronto** |
+| M9 a M10 | contratos nativos, fechamento | planejado ([fases](docs/PHASES.md)) |
 
 ## Mapa de crates
 | Crate | Papel | Marco |
@@ -39,12 +40,16 @@
 | `tools/brdu-dev` | CLI de desenvolvimento: devnet local, carteira de teste, envio, mint, burn, reserva, consultas (`cargo dev`). | M5 |
 | `tools/brdu-sim` | simulador só de dev: equivocação de um validador de teste (a rede expõe a evidência). | M5b |
 | `tools/brdu-explorer` | explorador: réplica verificada + página web (tema BRDC) + API JSON somente leitura. | M7 |
+| `brdu-vault` | cofre da frase de recuperação: Argon2id + ChaCha20-Poly1305, cabeçalho autenticado, passphrase nunca guardada. | M8 |
+| `brdu-walletd` | serviço da carteira (criar, importar, desbloquear, saldo, prévia e envio, histórico); a chave nunca sai do processo. | M8 |
+| `tools/brdu-web` | daemon web local da carteira (interface + `/rpc`), só loopback, Host e Origin conferidos; chaves de TESTE. | M8 |
+| `brdu-wallet-app` | app desktop Tauri v2 (`apps/wallet/src-tauri`), mesma interface (`apps/wallet/ui`); fora do workspace, com lockfile próprio. | M8 |
 | `tools/brdu-menu` | menu de desenvolvimento com setas (ratatui) sobre o `brdu-dev`; só dev. | M5b |
 
 ## Início rápido
 ```
-cargo test --workspace      # 160 testes: RFC 8032, vetores e transações do BRDC, consenso, propriedades
-cargo dev init && cargo dev up   # 4 validadores locais (depois: cargo dev wallet new alice, cargo dev fund alice 1000…)
+cargo test --workspace      # 230 testes (Rust + JS): RFC 8032, vetores e transações do BRDC, consenso, propriedades
+cargo dev init && cargo dev up   # 4 validadores locais (+ cargo dev explorer, cargo dev wallet-web) (depois: cargo dev wallet new alice, cargo dev fund alice 1000…)
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 Requisitos: Rust 1.100 (`rust-toolchain.toml`). Para a carteira desktop (M8): `cargo install tauri-cli --version "^2"`.

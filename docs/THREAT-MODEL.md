@@ -33,4 +33,11 @@ Começa com o que o M1 cobre e cresce a cada marco. Cada linha diz o que é miti
 | T24 | Validador equivoca (vota em dois blocos) | evidência assinada exposta em `/evidence` (3 de 3 nos testes) | sem stake não há penalidade: a resposta é a rotação |
 | T25 | Nó que saiu (ou ainda não entrou) abre conexões | política de conexão dinâmica: conjunto ∪ chave de entrada pendente; pares removidos são derrubados | a chave que está para entrar pode conectar como observador antes de valer |
 
+| T26 | Roubo do arquivo do cofre | Argon2id (64 MiB, 3 passes) + ChaCha20-Poly1305; sem a senha só resta força bruta | senha fraca cai; sem auditoria |
+| T27 | Força bruta na senha pela interface | limite de tentativas com espera que dobra (até 60 s), também ao exportar a frase e trocar a senha | quem tem o arquivo ataca offline (Argon2id encarece) |
+| T28 | Página de outro site (ou rebinding de DNS) usa o daemon web | só loopback, `Host` e `Origin` conferidos, `/rpc` só `application/json`, sem CORS, CSP estrita | as chaves vivem no processo do daemon: **só chaves de teste** |
+| T29 | Endereço com erro de digitação ou colado errado | checksum bech32m recusa; a prévia mostra o endereço completo e a tela de importar exige confirmá-lo | trocar um endereço válido por outro válido (malware na área de transferência) não é detectável |
+| T30 | Enviar mais do que tem, ou sem cobrir a taxa | `prepare_send` confere valor + taxa; a rede confere de novo | — |
+| T31 | Frase espiada na tela | mostrada uma vez (e de novo só com a senha), campos limpos após o uso | quem vê a tela vê a frase |
+
 Os itens do BRDC (T10 a T29: equivocação, mempool, laboratório, órgãos, contratos, explorador mentiroso…) entram com os marcos que os criam, reescritos para o Rust.

@@ -11,6 +11,7 @@
 8. [Rotação de validadores](flows/08-validator-rotation.md) (M5b)
 9. [Simuladores, `docs-check` e menu de desenvolvimento](flows/09-simulators-docs-check-and-menu.md) (M5b)
 10. [O explorador](flows/10-explorer.md) (M7)
+11. [A carteira](flows/11-wallet.md) (M8)
 
 Os demais chegam com os marcos (o BRDC tem 24 fluxos que serão reescritos aqui).
 

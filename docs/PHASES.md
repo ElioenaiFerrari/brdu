@@ -12,6 +12,6 @@ Cada marco só começa com o anterior verde (`cargo fmt`, `clippy -D warnings`, 
 | **M5b** | **rotação de validadores** (ADR-0015), simuladores (equivocação, blocos sob demanda, queda de nó), `docs-check` em Rust, menu TUI | `teko-dev`, `devnet-sim`, ADR-0045 do Teko | **pronto** |
 | **M6** | Docker: imagem única, `compose`, **teste de carga preciso** (equivocação no M5b) | ADR-0028 e fluxos 22 a 24 do BRDC | **pronto** ([resultados](LOAD-RESULTS.md)) |
 | **M7** | Explorador: índice no nó, página, `blocks`/`tx`, certificado conferido | `teko-explorer`, `explorer-server` | planejado |
-| M8 | Carteira: cofre, app Tauri, `brdu-web` para navegador e Docker | `apps/suite` do Teko | planejado |
+| **M8** | Carteira: cofre, app Tauri, `brdu-web` para navegador e Docker | `apps/suite` do Teko | planejado |
 | M9 | Contratos nativos: bens, credenciais, contratos entre partes; órgãos M-de-N | `teko-assets`, `teko-credentials`, porte do BRDC | planejado |
 | M10 | Fechamento: ameaças, matriz de testes, revisão, **comparativo Rust × Elixir** com a mesma escada de carga | — | planejado |
