@@ -1,0 +1,10 @@
+target
+net
+compose
+dev
+testnet
+.git
+*.key
+*.mnemonic
+node_modules
+apps/*/src-tauri/target
