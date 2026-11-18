@@ -43,9 +43,12 @@ test("letter effect: same character class, fixed spaces and punctuation, and the
 });
 
 test("translations of API codes fall back to the raw value", async () => {
-  const { kindName, action, message } = await import("./i18n.js");
+  const { kindName, action, message, status } = await import("./i18n.js");
   assert.equal(kindName("transfer"), "transferência");
   assert.equal(kindName("something new"), "something new");
+  assert.equal(kindName("credential issue"), "emissão de credencial");
+  assert.equal(status("active"), "ativa");
+  assert.equal(status("odd"), "odd");
   assert.equal(action("add"), "entrada");
   assert.equal(action("remove"), "saída");
   assert.equal(message("block not found"), "Bloco não encontrado.");

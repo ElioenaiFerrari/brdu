@@ -19,6 +19,7 @@ zeroize.workspace = true
 [dev-dependencies]
 brdu-node.workspace = true
 brdu-chain.workspace = true
+brdu-credentials.workspace = true
 brdu-explorer = { path = "../../tools/brdu-explorer" }
 
 [lints]

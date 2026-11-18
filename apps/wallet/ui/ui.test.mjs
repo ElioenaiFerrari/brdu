@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseAmount, splitAmount, formatFull, pressKey, display, typedToAmount } from "./money.js";
-import { errorText } from "./i18n.js";
+import { errorText, statusText } from "./i18n.js";
 
 test("amounts are parsed in the Brazilian format and never as floating point", () => {
   assert.equal(parseAmount("12,5"), 12_500_000n);
@@ -61,4 +61,10 @@ test("error codes are shown in Portuguese, unknown ones fall back to the raw tex
   assert.equal(errorText("insufficient_funds").startsWith("Saldo insuficiente"), true);
   assert.equal(errorText("brand_new_code", "details"), "details");
   assert.equal(errorText("brand_new_code"), "Erro inesperado.");
+});
+
+test("credential statuses are shown in Portuguese", () => {
+  assert.equal(statusText("pending"), "pendente");
+  assert.equal(statusText("revoked"), "revogada");
+  assert.equal(statusText("something"), "something");
 });

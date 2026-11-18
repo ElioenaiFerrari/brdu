@@ -1,6 +1,7 @@
 //! `cargo dev …`: the BRDU development CLI. **Dev only**: TEST keys and phrases in plain text.
 
 mod compose;
+mod cred;
 mod docs_check;
 mod http;
 mod load;
@@ -20,10 +21,11 @@ use serde_json::Value;
 const HELP: &str = "cargo dev <command>
 
 local network (processes)
-  init [--dir net] [--nodes 4] [--spare 0] [--issuers 3] [--threshold 2] [--chain brdu-devnet] [--port-base 7100]   creates keys and genesis
+  init [--dir net] [--nodes 4] [--spare 0] [--issuers 3] [--threshold 2] [--chain brdu-devnet] [--port-base 7100] [--min-window 60]   creates keys and genesis
   up [--dir net]                      starts the validators (logs in net/logs)
   down [--dir net]                    stops the validators
   explorer [stop] [--listen 127.0.0.1:8545] [--node 1]   opens the web explorer (re-verifies every block)
+  cred <command>                      credentials (types, issue, contest, veto, activate, revoke, list); see `cargo dev cred`
   wallet-web [stop] [--listen 127.0.0.1:8546]   opens the wallet in the browser (TEST keys; vault in <dir>/wallet)
   stop N                              stops node N (simulated failure; frees its key)
   start N                             restarts node N (reads the log and syncs)
@@ -69,34 +71,34 @@ fn die(msg: &str) -> ! {
     std::process::exit(1)
 }
 
-struct Args(Vec<String>);
+pub(crate) struct Args(pub(crate) Vec<String>);
 
 impl Args {
-    fn one(&self, flag: &str) -> Option<String> {
+    pub(crate) fn one(&self, flag: &str) -> Option<String> {
         self.0
             .iter()
             .position(|a| a == flag)
             .and_then(|i| self.0.get(i + 1).cloned())
     }
-    fn need(&self, flag: &str) -> String {
+    pub(crate) fn need(&self, flag: &str) -> String {
         self.one(flag)
             .unwrap_or_else(|| die(&format!("missing {flag}")))
     }
-    fn dir(&self) -> PathBuf {
+    pub(crate) fn dir(&self) -> PathBuf {
         PathBuf::from(
             self.one("--dir")
                 .or_else(|| std::env::var("BRDU_DIR").ok())
                 .unwrap_or_else(|| "net".into()),
         )
     }
-    fn num<T: std::str::FromStr>(&self, flag: &str, default: T) -> T {
+    pub(crate) fn num<T: std::str::FromStr>(&self, flag: &str, default: T) -> T {
         self.one(flag).map_or(default, |v| {
             v.parse()
                 .unwrap_or_else(|_| die(&format!("{flag}: invalid number")))
         })
     }
     /// Positionals (whatever is neither a flag nor a flag's value).
-    fn positional(&self) -> Vec<String> {
+    pub(crate) fn positional(&self) -> Vec<String> {
         let mut out = Vec::new();
         let mut skip = false;
         for a in &self.0 {
@@ -125,6 +127,7 @@ fn main() {
         "down" => cmd_down(&a.dir()),
         "stop" => cmd_stop(&a),
         "explorer" => cmd_explorer(&a),
+        "cred" => cred::run(&a),
         "wallet-web" => cmd_wallet_web(&a),
         "start" => cmd_start(&a),
         "equivocate" => cmd_equivocate(&a),
@@ -178,6 +181,7 @@ fn cmd_init(a: &Args) -> Result<(), String> {
             spare,
             issuers,
             threshold,
+            min_window: a.num("--min-window", 60),
         },
         &|i| format!("127.0.0.1:{}", base + i),
         &|i| format!("127.0.0.1:{}", base + i),
@@ -191,21 +195,27 @@ fn cmd_init(a: &Args) -> Result<(), String> {
     Ok(())
 }
 
-fn node_binary() -> Result<PathBuf, String> {
+/// Always runs an incremental `cargo build -p PACKAGE` (cheap when nothing changed) so a stale binary never runs
+/// after the code was edited, then returns the path of the binary next to this executable.
+fn fresh_binary(package: &str, bin: &str) -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let bin = exe.with_file_name("brdu-node");
-    if !bin.exists() {
-        println!("building the validator (cargo build -p brdu-nodebin)…");
-        let ok = Command::new("cargo")
-            .args(["build", "-q", "-p", "brdu-nodebin"])
-            .status()
-            .map_err(|e| e.to_string())?
-            .success();
-        if !ok || !bin.exists() {
-            return Err("could not build brdu-node".into());
-        }
+    let path = exe.with_file_name(bin);
+    let built = Command::new("cargo")
+        .args(["build", "-q", "-p", package])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !built && !path.exists() {
+        return Err(format!("could not build {package}"));
     }
-    Ok(bin)
+    if !built {
+        eprintln!("warning: `cargo build -p {package}` failed; using the existing binary");
+    }
+    Ok(path)
+}
+
+fn node_binary() -> Result<PathBuf, String> {
+    fresh_binary("brdu-nodebin", "brdu-node")
 }
 
 /// Starts the process of node `idx` (1-based). `all_others`: dials every other node (rejoin); otherwise only the earlier ones.
@@ -353,7 +363,7 @@ fn cmd_down(dir: &Path) -> Result<(), String> {
 fn cmd_reset(dir: &Path) -> Result<(), String> {
     cmd_down(dir)?;
     // only deletes what THIS command creates inside the given folder
-    for sub in ["keys", "wallets", "data", "logs"] {
+    for sub in ["keys", "wallets", "wallet", "data", "logs"] {
         let _ = fs::remove_dir_all(dir.join(sub));
     }
     for f in [
@@ -413,7 +423,7 @@ fn wallet_path(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("wallets/{name}.mnemonic"))
 }
 
-fn load_account(dir: &Path, name: &str) -> Result<(SecretKey, Address), String> {
+pub(crate) fn load_account(dir: &Path, name: &str) -> Result<(SecretKey, Address), String> {
     let text = fs::read_to_string(wallet_path(dir, name))
         .map_err(|_| format!("wallet `{name}` does not exist (cargo dev wallet new {name})"))?;
     let wallet = Phrase::parse(text.trim())
@@ -427,7 +437,7 @@ fn load_account(dir: &Path, name: &str) -> Result<(SecretKey, Address), String> 
 }
 
 /// A wallet `NAME` or `brdu1…`.
-fn resolve(dir: &Path, who: &str) -> Result<Address, String> {
+pub(crate) fn resolve(dir: &Path, who: &str) -> Result<Address, String> {
     if who.starts_with("brdu1") {
         return Address::decode(who).map_err(|e| e.to_string());
     }
@@ -479,7 +489,7 @@ fn cmd_wallet(a: &Args) -> Result<(), String> {
     }
 }
 
-fn first_api(l: &Layout, a: &Args) -> Result<String, String> {
+pub(crate) fn first_api(l: &Layout, a: &Args) -> Result<String, String> {
     let apis = l.apis();
     let i: usize = a.num("--node", 1);
     apis.get(i.saturating_sub(1))
@@ -487,7 +497,7 @@ fn first_api(l: &Layout, a: &Args) -> Result<String, String> {
         .ok_or_else(|| format!("node {i} does not exist"))
 }
 
-fn account(api: &str, addr: &Address) -> Result<(u64, u64), String> {
+pub(crate) fn account(api: &str, addr: &Address) -> Result<(u64, u64), String> {
     let v = http::get(api, &format!("/account/{addr}"))?;
     Ok((
         v["balance"].as_u64().unwrap_or(0),
@@ -924,20 +934,7 @@ fn cmd_blocks_sim(a: &Args) -> Result<(), String> {
 }
 
 fn sim_binary() -> Result<PathBuf, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let bin = exe.with_file_name("brdu-sim");
-    if !bin.exists() {
-        println!("building the simulator (cargo build -p brdu-sim)…");
-        let ok = Command::new("cargo")
-            .args(["build", "-q", "-p", "brdu-sim"])
-            .status()
-            .map_err(|e| e.to_string())?
-            .success();
-        if !ok || !bin.exists() {
-            return Err("could not build brdu-sim".into());
-        }
-    }
-    Ok(bin)
+    fresh_binary("brdu-sim", "brdu-sim")
 }
 
 fn cmd_equivocate(a: &Args) -> Result<(), String> {
@@ -1188,20 +1185,7 @@ fn stop_explorer(dir: &Path) {
 }
 
 fn explorer_binary() -> Result<PathBuf, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let bin = exe.with_file_name("brdu-explorer");
-    if !bin.exists() {
-        println!("building the explorer (cargo build -p brdu-explorer)…");
-        let ok = Command::new("cargo")
-            .args(["build", "-q", "-p", "brdu-explorer"])
-            .status()
-            .map_err(|e| e.to_string())?
-            .success();
-        if !ok || !bin.exists() {
-            return Err("could not build brdu-explorer".into());
-        }
-    }
-    Ok(bin)
+    fresh_binary("brdu-explorer", "brdu-explorer")
 }
 
 /// `explorer`: starts the web explorer (in the background) pointed at a node; `explorer stop` stops it.
@@ -1251,20 +1235,7 @@ fn stop_wallet_web(dir: &Path) {
 }
 
 fn web_binary() -> Result<PathBuf, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let bin = exe.with_file_name("brdu-web");
-    if !bin.exists() {
-        println!("building the wallet daemon (cargo build -p brdu-web)...");
-        let ok = Command::new("cargo")
-            .args(["build", "-q", "-p", "brdu-web"])
-            .status()
-            .map_err(|e| e.to_string())?
-            .success();
-        if !ok || !bin.exists() {
-            return Err("could not build brdu-web".into());
-        }
-    }
-    Ok(bin)
+    fresh_binary("brdu-web", "brdu-web")
 }
 
 /// `wallet-web`: starts the local wallet daemon (background) pointed at a node and, if running, the explorer;
@@ -1313,5 +1284,33 @@ fn cmd_wallet_web(a: &Args) -> Result<(), String> {
         "wallet at http://{listen}  (node {api}; TEST keys only: they live in the daemon process)"
     );
     println!("to stop: cargo dev wallet-web stop   (or cargo dev down)");
+    Ok(())
+}
+
+/// Mints `units` of test BRDU to `target` (the test issuers approve; the relayer sends) and waits for the balance.
+pub(crate) fn fund_address(
+    l: &Layout,
+    api: &str,
+    target: &Address,
+    units: u64,
+) -> Result<(), String> {
+    let mut stamp = [0u8; 4];
+    getrandom::fill(&mut stamp).map_err(|e| e.to_string())?;
+    let reference = format!("faucet-{}", hex::encode(&stamp));
+    let chain = l.chain_id();
+    let doc = coin::issuance_doc(false, &chain, target, units, &reference);
+    let payload = coin::issuance_payload(target, units, &reference, &approvals(l, &doc)?);
+    let (relayer, nonce) = relayer_nonce(l, api)?;
+    let tx = Tx::new_signed(&relayer, &chain, kind::MINT, nonce, 0, payload)
+        .map_err(|e| e.to_string())?;
+    submit(api, &tx)?;
+    let before = account(api, target)?.0;
+    let end = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while account(api, target)?.0 < before + units {
+        if std::time::Instant::now() > end {
+            return Err("the funding did not arrive in 30 s (is the network running?)".into());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
     Ok(())
 }

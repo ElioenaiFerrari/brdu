@@ -18,7 +18,12 @@ pub const fn kind_name(k: u8) -> &'static str {
         kind::ATTESTATION => "reserve attestation",
         kind::VALIDATOR_CHANGE => "validator change",
         5..=13 => "assets",
-        14..=19 => "credentials",
+        brdu_credentials::kind::TYPE => "credential type",
+        brdu_credentials::kind::ISSUE => "credential issue",
+        brdu_credentials::kind::CONTEST => "credential contest",
+        brdu_credentials::kind::VETO => "credential veto",
+        brdu_credentials::kind::ACTIVATE => "credential activation",
+        brdu_credentials::kind::REVOKE => "credential revocation",
         20..=21 => "contracts",
         _ => "unknown",
     }
@@ -30,6 +35,13 @@ pub fn counterparty(tx: &Tx) -> Option<Address> {
     match tx.kind {
         kind::TRANSFER | kind::MINT | kind::BURN => {
             let mut d = Decoder::new(&tx.payload);
+            Some(Address(Hash32(d.fixed::<32>().ok()?)))
+        }
+        // an issued credential also appears on the holder's page
+        brdu_credentials::kind::ISSUE => {
+            let mut d = Decoder::new(&tx.payload);
+            d.string(32).ok()?;
+            d.string(64).ok()?;
             Some(Address(Hash32(d.fixed::<32>().ok()?)))
         }
         _ => None,
@@ -54,6 +66,22 @@ fn summary(tx: &Tx) -> Value {
             (Ok(seq), Ok(reserve), Ok(reference)) => {
                 json!({"seq": seq, "reserve": reserve, "reference": reference})
             }
+            _ => Value::Null,
+        },
+        brdu_credentials::kind::TYPE => d.string(32).map_or(Value::Null, |id| json!({"type": id})),
+        brdu_credentials::kind::ISSUE => match (d.string(32), d.string(64), d.fixed::<32>()) {
+            (Ok(t), Ok(id), Ok(subject)) => {
+                json!({"type": t, "id": id, "subject": Address(Hash32(subject)).encode()})
+            }
+            _ => Value::Null,
+        },
+        brdu_credentials::kind::CONTEST
+        | brdu_credentials::kind::VETO
+        | brdu_credentials::kind::ACTIVATE => {
+            d.string(64).map_or(Value::Null, |id| json!({"id": id}))
+        }
+        brdu_credentials::kind::REVOKE => match (d.string(64), d.string(128)) {
+            (Ok(id), Ok(reason)) => json!({"id": id, "reason": reason}),
             _ => Value::Null,
         },
         kind::VALIDATOR_CHANGE => match (d.u8(), d.fixed::<32>(), d.u64()) {
@@ -176,5 +204,25 @@ pub fn account(e: &Explorer, a: &Address, skip: usize, limit: usize) -> Value {
         "address": a.encode(), "balance": st.balance, "nonce": st.nonce,
         "is_validator": e.chain.validators().iter().any(|k| Address::from_public_key(k) == *a),
         "tx_count": e.account_tx_count(a), "txs": txs,
+        "credentials": credentials(e, a)["credentials"],
     })
+}
+
+/// The credentials of a holder (from the verified replica).
+#[must_use]
+pub fn credentials(e: &Explorer, a: &Address) -> Value {
+    let state = e.chain.state();
+    let now = state.time();
+    let list: Vec<Value> = brdu_credentials::credentials_of(state, a)
+        .iter()
+        .map(|c| {
+            json!({
+                "id": c.id, "type": c.type_id, "status": c.status.name(), "issued_at": c.issued_at, "active_at": c.active_at,
+                "expires_at": c.expires_at, "valid": brdu_credentials::valid(state, &c.id, now),
+                "privacy": brdu_credentials::get_type(state, &c.type_id).map(|t| if t.privacy == brdu_credentials::Privacy::Private { "private" } else { "public" }),
+                "data_hex": brdu_crypto::hex::encode(&c.data), "reference": c.reference,
+            })
+        })
+        .collect();
+    json!({"address": a.encode(), "credentials": list})
 }

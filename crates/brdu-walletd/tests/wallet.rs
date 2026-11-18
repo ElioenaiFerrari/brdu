@@ -54,12 +54,15 @@ impl Lab {
         let _ = std::fs::remove_dir_all(&dir);
         let vals: Vec<SecretKey> = (20..24).map(key).collect();
         let issuers: Vec<SecretKey> = (10..13).map(key).collect();
-        let genesis = Genesis::new(
+        let mut genesis = Genesis::new(
             CHAIN,
             vals.iter().map(SecretKey::public).collect(),
             issuers.iter().map(SecretKey::public).collect(),
             2,
         );
+        genesis.authorities = (30..33).map(key).map(|k| k.public()).collect();
+        genesis.authority_threshold = 2;
+        genesis.min_window = 1;
         let mut nodes: Vec<Node> = Vec::new();
         for (i, v) in vals.iter().enumerate() {
             let mut c = NodeConfig::new(
@@ -598,5 +601,160 @@ fn the_json_interface_routes_methods_validates_params_and_never_echoes_secrets()
         .unwrap_err();
     assert_eq!(err.code, "wrong_password");
     assert!(!err.to_string().contains("wrong password!"));
+    lab.stop();
+}
+
+#[test]
+fn the_wallet_lists_the_credentials_issued_to_it() {
+    use brdu_credentials::{Privacy, TypeSpec, issue_doc, issue_payload, type_doc, type_payload};
+    let lab = Lab::start("creds");
+    let w = lab.wallet("c", false);
+    let address = w.create("correct horse battery", "").unwrap()["address"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        w.credentials().unwrap()["credentials"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    lab.fund(
+        &Address::from_public_key(&lab.relayer.public()).encode(),
+        50_000_000,
+        "dep-relayer",
+    );
+    let authorities: Vec<SecretKey> = (30..33).map(key).collect();
+    let organ: Vec<SecretKey> = (40..43).map(key).collect();
+    let ap = |doc: &brdu_crypto::Hash32, keys: &[SecretKey]| -> Vec<Approval> {
+        keys.iter().take(2).map(|k| Approval::new(doc, k)).collect()
+    };
+    let send = |k: u8, payload: Vec<u8>| {
+        let (nonce, fee) = {
+            let c = lab.nodes[0].shared().chain.lock().unwrap();
+            let n = c
+                .state()
+                .nonce(&Address::from_public_key(&lab.relayer.public()));
+            let probe = Tx::new_signed(&lab.relayer, CHAIN, k, n, 0, payload.clone()).unwrap();
+            (n, c.executor().min_fee(&probe).unwrap())
+        };
+        lab.nodes[0]
+            .submit(&Tx::new_signed(&lab.relayer, CHAIN, k, nonce, fee, payload).unwrap())
+            .unwrap();
+    };
+    let spec = TypeSpec {
+        id: "cnh".into(),
+        organ: organ.iter().map(SecretKey::public).collect(),
+        threshold: 2,
+        contest: 1,
+        validity: 0,
+        privacy: Privacy::Public,
+        ref_type: String::new(),
+        revokes: false,
+    };
+    send(
+        brdu_credentials::kind::TYPE,
+        type_payload(&spec, &ap(&type_doc(CHAIN, &spec), &authorities)),
+    );
+    wait("type", || {
+        lab.nodes[0]
+            .shared()
+            .chain
+            .lock()
+            .unwrap()
+            .state()
+            .ext_scan(b"cred/t/")
+            .next()
+            .is_some()
+    });
+    let me = Address::decode(&address).unwrap();
+    let doc = issue_doc(CHAIN, "cnh", "cnh-1", &me, b"category=B", "");
+    send(
+        brdu_credentials::kind::ISSUE,
+        issue_payload("cnh", "cnh-1", &me, b"category=B", "", &ap(&doc, &organ)),
+    );
+    wait("credential listed", || {
+        w.credentials()
+            .is_ok_and(|c| c["credentials"].as_array().is_some_and(|l| l.len() == 1))
+    });
+    let c = w.credentials().unwrap();
+    assert_eq!(
+        (
+            c["credentials"][0]["id"].as_str(),
+            c["credentials"][0]["status"].as_str()
+        ),
+        (Some("cnh-1"), Some("pending"))
+    );
+    assert_eq!(
+        w.call("credentials", &Value::Null).unwrap()["credentials"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    w.lock();
+    assert_eq!(code(w.credentials()), "locked");
+    lab.stop();
+}
+
+#[test]
+fn forgetting_the_wallet_moves_the_vault_aside_and_lets_a_new_one_be_made_without_the_old_password()
+{
+    let lab = Lab::start("forget");
+    let w = lab.wallet("f", false);
+    let first = w.create("correct horse battery", "").unwrap();
+    let words: Vec<String> = first["words"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().to_string())
+        .collect();
+    let address = first["address"].as_str().unwrap().to_string();
+    w.lock();
+    // creating or importing on top of an existing wallet is refused...
+    assert_eq!(code(w.create("another password 1", "")), "vault_exists");
+    // ...and removal needs the explicit confirmation word, but NOT the password
+    assert_eq!(code(w.forget("yes")), "bad_request");
+    assert_eq!(code(w.forget("")), "bad_request");
+    assert_eq!(
+        w.status()["has_vault"],
+        true,
+        "a refused removal changes nothing"
+    );
+    let r = w.forget("forget").unwrap();
+    assert_eq!(r["removed"], true);
+    let kept = r["kept_as"].as_str().unwrap().to_string();
+    assert!(kept.starts_with("f.vault.json.removed-"), "{kept}");
+    assert!(
+        lab.dir.join(&kept).exists(),
+        "the old vault is kept, not deleted"
+    );
+    assert_eq!(
+        w.status(),
+        json!({"has_vault": false, "unlocked": false, "address": null})
+    );
+    assert_eq!(code(w.forget("forget")), "no_vault");
+    // now the same recovery phrase can be imported (this is the "forgot my password" path)
+    let phrase = words.join(" ");
+    assert_eq!(w.preview_import(&phrase, "").unwrap()["address"], address);
+    assert_eq!(
+        w.import(&phrase, "", "a brand new password", &address)
+            .unwrap()["address"],
+        address
+    );
+    w.lock();
+    assert!(w.unlock("a brand new password", "").is_ok());
+    assert_eq!(
+        code(w.unlock("correct horse battery", "")),
+        "wrong_password",
+        "the old password no longer opens it"
+    );
+    // an unlocked session is dropped by the removal
+    assert_eq!(
+        w.call("forget", &json!({"confirm": "forget"})).unwrap()["removed"],
+        true
+    );
+    assert_eq!(code(w.overview()), "locked");
     lab.stop();
 }

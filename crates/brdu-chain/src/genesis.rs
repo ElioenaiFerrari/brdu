@@ -31,6 +31,14 @@ pub struct Genesis {
     pub min_validators: u32,
     /// Largest size of the set (at most 32).
     pub max_validators: u32,
+    /// Root authorities (M of N): they create credential types and asset classes. Empty = none can be created.
+    pub authorities: Vec<PublicKey>,
+    /// How many authority approvals are required (1 when there are no authorities).
+    pub authority_threshold: u32,
+    /// Smallest contest/veto window a credential type may declare, in seconds.
+    pub min_window: u64,
+    /// Largest window, in seconds.
+    pub max_window: u64,
 }
 
 impl Genesis {
@@ -53,6 +61,10 @@ impl Genesis {
             max_block_bytes: u32::try_from(Rules::DEFAULT_MAX_BLOCK_BYTES).unwrap_or(u32::MAX),
             min_validators: 1,
             max_validators: 21,
+            authorities: Vec::new(),
+            authority_threshold: 1,
+            min_window: Rules::DEFAULT_MIN_WINDOW,
+            max_window: Rules::DEFAULT_MAX_WINDOW,
         }
     }
 
@@ -77,6 +89,20 @@ impl Genesis {
             self.issuer_threshold as usize,
         )
         .map_err(|_| ChainError::Genesis("issuers or threshold"))?;
+        let (na, ta) = (self.authorities.len(), self.authority_threshold as usize);
+        let mut distinct = self.authorities.clone();
+        distinct.sort();
+        distinct.dedup();
+        if na > 16 || distinct.len() != na || ta == 0 || (na > 0 && ta > na) {
+            return Err(ChainError::Genesis("authorities or threshold"));
+        }
+        if self.min_window == 0 || self.min_window > self.max_window {
+            return Err(ChainError::Genesis("windows"));
+        }
+        rules.min_window = self.min_window;
+        rules.max_window = self.max_window;
+        rules.authorities = self.authorities.clone();
+        rules.authority_threshold = ta;
         rules.transfer_base = self.transfer_base;
         rules.per_byte = self.per_byte;
         rules.max_block_txs = self.max_block_txs as usize;
@@ -114,7 +140,14 @@ impl Genesis {
             .u32(self.max_block_txs)
             .u32(self.max_block_bytes)
             .u32(self.min_validators)
-            .u32(self.max_validators);
+            .u32(self.max_validators)
+            .count(self.authorities.len());
+        for a in &self.authorities {
+            e.fixed(a.as_bytes());
+        }
+        e.u32(self.authority_threshold)
+            .u64(self.min_window)
+            .u64(self.max_window);
         e.finish().unwrap_or_default()
     }
 
@@ -143,6 +176,17 @@ impl Genesis {
             max_block_bytes: d.u32()?,
             min_validators: d.u32()?,
             max_validators: d.u32()?,
+            authorities: {
+                let n = d.count(16)?;
+                let mut v = Vec::with_capacity(n);
+                for _ in 0..n {
+                    v.push(PublicKey(d.fixed::<32>()?));
+                }
+                v
+            },
+            authority_threshold: d.u32()?,
+            min_window: d.u64()?,
+            max_window: d.u64()?,
         };
         d.finish()?;
         Ok(g)

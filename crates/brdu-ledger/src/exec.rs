@@ -249,6 +249,8 @@ impl Executor {
 
     /// Executes the block's transactions, splits the fees and positions the state. Does not check the root.
     fn run_block(&self, s: &mut State, block: &Block) -> Result<u64, LedgerError> {
+        // modules read the time of the block being executed (windows, validity), not the previous block's
+        s.set_position(s.height(), block.time);
         let mut fees: u128 = 0;
         for tx in &block.txs {
             self.run_verified(s, tx)

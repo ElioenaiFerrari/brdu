@@ -165,6 +165,12 @@ fn the_cli_runs_the_full_cycle_against_real_nodes() {
     );
     let status = ok(&dir, &["status"]);
     assert_eq!(status.matches("peers 3").count(), 4, "{status}");
+    // the repeated mint above is invalid: wait until every pool dropped it before the relayer sends again
+    wait("pools empty", || {
+        nodes
+            .iter()
+            .all(|n| n.shared().info.lock().unwrap().pool_len == 0)
+    });
     ok(&dir, &["blocks-sim", "--count", "2"]);
 
     for n in nodes {
@@ -186,5 +192,97 @@ fn commands_without_a_network_ask_for_init_and_reset_only_deletes_what_it_create
         "reset does not delete what it did not create"
     );
     assert!(!dir.join("devnet.json").exists() && !dir.join("keys").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_cred_commands_run_a_credential_through_its_whole_life() {
+    let dir = tmp("cred");
+    let base = 17_500;
+    ok(
+        &dir,
+        &[
+            "init",
+            "--port-base",
+            &base.to_string(),
+            "--min-window",
+            "1",
+        ],
+    );
+    let nodes = start_nodes(&dir, base);
+    ok(&dir, &["wallet", "new", "alice"]);
+
+    // only the root authorities can create a type; the CLI signs with the test authorities
+    ok(&dir, &["cred", "type", "--id", "cnh", "--contest", "1"]);
+    wait("type on the chain", || {
+        dev(&dir, &["cred", "types"]).1.contains("cnh")
+    });
+    let types = ok(&dir, &["cred", "types"]);
+    assert!(
+        types.contains("organ 2 of 3") && types.contains("public"),
+        "{types}"
+    );
+
+    ok(
+        &dir,
+        &[
+            "cred",
+            "issue",
+            "--type",
+            "cnh",
+            "--id",
+            "cnh-1",
+            "--to",
+            "alice",
+            "--data",
+            "category=B",
+        ],
+    );
+    wait("pending", || {
+        dev(&dir, &["cred", "show", "cnh-1"])
+            .1
+            .contains("[pending]")
+    });
+    // a type that does not exist, and a reused id, are refused by the network (the CLI only reports the send)
+    assert!(
+        dev(
+            &dir,
+            &[
+                "cred", "issue", "--type", "ghost", "--id", "x", "--to", "alice"
+            ]
+        )
+        .0,
+        "the node admits it; the block builder drops it"
+    );
+
+    std::thread::sleep(Duration::from_millis(2_200));
+    ok(&dir, &["cred", "activate", "--id", "cnh-1"]);
+    wait("active", || {
+        dev(&dir, &["cred", "show", "cnh-1"])
+            .1
+            .contains("valid: true")
+    });
+    let listed = ok(&dir, &["cred", "list", "alice"]);
+    assert!(
+        listed.contains("cnh-1") && listed.contains("[active]"),
+        "{listed}"
+    );
+
+    ok(
+        &dir,
+        &["cred", "revoke", "--id", "cnh-1", "--reason", "fraud"],
+    );
+    wait("revoked", || {
+        dev(&dir, &["cred", "show", "cnh-1"])
+            .1
+            .contains("[revoked]")
+    });
+    assert!(ok(&dir, &["cred", "list", "alice"]).contains("valid: false"));
+    // help and unknown subcommands
+    assert!(ok(&dir, &["cred"]).contains("cargo dev cred <command>"));
+    assert!(!dev(&dir, &["cred", "nonsense"]).0);
+    for n in nodes {
+        n.stop();
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }

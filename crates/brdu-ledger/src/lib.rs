@@ -10,6 +10,7 @@
 //! Pure: no I/O, no network, no clock. **Not audited.**
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
+pub mod approvals;
 pub mod block;
 pub mod coin;
 pub mod error;

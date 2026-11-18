@@ -170,6 +170,37 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
                 }),
             )
         }
+        ["credential-types"] => {
+            let list: Vec<Value> = brdu_credentials::list_types(chain.state())
+                .iter()
+                .map(type_json)
+                .collect();
+            (200, json!({"types": list}))
+        }
+        ["credential", id] => match brdu_credentials::get_credential(chain.state(), id) {
+            Some(c) => (
+                200,
+                credential_json(
+                    &c,
+                    chain.state().time(),
+                    brdu_credentials::valid(chain.state(), id, chain.state().time()),
+                ),
+            ),
+            None => (404, json!({"error": "credential not found"})),
+        },
+        ["credentials", addr] => match Address::decode(addr) {
+            Ok(a) => {
+                let now = chain.state().time();
+                let list: Vec<Value> = brdu_credentials::credentials_of(chain.state(), &a)
+                    .iter()
+                    .map(|c| {
+                        credential_json(c, now, brdu_credentials::valid(chain.state(), &c.id, now))
+                    })
+                    .collect();
+                (200, json!({"address": a.encode(), "credentials": list}))
+            }
+            Err(_) => (400, json!({"error": "invalid address"})),
+        },
         ["supply"] => {
             let s = chain.state();
             let cov = match s.coverage() {
@@ -188,7 +219,7 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
         }
         ["fees"] => (
             200,
-            json!({"transfer_base": rules.transfer_base, "per_byte": rules.per_byte, "max_block_txs": rules.max_block_txs, "max_block_bytes": rules.max_block_bytes}),
+            json!({"transfer_base": rules.transfer_base, "per_byte": rules.per_byte, "max_block_txs": rules.max_block_txs, "max_block_bytes": rules.max_block_bytes, "registration_fee": rules.registration_fee, "credential_fee": rules.credential_fee}),
         ),
         ["account", addr] => match Address::decode(addr) {
             Ok(a) => (
@@ -303,4 +334,21 @@ fn block_json(d: &brdu_chain::DecidedBlock, full: bool) -> Value {
         );
     }
     v
+}
+
+fn type_json(t: &brdu_credentials::TypeSpec) -> Value {
+    json!({
+        "id": t.id, "organ": t.organ.iter().map(|k| Address::from_public_key(k).encode()).collect::<Vec<_>>(),
+        "threshold": t.threshold, "contest_window": t.contest, "validity": t.validity,
+        "privacy": if t.privacy == brdu_credentials::Privacy::Private { "private" } else { "public" },
+        "ref_type": t.ref_type, "revokes_reference": t.revokes,
+    })
+}
+
+fn credential_json(c: &brdu_credentials::Credential, now: u64, valid: bool) -> Value {
+    json!({
+        "id": c.id, "type": c.type_id, "subject": c.subject.encode(), "data_hex": hex::encode(&c.data),
+        "reference": c.reference, "status": c.status.name(), "issued_at": c.issued_at, "active_at": c.active_at,
+        "expires_at": c.expires_at, "valid": valid, "now": now,
+    })
 }

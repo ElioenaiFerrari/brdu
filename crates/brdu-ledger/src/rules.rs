@@ -21,6 +21,18 @@ pub struct Rules {
     issuers: Vec<PublicKey>,
     /// How many distinct issuer approvals are required (M of N).
     issuer_threshold: usize,
+    /// Root authorities: create credential types and asset classes (M of N). Empty = none can be created.
+    pub authorities: Vec<PublicKey>,
+    /// How many distinct authority approvals are required (default 1).
+    pub authority_threshold: usize,
+    /// Smallest contest/veto window a type may declare, in seconds (default 60).
+    pub min_window: u64,
+    /// Largest window, in seconds (default one year).
+    pub max_window: u64,
+    /// Minimum fee to register a credential type or an asset class (default 0.05 BRDU).
+    pub registration_fee: u64,
+    /// Minimum fee to issue or revoke a credential (default 0.01 BRDU).
+    pub credential_fee: u64,
 }
 
 impl Rules {
@@ -32,6 +44,14 @@ impl Rules {
     pub const DEFAULT_MAX_BLOCK_TXS: usize = 1_000;
     /// Default bytes per block.
     pub const DEFAULT_MAX_BLOCK_BYTES: usize = 1_000_000;
+    /// Default smallest window (seconds).
+    pub const DEFAULT_MIN_WINDOW: u64 = 60;
+    /// Default largest window (seconds): one year.
+    pub const DEFAULT_MAX_WINDOW: u64 = 31_536_000;
+    /// Default registration fee (0.05 BRDU).
+    pub const DEFAULT_REGISTRATION_FEE: u64 = 50_000;
+    /// Default credential fee (0.01 BRDU).
+    pub const DEFAULT_CREDENTIAL_FEE: u64 = 10_000;
 
     /// Rules with the defaults, for `chain_id`, `issuers` and the threshold M. Fails if the threshold is not in
     /// `1..=N` or if there are no issuers.
@@ -58,6 +78,12 @@ impl Rules {
             max_block_bytes: Self::DEFAULT_MAX_BLOCK_BYTES,
             issuers: sorted,
             issuer_threshold,
+            authorities: Vec::new(),
+            authority_threshold: 1,
+            min_window: Self::DEFAULT_MIN_WINDOW,
+            max_window: Self::DEFAULT_MAX_WINDOW,
+            registration_fee: Self::DEFAULT_REGISTRATION_FEE,
+            credential_fee: Self::DEFAULT_CREDENTIAL_FEE,
         })
     }
 

@@ -300,6 +300,36 @@ impl Wallet {
         Ok(json!({"address": address.encode()}))
     }
 
+    /// Removes the wallet from this device so a new one can be created or imported (forgotten password, or another
+    /// wallet wanted). It needs NO password (the user may have forgotten it) but an explicit `confirm == "forget"`.
+    /// The vault file is **moved aside** (`vault.json.removed-<unix time>`), never deleted: if it was a mistake, the
+    /// file can be put back by hand. The recovery phrase is the only way to get the money back after this.
+    pub fn forget(&self, confirm: &str) -> Result<Value, WalletError> {
+        if confirm != "forget" {
+            return Err(WalletError::new(
+                "bad_request",
+                "confirmation missing: pass confirm = \"forget\"",
+            ));
+        }
+        self.lock();
+        if !self.cfg.vault_path.exists() {
+            return Err(WalletError::new("no_vault", "there is no wallet to remove"));
+        }
+        let when = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let mut aside = self.cfg.vault_path.clone().into_os_string();
+        aside.push(format!(".removed-{when}"));
+        std::fs::rename(&self.cfg.vault_path, &aside)
+            .map_err(|e| WalletError::new("internal", e.to_string()))?;
+        if let Ok(mut f) = self.failures.lock() {
+            *f = (0, None);
+        }
+        Ok(
+            json!({"removed": true, "kept_as": std::path::PathBuf::from(aside).file_name().map(|n| n.to_string_lossy().to_string())}),
+        )
+    }
+
     /// Locks and forgets any prepared send.
     pub fn lock(&self) {
         if let Ok(mut s) = self.session.lock() {
@@ -358,6 +388,13 @@ impl Wallet {
             "address": address.encode(), "balance": account["balance"], "nonce": account["nonce"],
             "supply": supply, "chain_id": status["chain_id"], "height": status["height"],
         }))
+    }
+
+    /// The credentials issued to this account (read from the node).
+    pub fn credentials(&self) -> Result<Value, WalletError> {
+        let (_, address) = self.account()?;
+        let r = self.node_get(&format!("/credentials/{address}"))?;
+        Ok(json!({"address": address.encode(), "credentials": r["credentials"]}))
     }
 
     /// Transaction history for this account, from the explorer.
@@ -536,9 +573,11 @@ impl Wallet {
                 self.lock();
                 Ok(json!({"locked": true}))
             }
+            "forget" => self.forget(str_param(p, "confirm")?),
             "export_phrase" => self.export_phrase(str_param(p, "password")?),
             "change_password" => self.change_password(str_param(p, "old")?, str_param(p, "new")?),
             "overview" => self.overview(),
+            "credentials" => self.credentials(),
             "history" => self.history(
                 p.get("skip").and_then(Value::as_u64).unwrap_or(0),
                 p.get("limit").and_then(Value::as_u64).unwrap_or(25),

@@ -104,6 +104,8 @@ pub struct Spec<'a> {
     pub issuers: usize,
     /// Issuers' threshold M.
     pub threshold: u32,
+    /// Smallest credential contest window, in seconds.
+    pub min_window: u64,
 }
 
 /// Creates the network: validators, spares, issuers (threshold `threshold`), relayer key and genesis.
@@ -136,8 +138,17 @@ pub fn init(
         iss.push(new_key(&dir.join(format!("keys/issuer{i}.key")))?.public());
     }
     new_key(&dir.join("keys/relayer.key"))?;
+    // root authorities (create credential types; 2 of 3) and a test organ (3 keys, 2 of 3) for the credential types
+    let mut auth: Vec<PublicKey> = Vec::new();
+    for i in 1..=3 {
+        auth.push(new_key(&dir.join(format!("keys/authority{i}.key")))?.public());
+        new_key(&dir.join(format!("keys/organ{i}.key")))?;
+    }
     let mut g = Genesis::new(spec.chain, vals, iss, spec.threshold);
     g.min_validators = 3.min(u32::try_from(spec.nodes).unwrap_or(3)).max(1);
+    g.authorities = auth;
+    g.authority_threshold = 2;
+    g.min_window = spec.min_window;
     g.rules().map_err(|e| e.to_string())?;
     fs::write(
         dir.join("genesis.hex"),

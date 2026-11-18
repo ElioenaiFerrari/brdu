@@ -1,7 +1,7 @@
 // BRDU wallet UI. All secrets stay in the wallet service (Rust): this file only ever receives public data and the
 // recovery words once, at creation or when re-exporting with the password. It builds DOM with textContent only.
 import { rpc } from "./api.js";
-import { errorText } from "./i18n.js";
+import { errorText, statusText } from "./i18n.js";
 import { installEffects } from "./effects.js";
 import { shortAddr } from "./format.js";
 import { splitAmount, pressKey, display, typedToAmount } from "./money.js";
@@ -144,12 +144,14 @@ const screens = {
       clear(form, "password", "passphrase");
       if (r) go("home");
     });
-    return h("section", { class: "card" }, h("h1", {}, dec("Carteira bloqueada")), h("p", { class: "muted" }, S.data.address ? `Endereço ${shortAddr(S.data.address)}` : ""), form);
+    const out = h("details", { class: "field", id: "forget-box" }, h("summary", { class: "muted" }, "Esqueci a senha ou quero outra carteira"), h("p", { class: "warn" }, "Isto remove a carteira DESTE aparelho (o arquivo é guardado de lado, não apagado). Só a frase de recuperação de 24 palavras devolve o acesso ao dinheiro: sem ela, o saldo desta carteira se perde."), h("p", { class: "muted" }, "Depois você poderá criar uma carteira nova ou importar a sua frase."), field("confirm-forget", "Para confirmar, digite APAGAR", (S.forgetInput = h("input", { id: "confirm-forget", name: "confirm", class: "input", autocomplete: "off" }))), h("button", { class: "ghost", type: "button", id: "forget" }, "Remover desta carteira"));
+    return h("section", { class: "card" }, h("h1", {}, dec("Carteira bloqueada")), h("p", { class: "muted" }, S.data.address ? `Endereço ${shortAddr(S.data.address)}` : ""), form, out);
   },
 
   home: () => {
     const wrap = h("div", { class: "card-glow" }, h("p", { class: "muted" }, "Carregando saldo…"));
     const rest = h("div", { id: "home-rest" });
+    const creds = h("div", { id: "home-creds" });
     const load = async () => {
       const o = await attempt(() => rpc("overview"));
       if (S.screen !== "home") return;
@@ -160,6 +162,12 @@ const screens = {
         wrap.replaceChildren(h("div", { class: "label" }, "Saldo"), amountEl(o.balance), h("div", { class: "chips" }, copyBtn));
         rest.replaceChildren(h("div", { class: "card" }, h("h2", {}, "Rede"), h("div", { class: "chips" }, h("span", { class: "chip green" }, `altura ${o.height}`), h("span", { class: sup === "under" ? "chip yellow" : "chip blue" }, sup === "covered" ? "reserva cobre a oferta" : sup === "under" ? "reserva ABAIXO da oferta" : "sem atestado de reserva")), h("p", { class: "muted" }, `Oferta em circulação: ${splitAmount(o.supply.supply).int} BRDU`)));
       }
+      const cr = await rpc("credentials").catch(() => null);
+      if (S.screen === "home" && cr?.credentials?.length) {
+        creds.replaceChildren(
+          h("div", { class: "card" }, h("h2", {}, "Credenciais"), h("ul", { class: "list" }, cr.credentials.map((c) => h("li", { class: "row" }, h("div", {}, h("div", {}, c.id), h("div", { class: "sub" }, `tipo ${c.type}`)), h("div", { class: "end" }, h("span", { class: c.valid ? "chip green" : c.status === "pending" ? "chip yellow" : "chip" }, c.valid ? "válida" : statusText(c.status))))))),
+        );
+      }
       S.timer = setTimeout(load, 4000);
     };
     const actions = h("div", { class: "actions" }, ...[["send", "Enviar"], ["receive", "Receber"], ["history", "Histórico"], ["settings", "Ajustes"]].map(([to, label]) => h("button", { class: "ghost", type: "button", "data-go": to }, label)));
@@ -168,7 +176,7 @@ const screens = {
       if (to) go(to === "send" ? "send" : to, to === "send" ? { step: "edit", to: "", typed: "" } : {});
     });
     load();
-    return h("div", { class: "stack" }, wrap, actions, rest);
+    return h("div", { class: "stack" }, wrap, actions, rest, creds);
   },
 
   receive: () => {
@@ -284,6 +292,15 @@ main.addEventListener("click", async (e) => {
   if (id === "go-create") go("create");
   else if (id === "go-import") go("import");
   else if (id === "back") boot();
+  else if (id === "forget") {
+    const typed = S.forgetInput?.value ?? "";
+    if (typed.trim() !== "APAGAR") return toast("Digite APAGAR para confirmar.", true);
+    const r = await attempt(() => rpc("forget", { confirm: "forget" }));
+    if (r) {
+      toast("Carteira removida deste aparelho. Crie uma nova ou importe a sua frase.");
+      boot();
+    }
+  }
   else if (id === "home") go("home");
   else if (id === "edit") go("send", { step: "edit", to: S.data.to, typed: S.data.typed });
   else if (id === "copy" && S.screen === "receive") {

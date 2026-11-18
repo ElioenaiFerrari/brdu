@@ -48,12 +48,15 @@ fn start(tag: &str) -> Net {
     let _ = std::fs::remove_dir_all(&dir);
     let vals: Vec<SecretKey> = (20..24).map(key).collect();
     let issuers: Vec<SecretKey> = (10..13).map(key).collect();
-    let genesis = Genesis::new(
+    let mut genesis = Genesis::new(
         CHAIN,
         vals.iter().map(SecretKey::public).collect(),
         issuers.iter().map(SecretKey::public).collect(),
         2,
     );
+    genesis.authorities = (30..33).map(key).map(|k| k.public()).collect();
+    genesis.authority_threshold = 2;
+    genesis.min_window = 1;
     let mut nodes: Vec<Node> = Vec::new();
     for (i, v) in vals.iter().enumerate() {
         let mut c = Config::new(
@@ -478,3 +481,116 @@ fn pure_ui_passes_node_tests() {
 }
 
 use std::process::Command;
+
+#[test]
+fn credentials_show_up_on_the_holder_page_and_with_readable_transaction_kinds() {
+    use brdu_credentials::{Privacy, TypeSpec, issue_doc, issue_payload, type_doc, type_payload};
+    let net = start("creds");
+    let authorities: Vec<SecretKey> = (30..33).map(key).collect();
+    let organ: Vec<SecretKey> = (40..43).map(key).collect();
+    net.nodes[0]
+        .submit(&net.mint(0, &net.relayer, 50_000_000, "dep-relayer"))
+        .unwrap();
+    wait("relayer funded", 20, || {
+        net.nodes[0]
+            .shared()
+            .chain
+            .lock()
+            .unwrap()
+            .state()
+            .balance(&Address::from_public_key(&net.relayer.public()))
+            > 0
+    });
+    let send = |k: u8, payload: Vec<u8>| {
+        let (nonce, fee) = {
+            let c = net.nodes[0].shared().chain.lock().unwrap();
+            let n = c
+                .state()
+                .nonce(&Address::from_public_key(&net.relayer.public()));
+            let probe = Tx::new_signed(&net.relayer, CHAIN, k, n, 0, payload.clone()).unwrap();
+            (n, c.executor().min_fee(&probe).unwrap())
+        };
+        net.nodes[0]
+            .submit(&Tx::new_signed(&net.relayer, CHAIN, k, nonce, fee, payload).unwrap())
+            .unwrap();
+    };
+    let ap = |doc: &brdu_crypto::Hash32, keys: &[SecretKey]| -> Vec<Approval> {
+        keys.iter().take(2).map(|k| Approval::new(doc, k)).collect()
+    };
+    let spec = TypeSpec {
+        id: "cnh".into(),
+        organ: organ.iter().map(SecretKey::public).collect(),
+        threshold: 2,
+        contest: 60,
+        validity: 0,
+        privacy: Privacy::Private,
+        ref_type: String::new(),
+        revokes: false,
+    };
+    send(
+        brdu_credentials::kind::TYPE,
+        type_payload(&spec, &ap(&type_doc(CHAIN, &spec), &authorities)),
+    );
+    wait("type", 20, || {
+        !net.nodes[0]
+            .shared()
+            .chain
+            .lock()
+            .unwrap()
+            .state()
+            .ext_scan(b"cred/t/")
+            .next()
+            .is_none()
+    });
+    let alice = Address::from_public_key(&net.alice.public());
+    let commitment = [9u8; 32];
+    let doc = issue_doc(CHAIN, "cnh", "cnh-1", &alice, &commitment, "");
+    send(
+        brdu_credentials::kind::ISSUE,
+        issue_payload("cnh", "cnh-1", &alice, &commitment, "", &ap(&doc, &organ)),
+    );
+    let (shared, stop, addr) = explorer(&net, &net.api());
+    wait("explorer sees the credential", 30, || {
+        json(addr, &format!("/api/credentials/{}", alice.encode())).1["credentials"]
+            .as_array()
+            .is_some_and(|c| c.len() == 1)
+    });
+    let (_, c) = json(addr, &format!("/api/credentials/{}", alice.encode()));
+    let cred = &c["credentials"][0];
+    assert_eq!(
+        (
+            cred["id"].as_str(),
+            cred["status"].as_str(),
+            cred["valid"].as_bool(),
+            cred["privacy"].as_str()
+        ),
+        (Some("cnh-1"), Some("pending"), Some(false), Some("private"))
+    );
+    // the same list is part of the account page, and the issue appears in the HOLDER's movements (counterparty)
+    let (_, acc) = json(addr, &format!("/api/account/{}", alice.encode()));
+    assert_eq!(acc["credentials"].as_array().unwrap().len(), 1);
+    let kinds: Vec<&str> = acc["txs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["kind_name"].as_str().unwrap())
+        .collect();
+    assert!(kinds.contains(&"credential issue"), "{kinds:?}");
+    let issue_tx = acc["txs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["kind"] == 15)
+        .unwrap();
+    assert_eq!(
+        (
+            issue_tx["summary"]["id"].as_str(),
+            issue_tx["summary"]["type"].as_str()
+        ),
+        (Some("cnh-1"), Some("cnh"))
+    );
+    assert_eq!(json(addr, "/api/credentials/lixo").0, 400);
+    drop(shared);
+    stop.store(true, Ordering::SeqCst);
+    net.stop();
+}

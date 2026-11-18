@@ -9,9 +9,17 @@ const KINDS = {
   "validator change": "troca de validador",
   assets: "bens",
   credentials: "credenciais",
+  "credential type": "tipo de credencial",
+  "credential issue": "emissão de credencial",
+  "credential contest": "contestação de credencial",
+  "credential veto": "veto de credencial",
+  "credential activation": "ativação de credencial",
+  "credential revocation": "revogação de credencial",
   contracts: "contratos",
   unknown: "desconhecido",
 };
+
+const STATUS = { pending: "pendente", active: "ativa", contested: "contestada", vetoed: "vetada", revoked: "revogada" };
 
 const ACTIONS = { add: "entrada", remove: "saída" };
 
@@ -27,6 +35,7 @@ const MESSAGES = {
   "reported by the node; not verifiable here": "informado pelo nó; não verificável aqui",
 };
 
+export const status = (s) => STATUS[s] ?? s;
 export const kindName = (k) => KINDS[k] ?? k;
 export const action = (a) => ACTIONS[a] ?? a;
 export const message = (m) => (typeof m === "string" ? MESSAGES[m] ?? m : "");

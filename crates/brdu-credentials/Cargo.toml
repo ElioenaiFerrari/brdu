@@ -1,0 +1,19 @@
+[package]
+name = "brdu-credentials"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Native credentials: types with an M-of-N organ, contest window, validity, veto and revocation (transaction kinds 14 to 19)."
+
+[dependencies]
+brdu-crypto.workspace = true
+brdu-ledger.workspace = true
+
+[dev-dependencies]
+brdu-wallet.workspace = true
+serde_json.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true

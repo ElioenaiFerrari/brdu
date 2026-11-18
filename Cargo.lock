@@ -245,10 +245,22 @@ name = "brdu-chain"
 version = "0.1.0"
 dependencies = [
  "brdu-bft",
+ "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",
  "proptest",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "brdu-credentials"
+version = "0.1.0"
+dependencies = [
+ "brdu-crypto",
+ "brdu-ledger",
+ "brdu-wallet",
+ "proptest",
+ "serde_json",
 ]
 
 [[package]]
@@ -271,6 +283,7 @@ name = "brdu-dev"
 version = "0.1.0"
 dependencies = [
  "brdu-chain",
+ "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",
  "brdu-node",
@@ -285,6 +298,7 @@ version = "0.1.0"
 dependencies = [
  "brdu-bft",
  "brdu-chain",
+ "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",
  "brdu-node",
@@ -317,6 +331,7 @@ version = "0.1.0"
 dependencies = [
  "brdu-bft",
  "brdu-chain",
+ "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",
  "brdu-p2p",
@@ -397,6 +412,7 @@ name = "brdu-walletd"
 version = "0.1.0"
 dependencies = [
  "brdu-chain",
+ "brdu-credentials",
  "brdu-crypto",
  "brdu-explorer",
  "brdu-ledger",

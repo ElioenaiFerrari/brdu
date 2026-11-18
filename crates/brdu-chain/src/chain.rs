@@ -61,7 +61,9 @@ impl Chain {
         let rules = genesis.rules()?;
         Ok(Self {
             genesis_hash: genesis.hash(),
-            exec: make(rules).with_module(Box::new(brdu_ledger::gov::GovModule)),
+            exec: make(rules)
+                .with_module(Box::new(brdu_ledger::gov::GovModule))
+                .with_module(Box::new(brdu_credentials::CredentialsModule)),
             state: seed_state(&genesis),
             blocks: Vec::new(),
             validated: None,

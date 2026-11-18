@@ -2,7 +2,7 @@
 // with safe DOM (textContent): no node data ever becomes HTML.
 import { installEffects } from "./effects.js";
 import { splitAmount, shortHash, shortAddr, ago, when } from "./format.js";
-import { kindName, action, message } from "./i18n.js";
+import { kindName, action, message, status } from "./i18n.js";
 
 const $ = (s) => document.querySelector(s);
 const main = $("#main");
@@ -152,6 +152,10 @@ function describe(t) {
   if (t.kind === 1) return [["Para", link(`#/account/${s.to}`, s.to, "mono")], ["Valor", amount(s.amount, { small: true })]];
   if (t.kind === 2 || t.kind === 3) return [["Conta", link(`#/account/${s.account}`, s.account, "mono")], ["Valor", amount(s.amount, { small: true })], ["Referência", s.reference]];
   if (t.kind === 4) return [["Atestado nº", s.seq], ["Reserva atestada", amount(s.reserve, { small: true })], ["Referência", s.reference]];
+  if (t.kind === 14) return [["Tipo criado", s.type]];
+  if (t.kind === 15) return [["Tipo", s.type], ["Credencial", s.id], ["Titular", link(`#/account/${s.subject}`, s.subject, "mono")]];
+  if (t.kind >= 16 && t.kind <= 18) return [["Credencial", s.id]];
+  if (t.kind === 19) return [["Credencial", s.id], ["Motivo", s.reason]];
   if (t.kind === 22) return [["Ação", action(s.action)], ["Validador", link(`#/account/${s.validator}`, s.validator, "mono")], ["Efetiva na altura", s.effective_height]];
   return [];
 }
@@ -174,7 +178,7 @@ async function pageAccount(addr, state) {
     more.hidden = shown >= a.tx_count || r.txs.length === 0;
   });
   state.skipRefresh = true;
-  return h("div", { class: "grid" }, h("h1", {}, "Conta"), h("section", { class: "card-glow" }, h("div", { class: "label" }, "Saldo"), amount(a.balance), h("div", { class: "chips" }, chip(`nonce ${a.nonce}`), chip(`${a.tx_count} movimentação(ões)`), a.is_validator ? chip("validador em vigor", "green") : null), h("p", { class: "mono" }, a.address)), h("section", { class: "card" }, h("h2", {}, "Movimentações"), a.txs.length ? list : h("p", { class: "empty" }, "Nenhuma movimentação."), more));
+  return h("div", { class: "grid" }, h("h1", {}, "Conta"), h("section", { class: "card-glow" }, h("div", { class: "label" }, "Saldo"), amount(a.balance), h("div", { class: "chips" }, chip(`nonce ${a.nonce}`), chip(`${a.tx_count} movimentação(ões)`), a.is_validator ? chip("validador em vigor", "green") : null), h("p", { class: "mono" }, a.address)), a.credentials?.length ? h("section", { class: "card" }, h("h2", {}, "Credenciais"), h("ul", { class: "list" }, a.credentials.map((c) => h("li", { class: "row" }, h("div", {}, h("div", {}, `${c.id} · ${c.type}`), h("div", { class: "sub" }, c.privacy === "private" ? "dados privados (só o compromisso está na rede)" : `dados: ${c.data_hex ? c.data_hex.slice(0, 24) : ""}`)), h("div", { class: "end" }, c.valid ? chip("válida", "green") : chip(status(c.status), c.status === "pending" ? "yellow" : "")))))) : null, h("section", { class: "card" }, h("h2", {}, "Movimentações"), a.txs.length ? list : h("p", { class: "empty" }, "Nenhuma movimentação."), more));
 }
 
 async function pageValidators() {

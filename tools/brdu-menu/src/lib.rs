@@ -104,6 +104,20 @@ pub const CATALOG: &[Item] = &[
     ),
     it(
         "Local network (processes)",
+        "Credentials: list types (cred types)",
+        &["cred", "types"],
+        &[],
+        true,
+    ),
+    it(
+        "Local network (processes)",
+        "Credentials: list a holder's credentials (cred list)",
+        &["cred", "list"],
+        &[p("name or address", None, "alice")],
+        true,
+    ),
+    it(
+        "Local network (processes)",
         "Stop all (down)",
         &["down"],
         &[],

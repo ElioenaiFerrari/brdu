@@ -43,6 +43,7 @@ pub fn init(
         spare,
         issuers: 3,
         threshold: 2,
+        min_window: 5,
     };
     net::init(
         dir,

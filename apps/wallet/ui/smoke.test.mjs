@@ -112,7 +112,7 @@ const submit = async (form) => {
   await settle();
 };
 const bootWith = async (s) => {
-  reset(s);
+  reset({ ...s }); // a copy: tests mutate `script`, and shared fixtures must not leak between tests
   for (const f of windowListeners.hashchange ?? []) f();
   // re-run boot through the lock button path (it calls boot again)
   for (const f of els["#lock"].listeners.click ?? []) await f({});
@@ -237,6 +237,25 @@ test("unlocking wipes the password field and reports a wrong password", async ()
   assert.ok(main().textContent.includes("reserva ABAIXO da oferta"), main().textContent);
 });
 
+test("a locked wallet offers a way out that needs the word APAGAR, then lets the user create or import", async () => {
+  await bootWith(LOCKED);
+  assert.ok(main().byId("forget-box"), "the way out is on the locked screen");
+  assert.ok(main().textContent.includes("só a frase de recuperação") || main().textContent.includes("Só a frase de recuperação"));
+  script.forget = { removed: true };
+  // without typing the word nothing is sent
+  await click(main().byId("forget"));
+  assert.ok(toast().includes("APAGAR"), toast());
+  assert.equal(calls.filter((c) => c.method === "forget").length, 0);
+  main().byId("confirm-forget").value = "apagar";
+  await click(main().byId("forget"));
+  assert.equal(calls.filter((c) => c.method === "forget").length, 0, "the confirmation is exact (APAGAR)");
+  main().byId("confirm-forget").value = "APAGAR";
+  script.status = { has_vault: false, unlocked: false, address: null };
+  await click(main().byId("forget"));
+  assert.deepEqual(calls.find((c) => c.method === "forget").params, { confirm: "forget" });
+  assert.ok(main().textContent.includes("Sua carteira BRDU"), "back to the welcome screen: create or import");
+});
+
 test("importing: the derived address must be confirmed before a password is even asked", async () => {
   await bootWith({ status: { has_vault: false, unlocked: false, address: null } });
   await click(main().byId("go-import"));
@@ -264,10 +283,13 @@ test("receive, history and settings screens render", async () => {
   await bootWith({
     status: { has_vault: true, unlocked: true, address: ADDR },
     overview: { address: ADDR, balance: 0, nonce: 0, chain_id: "t", height: 1, supply: { supply: 0, coverage: { state: "none" } } },
+    credentials: { address: ADDR, credentials: [{ id: "cnh-1", type: "cnh", status: "active", valid: true }, { id: "cnh-2", type: "cnh", status: "pending", valid: false }] },
     history: { address: ADDR, txs: [{ kind: 1, height: 3, id: "ab".repeat(32), sender: "brdu1" + "p".repeat(58), summary: { to: ADDR, amount: 2_500_000 } }, { kind: 2, height: 2, id: "cd".repeat(32), sender: ADDR, summary: { account: ADDR, amount: 9_000_000 } }] },
     export_phrase: { words: WORDS },
     change_password: { changed: true },
   });
+  const homeText = main().textContent;
+  assert.ok(homeText.includes("Credenciais") && homeText.includes("cnh-1") && homeText.includes("válida") && homeText.includes("pendente"), homeText);
   await click(main().byText("Receber"));
   assert.ok(main().textContent.includes("Receber") && main().textContent.includes("brdu1"));
   await click(main().byId("back"));

@@ -21,5 +21,10 @@ const ERRORS = {
   internal: "Erro interno.",
 };
 
+const STATUS = { pending: "pendente", active: "ativa", contested: "contestada", vetoed: "vetada", revoked: "revogada" };
+
+/** Portuguese label of a credential status (unknown values are shown as they are). */
+export const statusText = (s) => STATUS[s] ?? s;
+
 /** Text for an error code; unknown codes fall back to the raw message so nothing is hidden. */
 export const errorText = (code, fallback = "") => ERRORS[code] ?? (fallback || "Erro inesperado.");

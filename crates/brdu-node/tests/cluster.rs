@@ -395,11 +395,12 @@ fn burst_of_three_hundred_transactions_from_many_accounts_is_included_without_lo
         nodes.iter().all(|n| balance(n, &net.bob) == 300_000)
     });
     wait("same state", 20, || same_state(&nodes));
-    let pool: usize = nodes
-        .iter()
-        .map(|n| n.shared().info.lock().unwrap().pool_len)
-        .sum();
-    assert_eq!(pool, 0, "nothing was left pending");
+    // the core publishes the new pool size right AFTER applying the block: wait for it instead of racing it
+    wait("nothing was left pending", 20, || {
+        nodes
+            .iter()
+            .all(|n| n.shared().info.lock().unwrap().pool_len == 0)
+    });
     // gossip does not echo: each node received each transaction only a few times
     for n in &nodes {
         let dup = n
@@ -671,6 +672,146 @@ fn restart_with_a_pending_change_rebuilds_the_same_pending_set_and_takes_effect_
         c.pending_change().is_some_and(|p| p.effective_height == 31) && c.epoch() == 0
     }));
     for n in again {
+        n.stop();
+    }
+    let _ = std::fs::remove_dir_all(&net.dir);
+}
+
+// ---------------------------------------------------------------- credentials on the network
+
+#[test]
+fn credentials_run_their_whole_life_on_four_real_validators() {
+    use brdu_credentials::{
+        Privacy, TypeSpec, id_payload, issue_doc, issue_payload, revoke_doc, revoke_payload,
+        type_doc, type_payload,
+    };
+    let net = Net::new("creds");
+    let authorities: Vec<SecretKey> = (30..33).map(key).collect();
+    let organ: Vec<SecretKey> = (40..43).map(key).collect();
+    let mut genesis = net.genesis();
+    genesis.authorities = authorities.iter().map(SecretKey::public).collect();
+    genesis.authority_threshold = 2;
+    genesis.min_window = 1; // so the test does not wait a minute for the contest window
+    let mut nodes: Vec<Node> = Vec::new();
+    for i in 0..4 {
+        let peers = nodes.iter().map(|n| n.listen_addr().to_string()).collect();
+        let mut c = net.config(i, peers, true);
+        c.genesis = genesis.clone();
+        nodes.push(Node::start(c).unwrap());
+    }
+    wait("mesh", 20, || nodes.iter().all(|n| n.peer_count() == 3));
+    // the relayer pays the fees of the credential transactions: fund it first
+    nodes[0]
+        .submit(&net.mint(0, &net.relayer, 50_000_000, "dep-relayer"))
+        .unwrap();
+    wait("relayer funded", 20, || {
+        balance(&nodes[0], &net.relayer) > 0
+    });
+    let alice = Address::from_public_key(&net.alice.public());
+    let api = nodes[0].api_addr().unwrap();
+    let send = |kind_: u8, payload: Vec<u8>, node: &Node| {
+        let (nonce, fee) = {
+            let c = node.shared().chain.lock().unwrap();
+            let n = c
+                .state()
+                .nonce(&Address::from_public_key(&net.relayer.public()));
+            let probe = Tx::new_signed(&net.relayer, CHAIN, kind_, n, 0, payload.clone()).unwrap();
+            (n, c.executor().min_fee(&probe).unwrap())
+        };
+        node.submit(&Tx::new_signed(&net.relayer, CHAIN, kind_, nonce, fee, payload).unwrap())
+            .unwrap();
+    };
+    let approvals = |doc: &brdu_crypto::Hash32, keys: &[SecretKey]| -> Vec<Approval> {
+        keys.iter().take(2).map(|k| Approval::new(doc, k)).collect()
+    };
+
+    // 1) the authorities create the type "cnh" (organ 2 of 3, 2 s window)
+    let spec = TypeSpec {
+        id: "cnh".into(),
+        organ: organ.iter().map(SecretKey::public).collect(),
+        threshold: 2,
+        contest: 2,
+        validity: 0,
+        privacy: Privacy::Public,
+        ref_type: String::new(),
+        revokes: false,
+    };
+    send(
+        brdu_credentials::kind::TYPE,
+        type_payload(&spec, &approvals(&type_doc(CHAIN, &spec), &authorities)),
+        &nodes[0],
+    );
+    wait("type visible on every node", 30, || {
+        nodes.iter().all(|n| {
+            http(n.api_addr().unwrap(), "GET", "/credential-types", "").1["types"]
+                .as_array()
+                .is_some_and(|t| t.len() == 1)
+        })
+    });
+
+    // 2) the organ issues a credential to alice: it is born PENDING on every node
+    let doc = issue_doc(CHAIN, "cnh", "cnh-1", &alice, b"category=B", "");
+    send(
+        brdu_credentials::kind::ISSUE,
+        issue_payload(
+            "cnh",
+            "cnh-1",
+            &alice,
+            b"category=B",
+            "",
+            &approvals(&doc, &organ),
+        ),
+        &nodes[1],
+    );
+    wait("pending everywhere", 30, || {
+        nodes.iter().all(|n| {
+            http(n.api_addr().unwrap(), "GET", "/credential/cnh-1", "").1["status"] == "pending"
+        })
+    });
+    let (_, c) = http(api, "GET", "/credential/cnh-1", "");
+    assert_eq!(
+        (
+            c["valid"].as_bool(),
+            c["data_hex"].as_str(),
+            c["subject"].as_str()
+        ),
+        (
+            Some(false),
+            Some(hex::encode(b"category=B").as_str()),
+            Some(alice.encode().as_str())
+        )
+    );
+
+    // 3) activating inside the window fails (the transaction is dropped), after it works
+    std::thread::sleep(Duration::from_millis(2500));
+    send(
+        brdu_credentials::kind::ACTIVATE,
+        id_payload("cnh-1"),
+        &nodes[2],
+    );
+    wait("active everywhere", 30, || {
+        nodes
+            .iter()
+            .all(|n| http(n.api_addr().unwrap(), "GET", "/credential/cnh-1", "").1["valid"] == true)
+    });
+    let (_, mine) = http(api, "GET", &format!("/credentials/{}", alice.encode()), "");
+    assert_eq!(mine["credentials"].as_array().unwrap().len(), 1);
+
+    // 4) the organ revokes it
+    let doc = revoke_doc(CHAIN, "cnh-1", "fraud");
+    send(
+        brdu_credentials::kind::REVOKE,
+        revoke_payload("cnh-1", "fraud", &approvals(&doc, &organ)),
+        &nodes[3],
+    );
+    wait("revoked everywhere", 30, || {
+        nodes.iter().all(|n| {
+            http(n.api_addr().unwrap(), "GET", "/credential/cnh-1", "").1["status"] == "revoked"
+        })
+    });
+    wait("same state", 20, || same_state(&nodes));
+    assert_eq!(http(api, "GET", "/credential/ghost", "").0, 404);
+    for n in nodes {
         n.stop();
     }
     let _ = std::fs::remove_dir_all(&net.dir);
