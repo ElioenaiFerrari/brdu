@@ -25,7 +25,8 @@
 | M8 | carteira: cofre criptografado (Argon2id + ChaCha20-Poly1305), serviço, interface no tema do BRDC, app desktop Tauri v2 e daemon web (`cargo dev wallet-web`) | **pronto** |
 | M9a | credenciais nativas (tipos 14 a 19): `brdu-credentials`, `cargo dev cred`, explorador e carteira | **pronto** |
 | M9b | bens nativos (tipos 5 a 13): `brdu-assets`, `cargo dev asset`, explorador e carteira | **pronto** |
-| M9c a M10 | contratos declarativos, fechamento | planejado ([fases](docs/PHASES.md)) |
+| M9c | contratos declarativos (tipos 20 e 21): `brdu-contracts`, `cargo dev contract`, explorador e carteira | **pronto** |
+| M10 | fechamento (revisão, conceitos, comparação final Rust × Elixir) | planejado ([fases](docs/PHASES.md)) |
 
 ## Mapa de crates
 | Crate | Papel | Marco |
@@ -43,6 +44,7 @@
 | `tools/brdu-sim` | simulador só de dev: equivocação de um validador de teste (a rede expõe a evidência). | M5b |
 | `tools/brdu-explorer` | explorador: réplica verificada + página web (tema BRDC) + API JSON somente leitura. | M7 |
 | `brdu-assets` | bens: classes com órgão M-de-N, registro, negociação com escrow e janela de veto, gravames (tipos 5 a 13). | M9b |
+| `brdu-contracts` | contratos entre partes: modelos declarativos de máquina de estado, vocabulário fechado, sem VM (tipos 20 e 21). | M9c |
 | `brdu-credentials` | credenciais: tipos com órgão M-de-N, janela de contestação, validade, veto, revogação (tipos 14 a 19). | M9a |
 | `brdu-vault` | cofre da frase de recuperação: Argon2id + ChaCha20-Poly1305, cabeçalho autenticado, passphrase nunca guardada. | M8 |
 | `brdu-walletd` | serviço da carteira (criar, importar, desbloquear, saldo, prévia e envio, histórico); a chave nunca sai do processo. | M8 |

@@ -143,6 +143,19 @@
 | `cargo dev asset` percorre veto, finalização e gravames contra nós reais | `tools/brdu-dev/tests/cli.rs` |
 | Carteira e explorador mostram os bens | `crates/brdu-walletd/tests/wallet.rs`, testes de interface |
 
+## M9c · contratos (pronto)
+| Invariante | Teste |
+|---|---|
+| Compra e venda: só B aceita; a custódia recebe o preço; confirmar paga A; reembolso por prazo (qualquer um, limite exato) devolve a B; cancelar só antes do aceite | `crates/brdu-contracts/tests/contracts.rs` |
+| Aluguel: caução, parcelas limitadas ao termo, acerto antecipado devolve a caução, acerto por prazo desconta as parcelas não pagas | `contracts.rs` |
+| Empréstimo: principal travado na criação, entregue no aceite, devolução, inadimplência só após o prazo, cancelar devolve | `contracts.rs` |
+| Criação validada: modelo, termos, prazos, estouro de aluguel, id repetido, parte B diferente | `contracts.rs` |
+| Aceite sem saldo falha inteiro, sem custódia | `contracts.rs` |
+| **Conservação:** custódia = a do contrato, zero nos estados finais, nada é criado, em qualquer sequência | `contracts.rs` (propriedade) |
+| **Oráculo do BRDC:** payloads de criação e ação byte a byte | `crates/brdu-contracts/tests/oracle.rs` |
+| `cargo dev contract` percorre venda e empréstimo contra nós reais | `tools/brdu-dev/tests/cli.rs` |
+| Explorador e carteira mostram os contratos | testes de interface, `crates/brdu-walletd/tests/wallet.rs` |
+
 ## Planejado por marco
 M6 limites do Docker e carga; M9 contratos.
 

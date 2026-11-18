@@ -51,4 +51,8 @@ Começa com o que o M1 cobre e cresce a cada marco. Cada linha diz o que é miti
 | T39 | Vendedor leva o dinheiro e não entrega (ou o contrário) | escrow: o preço sai do comprador no aceite e só vai ao vendedor junto com a propriedade | o dinheiro fica preso durante a janela |
 | T40 | Finalizar com gravame para fugir de dívida | finalização falha enquanto houver gravame | órgão que não remove o gravame |
 
+| T41 | Contrato que cria ou destrói dinheiro (estouro, custódia errada) | aritmética em 128 bits com recusa de estouro; custódia contabilizada e testada por propriedade | — |
+| T42 | Parte errada ou fora do prazo aciona uma transição | estado, ator e condições de tempo conferidos pelo ledger com a hora do bloco | — |
+| T43 | Código arbitrário em contrato | não há VM: vocabulário fechado, modelos revisados no código | modelo novo exige atualização da rede |
+
 Os itens do BRDC (T10 a T29: equivocação, mempool, laboratório, órgãos, contratos, explorador mentiroso…) entram com os marcos que os criam, reescritos para o Rust.

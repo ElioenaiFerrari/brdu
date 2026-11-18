@@ -14,6 +14,7 @@
 11. [A carteira](flows/11-wallet.md) (M8)
 12. [Credenciais](flows/12-credentials.md) (M9a)
 13. [Bens e negociação](flows/13-assets.md) (M9b)
+14. [Contratos entre partes](flows/14-contracts.md) (M9c)
 
 Os demais chegam com os marcos (o BRDC tem 24 fluxos que serão reescritos aqui).
 
