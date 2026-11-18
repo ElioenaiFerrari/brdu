@@ -256,11 +256,22 @@ version = "0.1.0"
 dependencies = [
  "brdu-assets",
  "brdu-bft",
+ "brdu-contracts",
  "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",
  "proptest",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "brdu-contracts"
+version = "0.1.0"
+dependencies = [
+ "brdu-crypto",
+ "brdu-ledger",
+ "proptest",
+ "serde_json",
 ]
 
 [[package]]
@@ -295,6 +306,7 @@ version = "0.1.0"
 dependencies = [
  "brdu-assets",
  "brdu-chain",
+ "brdu-contracts",
  "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",
@@ -311,6 +323,7 @@ dependencies = [
  "brdu-assets",
  "brdu-bft",
  "brdu-chain",
+ "brdu-contracts",
  "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",
@@ -345,6 +358,7 @@ dependencies = [
  "brdu-assets",
  "brdu-bft",
  "brdu-chain",
+ "brdu-contracts",
  "brdu-credentials",
  "brdu-crypto",
  "brdu-ledger",

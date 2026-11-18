@@ -10,6 +10,7 @@ description = "The BRDU chain: genesis, validator set, finalized blocks with cer
 brdu-crypto.workspace = true
 brdu-ledger.workspace = true
 brdu-assets.workspace = true
+brdu-contracts.workspace = true
 brdu-credentials.workspace = true
 brdu-bft.workspace = true
 thiserror = { workspace = true, features = ["std"] }

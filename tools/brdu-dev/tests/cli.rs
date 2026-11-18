@@ -416,3 +416,165 @@ fn the_asset_commands_run_a_trade_with_escrow_veto_and_liens() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_contract_commands_run_a_sale_and_a_loan_with_escrow() {
+    let dir = tmp("contract");
+    let base = 18_000;
+    ok(&dir, &["init", "--port-base", &base.to_string()]);
+    let nodes = start_nodes(&dir, base);
+    ok(&dir, &["wallet", "new", "alice"]);
+    ok(&dir, &["wallet", "new", "bob"]);
+    ok(&dir, &["fund", "alice", "50"]);
+    wait("alice funded", || {
+        ok(&dir, &["balance", "alice"]).contains("50,000000")
+    });
+    ok(&dir, &["fund", "bob", "50"]);
+    wait("bob funded", || {
+        ok(&dir, &["balance", "bob"]).contains("50,000000")
+    });
+
+    let templates = ok(&dir, &["contract", "templates"]);
+    assert!(
+        templates.contains("compra-venda")
+            && templates.contains("refund_expired")
+            && templates.contains("emprestimo"),
+        "{templates}"
+    );
+
+    // sale: bob accepts (10 BRDU to escrow), then confirms (alice is paid)
+    ok(
+        &dir,
+        &[
+            "contract",
+            "create",
+            "--template",
+            "compra-venda",
+            "--id",
+            "cv-1",
+            "--as",
+            "alice",
+            "--with",
+            "bob",
+            "--terms",
+            "m:10,3600",
+        ],
+    );
+    wait("created", || {
+        dev(&dir, &["contract", "show", "cv-1"])
+            .1
+            .contains("[open]")
+    });
+    ok(
+        &dir,
+        &[
+            "contract", "act", "--id", "cv-1", "--as", "bob", "--action", "accept",
+        ],
+    );
+    wait("funded", || {
+        dev(&dir, &["contract", "show", "cv-1"])
+            .1
+            .contains("escrow 10000000")
+    });
+    // the wrong party cannot confirm: the network drops it and the state does not change
+    ok(
+        &dir,
+        &[
+            "contract", "act", "--id", "cv-1", "--as", "alice", "--action", "confirm",
+        ],
+    );
+    ok(
+        &dir,
+        &[
+            "contract", "act", "--id", "cv-1", "--as", "bob", "--action", "confirm",
+        ],
+    );
+    wait("done", || {
+        dev(&dir, &["contract", "show", "cv-1"])
+            .1
+            .contains("[done]")
+    });
+    assert!(
+        dev(&dir, &["contract", "show", "cv-1"])
+            .1
+            .contains("escrow 0")
+    );
+    assert!(ok(&dir, &["contract", "list", "alice"]).contains("cv-1"));
+    assert!(
+        ok(&dir, &["balance", "alice"]).contains("59,"),
+        "alice was paid the price (minus fees)"
+    );
+
+    // loan: the principal is locked at creation, paid out on accept, repaid with the agreed amount
+    ok(
+        &dir,
+        &[
+            "contract",
+            "create",
+            "--template",
+            "emprestimo",
+            "--id",
+            "em-1",
+            "--as",
+            "alice",
+            "--with",
+            "bob",
+            "--terms",
+            "m:5,m:6,600",
+        ],
+    );
+    wait("locked", || {
+        dev(&dir, &["contract", "show", "em-1"])
+            .1
+            .contains("escrow 5000000")
+    });
+    ok(
+        &dir,
+        &[
+            "contract", "act", "--id", "em-1", "--as", "bob", "--action", "accept",
+        ],
+    );
+    wait("active", || {
+        dev(&dir, &["contract", "show", "em-1"])
+            .1
+            .contains("[active]")
+    });
+    ok(
+        &dir,
+        &[
+            "contract", "act", "--id", "em-1", "--as", "bob", "--action", "repay",
+        ],
+    );
+    wait("repaid", || {
+        dev(&dir, &["contract", "show", "em-1"])
+            .1
+            .contains("[repaid]")
+    });
+
+    assert!(ok(&dir, &["contract"]).contains("cargo dev contract <command>"));
+    assert!(!dev(&dir, &["contract", "nonsense"]).0);
+    assert!(
+        !dev(
+            &dir,
+            &[
+                "contract",
+                "create",
+                "--template",
+                "x",
+                "--id",
+                "i",
+                "--as",
+                "alice",
+                "--with",
+                "bob",
+                "--terms",
+                "abc"
+            ]
+        )
+        .0
+    );
+    for n in nodes {
+        n.stop();
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

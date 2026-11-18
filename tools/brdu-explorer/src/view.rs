@@ -32,7 +32,8 @@ pub const fn kind_name(k: u8) -> &'static str {
         brdu_credentials::kind::VETO => "credential veto",
         brdu_credentials::kind::ACTIVATE => "credential activation",
         brdu_credentials::kind::REVOKE => "credential revocation",
-        20..=21 => "contracts",
+        brdu_contracts::kind::CREATE => "contract creation",
+        brdu_contracts::kind::ACT => "contract action",
         _ => "unknown",
     }
 }
@@ -64,6 +65,13 @@ pub fn counterparty(tx: &Tx) -> Option<Address> {
             d.string(64).ok()?;
             Some(Address(Hash32(d.fixed::<32>().ok()?)))
         }
+        // a contract created for someone shows up on their page
+        brdu_contracts::kind::CREATE => {
+            let mut d = Decoder::new(&tx.payload);
+            d.string(32).ok()?;
+            d.string(64).ok()?;
+            Some(Address(Hash32(d.fixed::<32>().ok()?)))
+        }
         _ => None,
     }
 }
@@ -86,6 +94,16 @@ fn summary(tx: &Tx) -> Value {
             (Ok(seq), Ok(reserve), Ok(reference)) => {
                 json!({"seq": seq, "reserve": reserve, "reference": reference})
             }
+            _ => Value::Null,
+        },
+        brdu_contracts::kind::CREATE => match (d.string(32), d.string(64), d.fixed::<32>()) {
+            (Ok(t), Ok(id), Ok(b)) => {
+                json!({"template": t, "contract": id, "party_b": Address(Hash32(b)).encode()})
+            }
+            _ => Value::Null,
+        },
+        brdu_contracts::kind::ACT => match (d.string(64), d.string(32)) {
+            (Ok(id), Ok(action)) => json!({"contract": id, "action": action}),
             _ => Value::Null,
         },
         brdu_assets::kind::CLASS => d.string(32).map_or(Value::Null, |id| json!({"class": id})),
@@ -247,7 +265,18 @@ pub fn account(e: &Explorer, a: &Address, skip: usize, limit: usize) -> Value {
         "tx_count": e.account_tx_count(a), "txs": txs,
         "credentials": credentials(e, a)["credentials"],
         "assets": assets(e, a)["assets"],
+        "contracts": contracts(e, a)["contracts"],
     })
+}
+
+/// The contracts an account is a party of (from the verified replica).
+#[must_use]
+pub fn contracts(e: &Explorer, a: &Address) -> Value {
+    let list: Vec<Value> = brdu_contracts::contracts_of(e.chain.state(), a)
+        .iter()
+        .map(|c| json!({"id": c.id, "template": c.template, "state": c.state, "escrow": c.escrow, "a": c.a.encode(), "b": c.b.encode(), "terms": c.terms}))
+        .collect();
+    json!({"address": a.encode(), "contracts": list})
 }
 
 /// The assets an account owns, with the trade in progress (from the verified replica).

@@ -12,6 +12,7 @@ brdu-wallet.workspace = true
 brdu-ledger.workspace = true
 brdu-chain.workspace = true
 brdu-assets.workspace = true
+brdu-contracts.workspace = true
 brdu-credentials.workspace = true
 serde_json.workspace = true
 getrandom.workspace = true

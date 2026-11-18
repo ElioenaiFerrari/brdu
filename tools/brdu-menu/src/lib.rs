@@ -104,6 +104,13 @@ pub const CATALOG: &[Item] = &[
     ),
     it(
         "Local network (processes)",
+        "Contracts: templates and transitions (contract templates)",
+        &["contract", "templates"],
+        &[],
+        true,
+    ),
+    it(
+        "Local network (processes)",
         "Assets: list classes (asset classes)",
         &["asset", "classes"],
         &[],

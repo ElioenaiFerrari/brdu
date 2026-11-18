@@ -185,6 +185,10 @@ pub fn api(e: &Explorer, path: &str, query: &str) -> (u16, Value) {
             ),
             Err(_) => (400, json!({"error": "invalid address"})),
         },
+        ["contracts", a] => match Address::decode(a) {
+            Ok(a) => (200, view::contracts(e, &a)),
+            Err(_) => (400, json!({"error": "invalid address"})),
+        },
         ["assets", a] => match Address::decode(a) {
             Ok(a) => (200, view::assets(e, &a)),
             Err(_) => (400, json!({"error": "invalid address"})),

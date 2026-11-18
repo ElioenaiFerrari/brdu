@@ -153,6 +153,7 @@ const screens = {
     const rest = h("div", { id: "home-rest" });
     const creds = h("div", { id: "home-creds" });
     const assetsBox = h("div", { id: "home-assets" });
+    const contractsBox = h("div", { id: "home-contracts" });
     const load = async () => {
       const o = await attempt(() => rpc("overview"));
       if (S.screen !== "home") return;
@@ -175,6 +176,12 @@ const screens = {
           h("div", { class: "card" }, h("h2", {}, "Bens"), h("ul", { class: "list" }, as.assets.map((x) => h("li", { class: "row" }, h("div", {}, h("div", {}, x.id), h("div", { class: "sub" }, `classe ${x.class}${Object.keys(x.liens || {}).length ? " · com gravame" : ""}`)), h("div", { class: "end" }, x.deal ? h("span", { class: "chip yellow" }, x.deal.status === "accepted" ? "em negociação" : "oferecido") : null))))),
         );
       }
+      const ct = await rpc("contracts").catch(() => null);
+      if (S.screen === "home" && ct?.contracts?.length) {
+        contractsBox.replaceChildren(
+          h("div", { class: "card" }, h("h2", {}, "Contratos"), h("ul", { class: "list" }, ct.contracts.map((c) => h("li", { class: "row" }, h("div", {}, h("div", {}, c.id), h("div", { class: "sub" }, `modelo ${c.template}`)), h("div", { class: "end" }, h("span", { class: "chip" }, c.state)))))),
+        );
+      }
       S.timer = setTimeout(load, 4000);
     };
     const actions = h("div", { class: "actions" }, ...[["send", "Enviar"], ["receive", "Receber"], ["history", "Histórico"], ["settings", "Ajustes"]].map(([to, label]) => h("button", { class: "ghost", type: "button", "data-go": to }, label)));
@@ -183,7 +190,7 @@ const screens = {
       if (to) go(to === "send" ? "send" : to, to === "send" ? { step: "edit", to: "", typed: "" } : {});
     });
     load();
-    return h("div", { class: "stack" }, wrap, actions, rest, creds, assetsBox);
+    return h("div", { class: "stack" }, wrap, actions, rest, creds, assetsBox, contractsBox);
   },
 
   receive: () => {

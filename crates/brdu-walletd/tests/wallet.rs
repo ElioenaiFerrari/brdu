@@ -696,6 +696,7 @@ fn the_wallet_lists_the_credentials_issued_to_it() {
     w.lock();
     assert_eq!(code(w.credentials()), "locked");
     assert_eq!(code(w.assets()), "locked");
+    assert_eq!(code(w.contracts()), "locked");
     lab.stop();
 }
 

@@ -2,6 +2,7 @@
 
 mod asset;
 mod compose;
+mod contract;
 mod cred;
 mod docs_check;
 mod http;
@@ -26,6 +27,7 @@ local network (processes)
   up [--dir net]                      starts the validators (logs in net/logs)
   down [--dir net]                    stops the validators
   explorer [stop] [--listen 127.0.0.1:8545] [--node 1]   opens the web explorer (re-verifies every block)
+  contract <command>                  contracts between parties (templates, create, act, list, show); see `cargo dev contract`
   asset <command>                     assets (classes, class, register, offer, accept, veto, finalize, deals, liens); see `cargo dev asset`
   cred <command>                      credentials (types, issue, contest, veto, activate, revoke, list); see `cargo dev cred`
   wallet-web [stop] [--listen 127.0.0.1:8546]   opens the wallet in the browser (TEST keys; vault in <dir>/wallet)
@@ -131,6 +133,7 @@ fn main() {
         "explorer" => cmd_explorer(&a),
         "cred" => cred::run(&a),
         "asset" => asset::run(&a),
+        "contract" => contract::run(&a),
         "wallet-web" => cmd_wallet_web(&a),
         "start" => cmd_start(&a),
         "equivocate" => cmd_equivocate(&a),

@@ -35,6 +35,8 @@ pub struct Rules {
     pub credential_fee: u64,
     /// Minimum fee of each step of an asset trade: offer, accept, cancel, finalize (default 0.02 BRDU).
     pub step_fee: u64,
+    /// Minimum fee of each step of a contract between parties (default 0.01 BRDU).
+    pub contract_fee: u64,
 }
 
 impl Rules {
@@ -56,6 +58,8 @@ impl Rules {
     pub const DEFAULT_CREDENTIAL_FEE: u64 = 10_000;
     /// Default fee of an asset trade step (0.02 BRDU).
     pub const DEFAULT_STEP_FEE: u64 = 20_000;
+    /// Default fee of a contract step (0.01 BRDU).
+    pub const DEFAULT_CONTRACT_FEE: u64 = 10_000;
 
     /// Rules with the defaults, for `chain_id`, `issuers` and the threshold M. Fails if the threshold is not in
     /// `1..=N` or if there are no issuers.
@@ -89,6 +93,7 @@ impl Rules {
             registration_fee: Self::DEFAULT_REGISTRATION_FEE,
             credential_fee: Self::DEFAULT_CREDENTIAL_FEE,
             step_fee: Self::DEFAULT_STEP_FEE,
+            contract_fee: Self::DEFAULT_CONTRACT_FEE,
         })
     }
 

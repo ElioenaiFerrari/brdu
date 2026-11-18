@@ -12,6 +12,7 @@ brdu-ledger.workspace = true
 brdu-bft.workspace = true
 brdu-chain.workspace = true
 brdu-assets.workspace = true
+brdu-contracts.workspace = true
 brdu-credentials.workspace = true
 brdu-p2p.workspace = true
 thiserror = { workspace = true, features = ["std"] }

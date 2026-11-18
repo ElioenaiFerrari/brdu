@@ -64,7 +64,8 @@ impl Chain {
             exec: make(rules)
                 .with_module(Box::new(brdu_ledger::gov::GovModule))
                 .with_module(Box::new(brdu_credentials::CredentialsModule))
-                .with_module(Box::new(brdu_assets::AssetsModule)),
+                .with_module(Box::new(brdu_assets::AssetsModule))
+                .with_module(Box::new(brdu_contracts::ContractsModule)),
             state: seed_state(&genesis),
             blocks: Vec::new(),
             validated: None,

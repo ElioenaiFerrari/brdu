@@ -9,6 +9,8 @@ const KINDS = {
   "validator change": "troca de validador",
   assets: "bens",
   credentials: "credenciais",
+  "contract creation": "criação de contrato",
+  "contract action": "ação em contrato",
   "asset class": "classe de bens",
   "asset registration": "registro de bem",
   "asset offer": "oferta de bem",

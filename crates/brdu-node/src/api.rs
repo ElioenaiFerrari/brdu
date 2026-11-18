@@ -201,6 +201,41 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
             }
             Err(_) => (400, json!({"error": "invalid address"})),
         },
+        ["contract-templates"] => {
+            let list: Vec<Value> = brdu_contracts::TEMPLATE_IDS
+                .iter()
+                .filter_map(|id| brdu_contracts::template(id))
+                .map(|t| {
+                    json!({
+                        "id": t.id, "terms": t.terms, "initial_state": t.initial_state,
+                        "locks_at_creation": !t.initial_effects.is_empty(),
+                        "transitions": t.transitions.iter().map(|x| json!({
+                            "name": x.name, "from": x.from, "to": x.to,
+                            "actor": match x.actor {
+                                brdu_contracts::Actor::OnlyA => "a",
+                                brdu_contracts::Actor::OnlyB => "b",
+                                brdu_contracts::Actor::Any => "any",
+                            },
+                        })).collect::<Vec<_>>(),
+                    })
+                })
+                .collect();
+            (200, json!({"templates": list}))
+        }
+        ["contract", id] => match brdu_contracts::get_contract(chain.state(), id) {
+            Some(c) => (200, contract_json(&c)),
+            None => (404, json!({"error": "contract not found"})),
+        },
+        ["contracts", addr] => match Address::decode(addr) {
+            Ok(a) => {
+                let list: Vec<Value> = brdu_contracts::contracts_of(chain.state(), &a)
+                    .iter()
+                    .map(contract_json)
+                    .collect();
+                (200, json!({"address": a.encode(), "contracts": list}))
+            }
+            Err(_) => (400, json!({"error": "invalid address"})),
+        },
         ["asset-classes"] => {
             let list: Vec<Value> = brdu_assets::list_classes(chain.state())
                 .iter()
@@ -254,7 +289,7 @@ fn route(parts: &[&str], query: &str, shared: &Shared) -> (u16, Value) {
         }
         ["fees"] => (
             200,
-            json!({"transfer_base": rules.transfer_base, "per_byte": rules.per_byte, "max_block_txs": rules.max_block_txs, "max_block_bytes": rules.max_block_bytes, "registration_fee": rules.registration_fee, "credential_fee": rules.credential_fee, "step_fee": rules.step_fee}),
+            json!({"transfer_base": rules.transfer_base, "per_byte": rules.per_byte, "max_block_txs": rules.max_block_txs, "max_block_bytes": rules.max_block_bytes, "registration_fee": rules.registration_fee, "credential_fee": rules.credential_fee, "step_fee": rules.step_fee, "contract_fee": rules.contract_fee}),
         ),
         ["account", addr] => match Address::decode(addr) {
             Ok(a) => (
@@ -399,5 +434,13 @@ fn asset_json(a: &brdu_assets::Asset, deal: Option<&brdu_assets::Deal>) -> Value
     json!({
         "id": a.id, "class": a.class, "owner": a.owner.encode(), "meta_hex": hex::encode(&a.meta), "rev": a.rev,
         "liens": a.liens, "deal": deal.map(deal_json),
+    })
+}
+
+fn contract_json(c: &brdu_contracts::Contract) -> Value {
+    json!({
+        "id": c.id, "template": c.template, "a": c.a.encode(), "b": c.b.encode(), "terms": c.terms,
+        "state": c.state, "escrow": c.escrow, "vars": c.vars,
+        "final": brdu_contracts::TERMINAL.contains(&c.state.as_str()),
     })
 }
